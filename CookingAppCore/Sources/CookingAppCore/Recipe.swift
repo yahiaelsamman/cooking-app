@@ -76,15 +76,25 @@ public struct Recipe: Identifiable, Codable, Hashable, Sendable {
     public let title: String
     public let summary: String
     public let servings: Int?
-    /// Master ordered list across every assignee; per-person tracks are derived from this.
-    public let steps: [RecipeStep]
+    /// The solo-cooking step list — always present, every step tagged `.solo`. Written as its
+    /// own version, not derived from `twoPersonSteps`: it reads naturally for one person (no
+    /// "Both:" phrasing, no assignee-based hue shifts in the UI) and its cook time reflects doing
+    /// everything sequentially rather than splitting labor.
+    public let soloSteps: [RecipeStep]
+    /// The two-person task split, if this recipe has one. `nil` means there's no sensible way to
+    /// divide this recipe's steps between two people — two-person mode simply isn't offered for
+    /// it at all (see `supportsTwoPerson`), rather than falling back to some generic mirror of
+    /// the solo steps.
+    public let twoPersonSteps: [RecipeStep]?
     /// SF Symbol shown as this recipe's "photo" on the list/overview screens.
     public let iconSystemName: String
     /// 1...3, rendered as filled-out-of-3 stars.
     public let difficulty: Int
     /// 0...3, rendered as filled-out-of-3 flames. 0 means not spicy at all.
     public let spiceLevel: Int
-    public let cookTimeMinutes: Int
+    public let soloCookTimeMinutes: Int
+    /// `nil` when `twoPersonSteps` is `nil`.
+    public let twoPersonCookTimeMinutes: Int?
     public let dietaryTags: [DietaryTag]
     public let ingredients: [Ingredient]
 
@@ -93,11 +103,13 @@ public struct Recipe: Identifiable, Codable, Hashable, Sendable {
         title: String,
         summary: String,
         servings: Int? = nil,
-        steps: [RecipeStep],
+        soloSteps: [RecipeStep],
+        twoPersonSteps: [RecipeStep]? = nil,
         iconSystemName: String,
         difficulty: Int,
         spiceLevel: Int = 0,
-        cookTimeMinutes: Int,
+        soloCookTimeMinutes: Int,
+        twoPersonCookTimeMinutes: Int? = nil,
         dietaryTags: [DietaryTag] = [],
         ingredients: [Ingredient]
     ) {
@@ -105,37 +117,35 @@ public struct Recipe: Identifiable, Codable, Hashable, Sendable {
         self.title = title
         self.summary = summary
         self.servings = servings
-        self.steps = steps
+        self.soloSteps = soloSteps
+        self.twoPersonSteps = twoPersonSteps
         self.iconSystemName = iconSystemName
         self.difficulty = difficulty
         self.spiceLevel = spiceLevel
-        self.cookTimeMinutes = cookTimeMinutes
+        self.soloCookTimeMinutes = soloCookTimeMinutes
+        self.twoPersonCookTimeMinutes = twoPersonCookTimeMinutes
         self.dietaryTags = dietaryTags
         self.ingredients = ingredients
     }
 
-    /// True when this recipe has an actual hand-curated Person A / Person B task split.
-    /// Two-person mode is still available on recipes where this is false (see `track(for:)`) —
-    /// it just falls back to mirroring the same full step list to both phones, rather than
-    /// dividing labor, since there's no sensible split to offer.
-    public var hasCuratedSplit: Bool {
-        steps.contains { $0.assignee == .personA || $0.assignee == .personB }
+    /// Whether two-person mode should be offered for this recipe at all.
+    public var supportsTwoPerson: Bool { twoPersonSteps != nil }
+
+    public func cookTimeMinutes(forTwoPerson: Bool) -> Int {
+        forTwoPerson ? (twoPersonCookTimeMinutes ?? soloCookTimeMinutes) : soloCookTimeMinutes
     }
 
     /// The ordered list of steps visible to a given role.
-    ///
-    /// - `role: nil` — solo mode: the full step list, in order.
-    /// - `role: .personA` / `.personB` on a recipe with a curated split — that person's own
-    ///   steps plus every `.shared` step.
-    /// - `role: .personA` / `.personB` on a recipe **without** a curated split — the full step
-    ///   list, same as solo. This is the "mirror mode" fallback: two people can still cook any
-    ///   recipe together, side by side, each following the complete recipe on their own phone,
-    ///   even when there's no sensible way to divide its steps into two tracks.
+    /// - `role: nil` — solo mode: `soloSteps`, in order.
+    /// - `role: .personA` / `.personB` — that person's own steps plus every `.shared` step from
+    ///   `twoPersonSteps`. Falls back to `soloSteps` if this recipe has no two-person steps at
+    ///   all — shouldn't happen in practice, since the UI only offers two-person mode when
+    ///   `supportsTwoPerson` is true, but keeps this safe to call regardless.
     public func track(for role: StepAssignee?) -> [RecipeStep] {
-        guard let role, hasCuratedSplit else {
-            return steps.sorted { $0.order < $1.order }
+        guard let role, let twoPersonSteps else {
+            return soloSteps.sorted { $0.order < $1.order }
         }
-        return steps
+        return twoPersonSteps
             .filter { $0.assignee == .shared || $0.assignee == role }
             .sorted { $0.order < $1.order }
     }

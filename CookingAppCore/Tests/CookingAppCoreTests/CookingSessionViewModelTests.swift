@@ -119,7 +119,7 @@ struct CookingSessionViewModelTests {
     @Test func cancellingATimerThatIsntRunningDoesNotFireOnTimerUnscheduled() {
         let recipe = SampleRecipes.searedSteak
         let session = CookingSessionViewModel(recipe: recipe)
-        let neverStartedStep = recipe.steps.first { $0.timerSeconds == 180 }!
+        let neverStartedStep = recipe.soloSteps.first { $0.timerSeconds == 180 }!
 
         var fired = false
         session.onTimerUnscheduled = { _ in fired = true }

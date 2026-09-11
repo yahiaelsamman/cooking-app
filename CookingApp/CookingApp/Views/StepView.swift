@@ -46,7 +46,6 @@ struct StepView: View {
             Text("Your partner will be disconnected too. You can keep cooking on your own afterward.")
         }
         .onAppear {
-            NotificationScheduler.requestAuthorizationIfNeeded()
             session.onTimerScheduled = { step, duration in
                 NotificationScheduler.schedule(step: step, durationSeconds: duration)
             }

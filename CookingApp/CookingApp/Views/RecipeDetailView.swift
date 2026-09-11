@@ -27,7 +27,12 @@ struct RecipeDetailView: View {
                     dietaryTagsRow
                 }
 
-                modePicker
+                // Only offered when the recipe actually has a curated two-person split — there's
+                // no generic "mirror" fallback, so a recipe without one simply doesn't show this
+                // at all rather than offering a toggle that leads nowhere useful.
+                if recipe.supportsTwoPerson {
+                    modePicker
+                }
 
                 startCookingButton
 
@@ -75,7 +80,7 @@ struct RecipeDetailView: View {
                 }
             }
             VStack(spacing: 4) {
-                Label("\(recipe.cookTimeMinutes) min", systemImage: "clock.fill")
+                Label("\(recipe.cookTimeMinutes(forTwoPerson: mode == .twoPerson)) min", systemImage: "clock.fill")
                 Text("Cook Time").font(.caption2).foregroundStyle(.secondary)
             }
             if let servings = recipe.servings {
@@ -87,6 +92,7 @@ struct RecipeDetailView: View {
         }
         .font(.subheadline.weight(.medium))
         .frame(maxWidth: .infinity)
+        .animation(.default, value: mode)
     }
 
     private var dietaryTagsRow: some View {
@@ -103,9 +109,6 @@ struct RecipeDetailView: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// Every recipe can be cooked solo or with a partner — two-person mode divides labor when
-    /// there's a curated split, and otherwise mirrors the full recipe to both phones so you can
-    /// still cook together side by side.
     private var modePicker: some View {
         VStack(alignment: .leading, spacing: 6) {
             Picker("Cooking mode", selection: $mode) {
@@ -116,9 +119,7 @@ struct RecipeDetailView: View {
             .pickerStyle(.segmented)
 
             if mode == .twoPerson {
-                Text(recipe.hasCuratedSplit
-                     ? "Splits into two tracks — you and your partner each handle half, with a few steps together."
-                     : "No task split for this one — you'll each cook the full recipe on your own phone, synced together.")
+                Text("Splits into two tracks — you and your partner each handle half, with a few steps together.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -158,12 +159,12 @@ struct RecipeDetailView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Steps").font(.title3.bold())
 
-            if recipe.hasCuratedSplit {
-                stepsGroup(title: "Together", steps: recipe.steps.filter { $0.assignee == .shared }.sorted { $0.order < $1.order })
-                stepsGroup(title: "Person A", steps: recipe.steps.filter { $0.assignee == .personA }.sorted { $0.order < $1.order })
-                stepsGroup(title: "Person B", steps: recipe.steps.filter { $0.assignee == .personB }.sorted { $0.order < $1.order })
+            if mode == .twoPerson, let twoPersonSteps = recipe.twoPersonSteps {
+                stepsGroup(title: "Together", steps: twoPersonSteps.filter { $0.assignee == .shared }.sorted { $0.order < $1.order })
+                stepsGroup(title: "Person A", steps: twoPersonSteps.filter { $0.assignee == .personA }.sorted { $0.order < $1.order })
+                stepsGroup(title: "Person B", steps: twoPersonSteps.filter { $0.assignee == .personB }.sorted { $0.order < $1.order })
             } else {
-                stepsGroup(title: nil, steps: recipe.track(for: nil))
+                stepsGroup(title: nil, steps: recipe.soloSteps.sorted { $0.order < $1.order })
             }
         }
     }

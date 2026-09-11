@@ -12,7 +12,7 @@ public enum SampleRecipes {
         title: "Classic Scrambled Eggs",
         summary: "Soft, creamy scrambled eggs in under 5 minutes.",
         servings: 1,
-        steps: [
+        soloSteps: [
             RecipeStep(order: 0, instruction: "Crack 3 eggs into a bowl.", assignee: .solo, imageSystemName: "basket.fill"),
             RecipeStep(order: 1, instruction: "Add a splash of milk and a pinch of salt.", assignee: .solo, imageSystemName: "sparkles"),
             RecipeStep(order: 2, instruction: "Whisk until fully combined and slightly frothy.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath"),
@@ -23,7 +23,7 @@ public enum SampleRecipes {
         ],
         iconSystemName: "frying.pan.fill",
         difficulty: 1,
-        cookTimeMinutes: 5,
+        soloCookTimeMinutes: 5,
         dietaryTags: [.vegetarian, .glutenFree],
         ingredients: [
             Ingredient(name: "Large eggs", amount: "3"),
@@ -38,7 +38,7 @@ public enum SampleRecipes {
         title: "Pan-Seared Steak with Garlic Butter",
         summary: "A restaurant-quality steak crust, finished with garlic butter.",
         servings: 1,
-        steps: [
+        soloSteps: [
             RecipeStep(order: 0, instruction: "Take the steak out of the fridge and let it come to room temperature.", assignee: .solo, timerSeconds: 1800, imageSystemName: "clock.fill"),
             RecipeStep(order: 1, instruction: "Pat the steak dry and season generously with salt and pepper on both sides.", assignee: .solo, imageSystemName: "sparkles"),
             RecipeStep(order: 2, instruction: "Heat a heavy skillet over high heat until it's smoking hot.", assignee: .solo, imageSystemName: "flame.fill"),
@@ -51,7 +51,7 @@ public enum SampleRecipes {
         ],
         iconSystemName: "flame.fill",
         difficulty: 2,
-        cookTimeMinutes: 25,
+        soloCookTimeMinutes: 25,
         dietaryTags: [.glutenFree],
         ingredients: [
             Ingredient(name: "Ribeye or NY strip steak", amount: "1"),
@@ -65,10 +65,23 @@ public enum SampleRecipes {
 
     public static let pastaForTwo = Recipe(
         id: UUID(uuidString: "9E1F0A10-0003-4B7A-9C1A-000000000003")!,
-        title: "Weeknight Pasta for Two",
-        summary: "A simple tomato pasta split into two tracks so you can both cook at once.",
+        title: "Weeknight Pasta",
+        summary: "A simple tomato pasta — cook it solo, or split the sauce and pasta tracks with a partner.",
         servings: 2,
-        steps: [
+        soloSteps: [
+            RecipeStep(order: 0, instruction: "Gather all ingredients and put a large pot of water on to boil.", assignee: .solo, imageSystemName: "flame.fill"),
+            RecipeStep(order: 1, instruction: "Finely chop the garlic and onion.", assignee: .solo, imageSystemName: "scissors"),
+            RecipeStep(order: 2, instruction: "Heat olive oil in a saucepan and soften the onion and garlic.", assignee: .solo, imageSystemName: "flame.fill"),
+            RecipeStep(order: 3, instruction: "Add crushed tomatoes and a pinch of sugar, stir to combine.", assignee: .solo, imageSystemName: "drop.fill"),
+            RecipeStep(order: 4, instruction: "Simmer the sauce, stirring occasionally.", assignee: .solo, timerSeconds: 600, imageSystemName: "timer"),
+            RecipeStep(order: 5, instruction: "Season the sauce with salt, pepper, and torn basil.", assignee: .solo, imageSystemName: "sparkles"),
+            RecipeStep(order: 6, instruction: "Salt the boiling water generously.", assignee: .solo, imageSystemName: "sparkles"),
+            RecipeStep(order: 7, instruction: "Cook the pasta until al dente.", assignee: .solo, timerSeconds: 600, imageSystemName: "timer"),
+            RecipeStep(order: 8, instruction: "Toast the garlic bread in the oven or a dry pan.", assignee: .solo, imageSystemName: "flame.fill"),
+            RecipeStep(order: 9, instruction: "Make a quick side salad with whatever greens you have.", assignee: .solo, imageSystemName: "leaf.fill"),
+            RecipeStep(order: 10, instruction: "Drain the pasta, toss it with the sauce, and plate up.", assignee: .solo, imageSystemName: "fork.knife")
+        ],
+        twoPersonSteps: [
             RecipeStep(order: 0, instruction: "Both: gather all ingredients and put a large pot of water on to boil.", assignee: .shared, imageSystemName: "flame.fill"),
 
             RecipeStep(order: 1, instruction: "Finely chop the garlic and onion.", assignee: .personA, imageSystemName: "scissors"),
@@ -86,7 +99,8 @@ public enum SampleRecipes {
         ],
         iconSystemName: "fork.knife.circle.fill",
         difficulty: 2,
-        cookTimeMinutes: 35,
+        soloCookTimeMinutes: 45,
+        twoPersonCookTimeMinutes: 35,
         dietaryTags: [.vegetarian],
         ingredients: [
             Ingredient(name: "Pasta", amount: "200g"),
@@ -106,7 +120,7 @@ public enum SampleRecipes {
         title: "Avocado Toast with Fried Egg",
         summary: "Crisp sourdough, creamy avocado, and a perfectly fried egg.",
         servings: 1,
-        steps: [
+        soloSteps: [
             RecipeStep(order: 0, instruction: "Toast the bread until golden and crisp.", assignee: .solo, imageSystemName: "flame.fill"),
             RecipeStep(order: 1, instruction: "Halve and pit the avocado.", assignee: .solo, imageSystemName: "scissors"),
             RecipeStep(order: 2, instruction: "Scoop the avocado into a bowl.", assignee: .solo, imageSystemName: "basket.fill"),
@@ -119,7 +133,7 @@ public enum SampleRecipes {
         ],
         iconSystemName: "leaf.fill",
         difficulty: 1,
-        cookTimeMinutes: 10,
+        soloCookTimeMinutes: 10,
         dietaryTags: [.vegetarian],
         ingredients: [
             Ingredient(name: "Sourdough bread", amount: "2 slices"),
@@ -137,7 +151,7 @@ public enum SampleRecipes {
         title: "Classic Grilled Cheese",
         summary: "Golden, buttery bread with melted cheddar in the middle.",
         servings: 1,
-        steps: [
+        soloSteps: [
             RecipeStep(order: 0, instruction: "Butter one side of each bread slice.", assignee: .solo, imageSystemName: "basket.fill"),
             RecipeStep(order: 1, instruction: "Heat a skillet over medium-low heat.", assignee: .solo, imageSystemName: "flame.fill"),
             RecipeStep(order: 2, instruction: "Place one slice butter-side down in the skillet.", assignee: .solo, imageSystemName: "drop.fill"),
@@ -150,7 +164,7 @@ public enum SampleRecipes {
         ],
         iconSystemName: "rectangle.stack.fill",
         difficulty: 1,
-        cookTimeMinutes: 10,
+        soloCookTimeMinutes: 10,
         dietaryTags: [.vegetarian],
         ingredients: [
             Ingredient(name: "White bread", amount: "2 slices"),
@@ -164,7 +178,7 @@ public enum SampleRecipes {
         title: "Simple Tomato Soup",
         summary: "A comforting, blended tomato soup from a can of good tomatoes.",
         servings: 2,
-        steps: [
+        soloSteps: [
             RecipeStep(order: 0, instruction: "Dice the onion and mince the garlic.", assignee: .solo, imageSystemName: "scissors"),
             RecipeStep(order: 1, instruction: "Heat olive oil in a pot over medium heat.", assignee: .solo, imageSystemName: "flame.fill"),
             RecipeStep(order: 2, instruction: "Add the onion and cook until soft and translucent.", assignee: .solo, timerSeconds: 300, imageSystemName: "timer"),
@@ -179,7 +193,7 @@ public enum SampleRecipes {
         ],
         iconSystemName: "cup.and.saucer.fill",
         difficulty: 1,
-        cookTimeMinutes: 30,
+        soloCookTimeMinutes: 30,
         dietaryTags: [.vegetarian, .glutenFree],
         ingredients: [
             Ingredient(name: "Olive oil", amount: "2 tbsp"),
@@ -195,10 +209,22 @@ public enum SampleRecipes {
 
     public static let pizzaNight = Recipe(
         id: UUID(uuidString: "9E1F0A10-0007-4B7A-9C1A-000000000007")!,
-        title: "Homemade Pizza Night",
-        summary: "Stretch, sauce, top, and bake — split into a dough-and-sauce track and a toppings track.",
+        title: "Homemade Pizza",
+        summary: "Stretch, sauce, top, and bake — solo start to finish, or split dough/sauce from toppings with a partner.",
         servings: 2,
-        steps: [
+        soloSteps: [
+            RecipeStep(order: 0, instruction: "Gather ingredients and preheat the oven as hot as it will go with a pizza stone or tray inside.", assignee: .solo, imageSystemName: "flame.fill"),
+            RecipeStep(order: 1, instruction: "Dust the counter with flour and stretch the dough into a round.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath"),
+            RecipeStep(order: 2, instruction: "Spread crushed tomatoes evenly over the dough, leaving a border for the crust.", assignee: .solo, imageSystemName: "drop.fill"),
+            RecipeStep(order: 3, instruction: "Drizzle with olive oil and a pinch of salt.", assignee: .solo, imageSystemName: "sparkles"),
+            RecipeStep(order: 4, instruction: "Mince the garlic and scatter it over the sauce.", assignee: .solo, imageSystemName: "scissors"),
+            RecipeStep(order: 5, instruction: "Slice the mozzarella and your toppings of choice.", assignee: .solo, imageSystemName: "scissors"),
+            RecipeStep(order: 6, instruction: "Tear fresh basil leaves.", assignee: .solo, imageSystemName: "leaf.fill"),
+            RecipeStep(order: 7, instruction: "Scatter the cheese and toppings over the sauced dough.", assignee: .solo, imageSystemName: "basket.fill"),
+            RecipeStep(order: 8, instruction: "Slide it onto the hot stone or tray and bake until the crust is golden and the cheese is bubbling.", assignee: .solo, timerSeconds: 600, imageSystemName: "timer"),
+            RecipeStep(order: 9, instruction: "Slide onto a board, scatter the basil, slice, and serve.", assignee: .solo, imageSystemName: "fork.knife")
+        ],
+        twoPersonSteps: [
             RecipeStep(order: 0, instruction: "Both: gather ingredients and preheat the oven as hot as it will go with a pizza stone or tray inside.", assignee: .shared, imageSystemName: "flame.fill"),
 
             RecipeStep(order: 1, instruction: "Dust the counter with flour and stretch the dough into a round.", assignee: .personA, imageSystemName: "arrow.triangle.2.circlepath"),
@@ -216,7 +242,8 @@ public enum SampleRecipes {
         ],
         iconSystemName: "flame.fill",
         difficulty: 3,
-        cookTimeMinutes: 50,
+        soloCookTimeMinutes: 65,
+        twoPersonCookTimeMinutes: 50,
         dietaryTags: [.vegetarian],
         ingredients: [
             Ingredient(name: "Pizza dough", amount: "1 ball"),
@@ -232,10 +259,21 @@ public enum SampleRecipes {
 
     public static let tacoTuesday = Recipe(
         id: UUID(uuidString: "9E1F0A10-0008-4B7A-9C1A-000000000008")!,
-        title: "Taco Tuesday for Two",
-        summary: "Seasoned protein on one track, fresh toppings on the other, tacos together at the end.",
+        title: "Taco Night",
+        summary: "Seasoned protein and fresh toppings — solo start to finish, or split the two tracks with a partner.",
         servings: 2,
-        steps: [
+        soloSteps: [
+            RecipeStep(order: 0, instruction: "Gather all ingredients and warm a skillet for the tortillas.", assignee: .solo, imageSystemName: "flame.fill"),
+            RecipeStep(order: 1, instruction: "Brown the ground beef in a skillet over medium-high heat.", assignee: .solo, imageSystemName: "flame.fill"),
+            RecipeStep(order: 2, instruction: "Drain excess fat and stir in the taco seasoning with a splash of water.", assignee: .solo, imageSystemName: "drop.fill"),
+            RecipeStep(order: 3, instruction: "Simmer until thickened.", assignee: .solo, timerSeconds: 300, imageSystemName: "timer"),
+            RecipeStep(order: 4, instruction: "Dice the tomatoes and red onion.", assignee: .solo, imageSystemName: "scissors"),
+            RecipeStep(order: 5, instruction: "Chop the cilantro and cut the lime into wedges.", assignee: .solo, imageSystemName: "scissors"),
+            RecipeStep(order: 6, instruction: "Warm the tortillas in a dry skillet until pliable.", assignee: .solo, imageSystemName: "flame.fill"),
+            RecipeStep(order: 7, instruction: "Set out the cheese, sour cream, and hot sauce for topping.", assignee: .solo, imageSystemName: "basket.fill"),
+            RecipeStep(order: 8, instruction: "Build your tacos and dig in.", assignee: .solo, imageSystemName: "fork.knife")
+        ],
+        twoPersonSteps: [
             RecipeStep(order: 0, instruction: "Both: gather all ingredients and warm a skillet for the tortillas.", assignee: .shared, imageSystemName: "flame.fill"),
 
             RecipeStep(order: 1, instruction: "Brown the ground beef in a skillet over medium-high heat.", assignee: .personA, imageSystemName: "flame.fill"),
@@ -252,7 +290,8 @@ public enum SampleRecipes {
         iconSystemName: "takeoutbag.and.cup.and.straw.fill",
         difficulty: 2,
         spiceLevel: 2,
-        cookTimeMinutes: 30,
+        soloCookTimeMinutes: 40,
+        twoPersonCookTimeMinutes: 30,
         dietaryTags: [],
         ingredients: [
             Ingredient(name: "Ground beef (or plant-based crumble)", amount: "500g"),

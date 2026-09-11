@@ -27,6 +27,11 @@ struct RecipeListView: View {
                 }
             }
             .navigationTitle("Recipes")
+            .onAppear {
+                // Requested once, right at app start — not the first time you happen to start a
+                // timer — so the permission prompt doesn't ambush you mid-cook.
+                NotificationScheduler.requestAuthorizationIfNeeded()
+            }
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .detail(let recipe):
@@ -85,9 +90,9 @@ private struct RecipeRow: View {
                     if recipe.spiceLevel > 0 {
                         SpiceLevelView(spiceLevel: recipe.spiceLevel)
                     }
-                    Label("\(recipe.cookTimeMinutes) min", systemImage: "clock.fill")
-                    if recipe.hasCuratedSplit {
-                        Label("Task-split for two", systemImage: "person.2.fill")
+                    Label("\(recipe.soloCookTimeMinutes) min", systemImage: "clock.fill")
+                    if recipe.supportsTwoPerson {
+                        Label("Also for two", systemImage: "person.2.fill")
                             .foregroundStyle(.blue)
                     }
                 }

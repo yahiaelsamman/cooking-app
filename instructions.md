@@ -2,132 +2,125 @@
 
 MVP of a step-by-step recipe navigator for iOS, built with SwiftUI. The core idea: a recipe is
 a sequence of discrete steps shown one at a time, full-screen, tap-to-advance — easy to follow
-mid-cook with messy hands, instead of scanning a wall of text. It also supports a **two-person
-mode**, where a recipe can split into a Person A track and a Person B track, and two nearby
-iPhones sync progress live over `MultipeerConnectivity` (no internet, no accounts, no backend).
+mid-cook with messy hands, instead of scanning a wall of text. Some recipes also support a
+**two-person mode**, splitting into a Person A track and a Person B track, with two nearby
+iPhones syncing progress live over `MultipeerConnectivity` (no internet, no accounts, no backend).
 
 Repo: https://github.com/yahiaelsamman/cooking-app
 
 See `/Users/yahiaelsaman/.claude/plans/tranquil-wishing-deer.md` for the original approved plan
-(the initial MVP build). This document now covers four passes:
-1. The initial MVP (recipe list → step-through → two-person sync).
-2. Illustrations, an ingredients/overview screen, difficulty/dietary/cook-time metadata, a real
-   timer, swipe navigation, basic reconnection, and five more sample recipes.
-3. Timer task-labeling and stacking, hold-to-confirm completion, a partner-vs-me progress slider,
-   spice level, session resume/rejoin with role preservation, graceful two-person session ending,
-   and the solo/two-person mode toggle (including "mirror mode" for recipes with no task split).
-4. Local notifications for finished timers, following a short interview about product direction
-   (see the bottom of §6) that surfaced this as the most-requested next gap.
+(the initial MVP build). This document covers five build passes since; where something from an
+earlier pass was later changed, only the current behavior is described below — check git history
+for the specifics of what changed when.
 
 ## 1. What was built
 
 ### `CookingAppCore/` — a local Swift Package (all the testable logic)
 
 - **`Recipe.swift`** — `Recipe`, `RecipeStep`, `StepAssignee`, `DietaryTag`
-  (`vegetarian`/`vegan`/`glutenFree`/`lactoseFree`/`nutFree`), `Ingredient`. A recipe is one flat,
-  ordered step list. `Recipe.hasCuratedSplit` reports whether it has real Person A/B steps.
-  `Recipe.track(for:)` derives a person's visible steps:
-  - `role: nil` → the full list (solo).
-  - `role: .personA/.personB` on a **curated** recipe → that person's steps + `.shared` steps.
-  - `role: .personA/.personB` on a **non-curated** recipe → the **full list, mirrored to both**
-    (see "mode toggle" below) — so two people can still cook any recipe together side by side
-    even when there's no sensible way to divide its steps.
+  (`vegetarian`/`vegan`/`glutenFree`/`lactoseFree`/`nutFree`), `Ingredient`. A `Recipe` carries
+  **two independently-authored step lists**, not one list with a derived variant:
+  - `soloSteps: [RecipeStep]` — always present, every step tagged `.solo`, written to read
+    naturally for one person (no "Both:" phrasing).
+  - `twoPersonSteps: [RecipeStep]?` — `nil` if this recipe has no sensible way to split labor
+    between two people. When present, its steps are tagged `.personA`/`.personB`/`.shared`.
 
-  Each `Recipe` also carries `iconSystemName`, `difficulty` (1...3), `spiceLevel` (0...3),
-  `cookTimeMinutes`, `dietaryTags`, `ingredients`; each `RecipeStep` carries `imageSystemName`.
+  `Recipe.supportsTwoPerson` is just `twoPersonSteps != nil` — there is **no generic fallback**
+  for recipes without a split (an earlier "mirror mode" that mirrored the full list to both roles
+  was tried and then deliberately removed — see the pitfalls below for why). `Recipe.track(for:)`
+  returns `soloSteps` for `role: nil`, or `twoPersonSteps` filtered to that role + `.shared` for
+  `role: .personA/.personB`.
+
+  Cook time is mode-specific too: `soloCookTimeMinutes` (always present) and
+  `twoPersonCookTimeMinutes` (present only alongside `twoPersonSteps`, and shorter — splitting
+  labor should actually save time, which `RecipeModelTests` asserts as a regression guard).
+  `Recipe.cookTimeMinutes(forTwoPerson:)` picks the right one. Each `Recipe` also carries
+  `iconSystemName`, `difficulty` (1...3), `spiceLevel` (0...3), `dietaryTags`, `ingredients`; each
+  `RecipeStep` carries `imageSystemName`.
 - **`SampleRecipes.swift`** — **8 recipes**, fixed `UUID(uuidString:)` literals (not random
-  `UUID()` — see pitfalls): 5 solo, 3 with a curated two-person split (all 8 now support
-  two-person *mode*, per the mirror-mode fallback above).
-- **`SyncMessage.swift`** — wire protocol, now 5 message types: `recipeSync`, `progressUpdate`,
-  `timerStarted`, `timerCancelled`, `leaveSession`. Still carries only indices/IDs, never text.
+  `UUID()` — see pitfalls): 5 solo-only, 3 with both a solo version and a curated two-person
+  split. For the latter 3, the solo version's steps are a genuinely separate, reworded pass over
+  the same tasks (not the two-person steps with the labels stripped) — see git history for the
+  exact wording per recipe if you want to compare.
+- **`SyncMessage.swift`** — wire protocol, 5 message types: `recipeSync`, `progressUpdate`,
+  `timerStarted`, `timerCancelled`, `leaveSession`. Carries only indices/IDs, never text.
 - **`PeerSyncService.swift`** — wraps `MCSession`/`MCNearbyServiceAdvertiser`/
   `MCNearbyServiceBrowser`. Auto-reconnects on an unexpected drop (restarts advertising/browsing);
   `leaveSession()` is a **deliberate** end — sends a best-effort `leaveSession` message, then
-  `stop()`s with no auto-reconnect. Refactored so every delegate callback (`didChange:`,
-  `didReceive:`, `foundPeer:`, `lostPeer:`) is a thin `DispatchQueue.main.async` wrapper around an
-  `internal` synchronous handler (`handleSessionStateChange`, `handleReceivedMessage`,
-  `handleFoundPeer`, `handleLostPeer`) — this is what makes `PeerSyncServiceTests` possible
-  without any real networking (see §3).
+  `stop()`s with no auto-reconnect. Every delegate callback (`didChange:`, `didReceive:`,
+  `foundPeer:`, `lostPeer:`) is a thin `DispatchQueue.main.async` wrapper around an `internal`
+  synchronous handler (`handleSessionStateChange`, `handleReceivedMessage`, `handleFoundPeer`,
+  `handleLostPeer`) — this is what makes `PeerSyncServiceTests` possible without any real
+  networking (see §3).
 - **`CookingSessionViewModel.swift`** — `advance()`/`goBack()`, `isComplete`, `isLastStep`,
-  `progressText`/`progressFraction`, `partnerStep`, and now:
-  - **Stacking timers**: `activeTimers: [ActiveTimer]` (mine) and `partnerActiveTimers`
-    (mirrored from the partner's `timerStarted`/`timerCancelled` messages, ticked locally by the
-    same 1Hz `Timer` rather than needing a message every second). `ActiveTimer` carries the full
-    `RecipeStep`, not just an id, so any timer — including a partner's or one on a step you've
-    navigated away from — can always show what task it belongs to.
-  - **`partnerProgressFraction`** — the partner's progress through *their own* track as a 0...1
-    fraction, directly comparable to `progressFraction` even when the two tracks have different
-    lengths (curated splits are rarely equal-length).
-  - **`endSharedSession()`** — calls `peerSync.leaveSession()`; local navigation keeps working
-    afterward exactly like a solo recipe.
-  - **`partnerDidLeave`** — flips true when the partner explicitly ends (wired to
-    `peerSync.onPartnerLeft`), distinct from a connection just dropping.
-- **`ActiveSessionStore.swift`** *(new)* — holds a reference to whatever `CookingSessionViewModel`
-  is currently in progress, independent of navigation. Lets the recipe list show a "Resume
-  Cooking" button that jumps back into the *same* session object — see §1's "resume" note below
-  for why this is what makes role preservation work.
-- **`PeerConnectionViewModel.swift`** — unchanged from pass 2 (host/join connection screen logic).
+  `progressText`/`progressFraction`, `partnerStep`, `partnerProgressFraction` (partner's progress
+  through *their own* track as a 0...1 fraction — comparable to mine even when the two tracks have
+  different lengths), `endSharedSession()`, `partnerDidLeave`, and a **stacking timer engine**:
+  `activeTimers: [ActiveTimer]` (mine) and `partnerActiveTimers` (mirrored from the partner's
+  `timerStarted`/`timerCancelled` messages, ticked locally by the same 1Hz `Timer` rather than
+  needing a message every second). `ActiveTimer` carries the full `RecipeStep`, not just an id, so
+  any timer — a partner's, or one on a step you've navigated away from — can always show what task
+  it belongs to. `onTimerScheduled`/`onTimerUnscheduled`/`onTimerFinished` are hooks the app layer
+  uses to drive local notifications (see below).
+- **`ActiveSessionStore.swift`** — holds a reference to whatever `CookingSessionViewModel` is
+  currently in progress, independent of navigation. Lets the recipe list show a "Resume Cooking"
+  button that jumps back into the *same* session object — see the "resume" note below for why
+  that's what makes Person A/B role preservation work.
+- **`PeerConnectionViewModel.swift`** — host/join connection screen logic.
 
 ### `CookingApp/` — the iOS app target (thin SwiftUI views over Core)
 
-- **`RecipeListView.swift`** — rows now show a spice-level flame row (only when `spiceLevel > 0`)
-  alongside difficulty stars, and the two-person badge now reads "Task-split for two" and only
-  appears for `hasCuratedSplit` recipes (two-person *mode* itself is available on every recipe via
-  mirroring, so it's no longer a meaningful distinguishing badge). A bottom-right floating
-  **"Resume Cooking"** button appears whenever `ActiveSessionStore.hasActiveSession` — tapping it
-  pushes straight to `StepView` with the *existing* `CookingSessionViewModel`, skipping the
-  recipe/connect flow entirely.
-- **`RecipeDetailView.swift`** — added a **Solo / Two-Person segmented picker**, shown for every
-  recipe (with a caption explaining task-split vs. mirrored behavior depending on
-  `hasCuratedSplit`); `startCooking()` branches on the picker, not a fixed recipe property.
-  Registers the new session with `ActiveSessionStore` before pushing, for solo recipes.
+- **`RecipeListView.swift`** — rows show a spice-level flame row (only when `spiceLevel > 0`)
+  alongside difficulty stars, the solo cook time, and an "Also for two" badge only for
+  `supportsTwoPerson` recipes. A bottom-right floating **"Resume Cooking"** button appears
+  whenever `ActiveSessionStore.hasActiveSession`. Requests notification permission once, in
+  `.onAppear` — i.e. at app start, not the first time you open a recipe or start a timer.
+- **`RecipeDetailView.swift`** — a **Solo / Two-Person segmented picker** appears *only* when
+  `recipe.supportsTwoPerson`; a recipe without a two-person version shows no toggle at all. The
+  displayed cook time updates live with the picker (`recipe.cookTimeMinutes(forTwoPerson:)`), and
+  the steps-overview section switches between the solo read-through and the Together/Person
+  A/Person B grouping depending on the selection. `startCooking()` branches on the picker.
+  Registers the new session with `ActiveSessionStore` before pushing (solo path).
 - **`PeerConnectionView.swift`** — on a successful handshake, also registers the new session with
   `ActiveSessionStore` (the two-person equivalent of the above).
 - **`StepView.swift`** —
-  - **Hold-to-finish**: the final step no longer completes on a plain tap/swipe — that was too
-    easy to trigger by accident with no undo. A dedicated `HoldToFinishButton` (2-second hold,
-    animated ring) appears instead; the ordinary back button stays available alongside it. The
-    completion screen still has "Go Back" for a genuine accidental hold.
-  - **`TimerStackView`**: shows every timer running somewhere other than the currently-viewed
-    step — your own (orange chips) and your partner's (blue chips) — each labeled with the task
-    it's timing, exactly what "stacking" needed to stay legible.
-  - **"End Session"** toolbar button (two-person only, hidden once already ended) with a
+  - **Hold-to-finish**: the final step no longer completes on a plain tap/swipe. A dedicated
+    `HoldToFinishButton` (currently a 1-second hold, animated ring) appears instead; the ordinary
+    back button stays available alongside it, not replaced by it. The completion screen still has
+    "Go Back" for a genuine accidental hold.
+  - **`TimerStackView`**: every timer running somewhere other than the currently-viewed step —
+    yours (orange chips) and your partner's (blue chips) — each labeled with the task it's timing.
+  - **"End Session"** toolbar button (two-person only, hidden once already ended), with a
     confirmation dialog; calls `session.endSharedSession()`.
   - An alert when `session.partnerDidLeave` flips true, clearing `ActiveSessionStore` and
     resetting the nav path back to the recipe list on acknowledgement.
-- **`HoldToFinishButton.swift`** *(new)* — the 2-second hold-to-confirm control described above.
-- **`DualProgressSliderView.swift`** *(new)* — one shared capsule track with two markers (you,
-  your partner), each positioned by their own progress fraction — shown inside
-  `PartnerStatusView` whenever connected.
-- **`TimerStackView.swift`** *(new)* — the stacked-timer chip list described above.
-- **`PartnerStatusView.swift`** — now also renders `DualProgressSliderView` beneath the existing
-  partner-step readout.
-- **`StepTimerControl.swift`** — updated for the stacking API (`activeTimer(for:)`/
-  `cancelTimer(for:)` instead of a single scalar running-timer id).
+  - Notification scheduling: wires `session.onTimerScheduled`/`onTimerUnscheduled` to
+    `NotificationScheduler.schedule`/`cancel`; `onTimerFinished` also cancels the pending
+    notification (the in-app alert already covers that case) alongside showing the alert/haptic.
+- **`HoldToFinishButton.swift`**, **`DualProgressSliderView.swift`**, **`TimerStackView.swift`** —
+  the controls described above.
+- **`PartnerStatusView.swift`** — renders `DualProgressSliderView` beneath the partner-step
+  readout whenever connected.
+- **`StepTimerControl.swift`** — the per-step tappable timer icon, built on the stacking API
+  (`activeTimer(for:)`/`cancelTimer(for:)`).
+- **`Notifications/NotificationScheduler.swift`** — schedules/cancels a local notification per
+  step timer, keyed by the step's own id (so stacked timers each get an independent notification).
+- **`Notifications/NotificationDelegate.swift`** — a `UNUserNotificationCenterDelegate` that
+  suppresses the system banner/sound while the app is foregrounded (`willPresent` →
+  `completionHandler([])`), since that case already gets the in-app alert — stops you from seeing
+  both for the same event.
 - **`CookingAppApp.swift`** — creates one `ActiveSessionStore` and injects it via
-  `.environment(_:)`; every view above reads it with `@Environment(ActiveSessionStore.self)`.
-  Also sets `UNUserNotificationCenter.current().delegate` at launch (see below).
-- **`Notifications/NotificationScheduler.swift`** *(new)* — schedules/cancels a local
-  notification per step timer (identified by the step's own id, so multiple stacked timers each
-  get their own independent notification). `StepView` wires this to `CookingSessionViewModel`'s
-  `onTimerScheduled`/`onTimerUnscheduled`/`onTimerFinished` hooks: schedule on start, cancel on
-  manual cancel *and* on natural finish (the in-app alert already covers the foreground case, so
-  the notification would otherwise be a redundant duplicate for that case only).
-- **`Notifications/NotificationDelegate.swift`** *(new)* — a `UNUserNotificationCenterDelegate`
-  that suppresses the system banner/sound while the app is foregrounded (`willPresent` →
-  `completionHandler([])`), since a foreground finish always gets the in-app alert instead. This
-  is what stops you from seeing both a system banner *and* the in-app alert for the same timer.
+  `.environment(_:)`; sets `UNUserNotificationCenter.current().delegate` at launch.
 
 ### On "resume" and role preservation
 
-The request that motivated `ActiveSessionStore`: previously, leaving the step screen and coming
-back meant re-choosing Host or Join, which could flip who's Person A vs. B if you picked
-differently than last time. The store sidesteps that by holding a reference to the *same*
-`CookingSessionViewModel` (and, for two-person sessions, its already-connected `PeerSyncService`)
-— "Resume Cooking" re-enters that exact object rather than reconstructing one, so role, step
-index, and any running timers all come back exactly as they were. This only survives within one
-app process's lifetime (backgrounding is fine, an actual force-quit is not — there's still no disk
-persistence in this MVP; see Next Steps).
+Leaving the step screen and coming back used to mean re-choosing Host or Join, which could flip
+who's Person A vs. B if you picked differently than last time. `ActiveSessionStore` sidesteps that
+by holding a reference to the *same* `CookingSessionViewModel` (and its already-connected
+`PeerSyncService`, for two-person sessions) — "Resume Cooking" re-enters that exact object rather
+than reconstructing one, so role, step index, and any running timers all come back exactly as they
+were. This only survives within one app process's lifetime (backgrounding is fine, a force-quit is
+not — there's still no disk persistence; see Next Steps).
 
 ## 2. How to run it
 
@@ -146,170 +139,155 @@ iOS Simulator wasn't available here — see §3's tooling note. On a Mac with fu
 
 ## 3. How the tests were run
 
-**62/62 tests passed** when last run in this session (`swift test` from `CookingAppCore/`), across
+**67/67 tests passed** when last run in this session (`swift test` from `CookingAppCore/`), across
 four files:
 
-- **`RecipeModelTests.swift`** — sample-data integrity, track filtering (including the new
-  mirror-mode fallback for non-curated recipes, and a regression check that curated recipes are
-  unaffected by that fallback), timer stacking (two independent timers, restarting one doesn't
-  duplicate it), and metadata range checks (difficulty, spice level, cook time).
+- **`RecipeModelTests.swift`** — solo/two-person step-list integrity (contiguous ordering per
+  list, solo steps never say "Both:"), track filtering, `supportsTwoPerson`, mode-specific cook
+  time (including the "two-person is always faster than solo" regression guard), timer stacking,
+  and recipe metadata range checks.
 - **`SyncMessageCodingTests.swift`** — Codable round-trips for all 5 message types.
-- **`PeerSyncServiceTests.swift`** *(new)* — connection state transitions, auto-reconnect
-  triggering after a prior successful connection vs. *not* triggering on a first-ever drop or
-  after a deliberate `leaveSession()`, every inbound message type's handling, and peer
-  discovery/loss bookkeeping. This is real coverage of logic that had **zero** direct tests before
-  this pass — made possible by refactoring each `MCSessionDelegate`/`MCNearbyServiceBrowserDelegate`
-  method into a thin dispatch wrapper around an `internal` synchronous handler, which tests call
-  directly with plain `MCPeerID`/`SyncMessage` values — no real MultipeerConnectivity session
-  needed. (One real bug this caught while writing the tests: `MCPeerID` equality isn't just
-  display-name comparison — two separately-constructed instances with the same name aren't `==`.
-  Every test constructs its peer id exactly once and reuses that instance, never a fresh one.)
-- **`CookingSessionViewModelTests.swift`** *(new)* — partner-timer mirroring resolved against the
+- **`PeerSyncServiceTests.swift`** — connection state transitions, auto-reconnect triggering after
+  a prior successful connection vs. *not* triggering on a first-ever drop or after a deliberate
+  `leaveSession()`, every inbound message type's handling, and peer discovery/loss bookkeeping —
+  all via the `internal` synchronous handlers, no real MultipeerConnectivity session needed. (One
+  real bug this caught while writing the tests: `MCPeerID` equality isn't just display-name
+  comparison — two separately-constructed instances with the same name aren't `==`. Every test
+  constructs its peer id exactly once and reuses that instance, never a fresh one.)
+- **`CookingSessionViewModelTests.swift`** — partner-timer mirroring resolved against the
   partner's own track (not mine), `partnerProgressFraction`'s track-length normalization,
-  `partnerDidLeave` firing only from an *incoming* leave (not from my own `endSharedSession()`),
-  local navigation continuing after ending a shared session, `ActiveSessionStore`, and the
-  `onTimerScheduled`/`onTimerUnscheduled` notification-scheduling hooks (that a cancel on a timer
-  that was never started doesn't fire a stray unschedule).
+  `partnerDidLeave` firing only from an *incoming* leave, local navigation continuing after ending
+  a shared session, `ActiveSessionStore`, and the notification-scheduling hooks.
 
 Notification *delivery* itself (`NotificationScheduler`/`NotificationDelegate`, both in the App
 target) isn't unit-tested — `UNUserNotificationCenter` needs a real app process/authorization
-state to do anything meaningful, so this is a manual-verification item (see below), not something
+state to do anything meaningful, so this is a manual-verification item, not something
 `CookingAppCoreTests` could cover even if it lived in Core.
 
 Why the timer's real 1-second countdown-to-zero isn't itself unit-tested: Foundation's `Timer`
 needs an actively-spinning `RunLoop`, which the app's main run loop provides but a `swift test`
 process's threading model doesn't reliably guarantee — a test that could silently hang isn't worth
 the coverage. State transitions (`startTimer`/`cancelTimer`/stacking) are tested deterministically
-instead; the actual countdown-to-alert behavior is a manual check (§3's manual list, and above).
+instead; the actual countdown-to-alert behavior is a manual check (below).
 
 ### Tooling note — no full Xcode in this sandbox
 
-Same constraint as passes 1 and 2: no `xcodebuild`/iOS Simulator here. `CookingAppCore` (all
-non-UI logic) is genuinely built and tested with `swift test`. `CookingApp.xcodeproj` is
-generated via `xcodegen` and validated with `plutil -lint`, not hand-authored. The SwiftUI files
-under `CookingApp/CookingApp/Views/` were reviewed by hand — including catching and fixing one
-real bug this way (see the hold-to-finish pitfall below) — but **open the project in Xcode and
-build once before relying on it**; this pass added more iOS-only surface area than the last one
-(custom drag gestures alongside tap, `onLongPressGesture`, `.toolbar`/`.confirmationDialog`,
-`Environment`-injected Observable state) that a manual read can't fully substitute for a compiler.
+No `xcodebuild`/iOS Simulator here in any pass so far. `CookingAppCore` (all non-UI logic) is
+genuinely built and tested with `swift test`. `CookingApp.xcodeproj` is generated via `xcodegen`
+and validated with `plutil -lint`, not hand-authored. The SwiftUI files under
+`CookingApp/CookingApp/Views/` are reviewed by hand — this has caught real bugs before shipping
+(see pitfalls) — but **open the project in Xcode and build once before relying on it**.
 
 **Manual verification checklist** (needs a real device/Xcode):
 
 - Solo: tap-to-advance, swipe-to-advance/back, back button, hold-to-finish on the last step,
   "Go Back" from the completion screen, starting/cancelling a timer, two timers stacked at once,
-  the "Resume Cooking" button after backgrounding and returning.
+  "Resume Cooking" after backgrounding and returning.
+- The Solo/Two-Person picker: confirm it's **absent entirely** on the 5 solo-only recipes, and
+  that switching it on the 3 dual-mode recipes changes both the displayed cook time and the steps
+  list (no "Both:" phrasing or personA/personB hue tint in Solo mode).
 - Two-person: Local Network permission prompt, host/join handshake, the dual progress slider
   moving as each phone advances, a timer started on one phone appearing (with its task label) as
   a blue chip on the other, "End Session" tearing down both sides, auto-reconnect after toggling
-  Airplane Mode on one phone and back, and resuming a two-person session via "Resume Cooking"
-  with roles intact.
-- **Notifications specifically**: accept the permission prompt on first launch (or check
-  Settings → Notifications → Cooking App if it was missed/denied); start a timer, background the
-  app or lock the phone, and confirm the notification arrives with the right step's text at
-  roughly the right time; separately, start a timer and stay in the app until it finishes, and
-  confirm you see *only* the in-app alert, not a system banner too (that's
-  `NotificationDelegate` doing its job).
+  Airplane Mode on one phone and back, resuming a two-person session via "Resume Cooking" with
+  roles intact.
+- **Notifications**: accept the permission prompt at app launch (or check Settings →
+  Notifications → Cooking App if it was missed/denied); start a timer, background the app or lock
+  the phone, and confirm the notification arrives with the right step's text at roughly the right
+  time; separately, start a timer and stay in the app until it finishes, and confirm you see
+  *only* the in-app alert, not a system banner too.
 
 ## 4. Known pitfalls
 
+- **A "mirror mode" was tried and then removed.** An earlier pass let two-person mode work on
+  *any* recipe by mirroring the full solo step list to both phones when there was no real split.
+  On review this was the wrong call: it invited a two-person session that looked shared but wasn't
+  (identical instructions on both phones, no actual division of labor), and switching a curated
+  two-person recipe down to "one person" reused the two-person wording verbatim, including
+  "Both:" phrasing and personA/personB hue tinting that made no sense for a lone cook. Replaced
+  with two genuinely separate, independently-authored step lists (`soloSteps`/`twoPersonSteps`)
+  and no toggle at all for recipes without a real split.
 - **Local Network permission** must be accepted on both phones or discovery silently fails
   (Settings → Privacy & Security → Local Network → Cooking App).
 - **Two-person mode can't be validated in the Simulator** (no Bluetooth radio) — needs two
   physical iPhones for real confidence.
 - **Recipe IDs are fixed UUID literals**, not random — random per-launch IDs would break the
   host/joiner `recipeID` handshake. Give any new sample recipe a fixed ID too.
-- **Reconnection doesn't survive real backgrounding** — `PeerSyncService` auto-reconnects after a
-  brief drop while both apps stay foregrounded/backgrounded-but-alive, but iOS suspends most app
-  networking within seconds of backgrounding; true background survival needs declared background
-  modes (see Next Steps). "Resume Cooking" (via `ActiveSessionStore`) also only survives within one
-  process's lifetime, not an actual force-quit.
-- **A caught-and-fixed layout bug**: the hold-to-finish control was originally going to *replace*
-  the back button on the last step entirely — on review, that would have left the last step with
-  no button-based way to go back (only an undiscoverable swipe), so the back button now stays
-  alongside it always.
-- **Notification permission is requested lazily**, the moment `StepView` first appears — not at
-  app launch. If it's denied, `NotificationScheduler.schedule` silently no-ops (no crash, no
-  error surfaced in the UI) — a finished timer then only ever shows the in-app alert, with no
-  indication to the user that they're missing the background case. Worth a visible "notifications
-  are off" hint somewhere if this turns out to matter in practice.
-- **Only *my own* timers get notifications, not the partner's mirrored ones.** Scoped this way
-  deliberately (see §6) — the stated problem was "I might miss my own timer," not "I want to be
-  notified about my partner's."
-- **The `leaveSession` message is best-effort.** It's sent right before disconnecting, but if the
-  connection is already degrading there's no guarantee it arrives — the receiving side would then
-  just see a plain drop and try to auto-reconnect instead of recognizing a deliberate end. No
-  ack/retry protocol was built for this (would be real added complexity for an edge case).
+- **Reconnection doesn't survive real backgrounding** — auto-reconnect covers a brief drop while
+  both apps stay foregrounded/backgrounded-but-alive, but iOS suspends most app networking within
+  seconds of backgrounding; true background survival needs declared background modes (see Next
+  Steps). "Resume Cooking" also only survives within one process's lifetime, not a force-quit.
+- **Notification permission is requested at app start, not lazily.** If it's denied, timers
+  silently fall back to in-app-only with no visible indication in the UI that the background case
+  is being missed.
+- **Only *my own* timers get notifications, not the partner's mirrored ones** — scoped this way
+  deliberately, matching the stated problem ("I might miss my own timer," not "I want to be
+  notified about my partner's").
+- **The `leaveSession` message is best-effort** — sent right before disconnecting, with no
+  ack/retry, so it isn't guaranteed to arrive if the connection is already degrading.
 - **The system edge-swipe-back gesture is disabled specifically on `StepView`**
   (`SwipeBackDisabler.swift`) so an accidental edge swipe can't pop out of an active two-person
   session; restored automatically on leaving that screen.
 - **SF Symbol names weren't visually verified** (no Xcode/SF Symbols app in this sandbox) — a
-  wrong name renders blank at runtime rather than failing to build, so spot-check icons,
-  especially `frying.pan.fill` and the dietary-tag icons.
+  wrong name renders blank at runtime rather than failing to build; spot-check icons, especially
+  `frying.pan.fill` and the dietary-tag icons.
 - **Host is always Person A, joiner is always Person B** — no role-swap UI.
 - **Free Apple ID signing expires** roughly every 7 days without a paid developer account.
 
 ## 5. Next steps (explicitly deferred)
 
-1. **Real illustrations/photos** — SF Symbols were this pass's deliberate choice; swapping in
-   real art is a data-shape change (`imageSystemName: String` → an asset name or URL) plus a
-   pipeline, not just new files.
-2. **True background reconnection** — declared background modes so a two-person session survives
+1. **A real persistence/"memory" layer** — in progress next; see §6 below for the direction.
+2. **Real illustrations/photos** — SF Symbols were a deliberate MVP choice; swapping in real art
+   is a data-shape change (`imageSystemName: String` → an asset name or URL) plus a pipeline, not
+   just new files. Also see §6 — you asked directly whether this is reasonable to hand to me.
+3. **True background reconnection** — declared background modes so a two-person session survives
    more than a brief backgrounding.
-3. **Disk persistence** — recipe history, in-progress session state that survives a force-quit
-   (today's "Resume Cooking" only survives within one process lifetime), user-created recipes.
-4. **Recipe import** (URL scraping or AI generation) beyond the 8 hardcoded samples.
-5. **Curated two-person splits for the 5 currently-solo recipes**, if any of them turn out to
-   split sensibly in practice — deliberately not guessed at this pass; mirror mode covers them for
-   now.
-6. **Role selection UI** — let two people swap who's "Person A."
-7. **A sturdier leave/rejoin protocol** — an ack for `leaveSession`, and reusing a specific prior
+4. **Curated two-person splits for the 5 currently-solo recipes**, if any turn out to split
+   sensibly in practice — not guessed at; a recipe simply has no two-person option until one is
+   deliberately authored for it (see the removed-mirror-mode pitfall above for why).
+5. **Role selection UI** — let two people swap who's "Person A."
+6. **A sturdier leave/rejoin protocol** — an ack for `leaveSession`, and reusing a specific prior
    peer connection on reconnect rather than the current "any peer that shows up" auto-invite.
-8. **CloudKit/iCloud sync**, for two-person mode over the internet and cross-device recipe sync.
-9. **Accounts, recipe sharing, Android** — still explicitly out of scope.
-10. **An Xcode-level UI test target**, once full Xcode is available, for the tap/swipe/hold
-    gesture flows that `CookingAppCoreTests` deliberately doesn't cover.
+7. **CloudKit/iCloud sync**, for two-person mode over the internet and cross-device recipe sync.
+8. **Accounts, recipe sharing, Android** — still explicitly out of scope.
+9. **An Xcode-level UI test target**, once full Xcode is available, for the tap/swipe/hold gesture
+   flows that `CookingAppCoreTests` deliberately doesn't cover.
 
-## 6. UX/product iteration ideas
+## 6. UX/product iteration ideas & direction
 
-Requested explicitly as a "how do we make this better" pass, separate from what's already
-scheduled above as deferred engineering work:
-
-- **The hold-to-finish duration (2s) and the swipe threshold (40pt) are unvalidated guesses.**
-  Both are exactly the kind of thing that should change based on actually cooking with the app a
-  few times, not be locked in from a first implementation.
-- ~~Timer notifications don't reach you if the phone is asleep or you've switched apps~~ — **done**
-  in pass 4 (§1, `NotificationScheduler`/`NotificationDelegate`).
+- **The hold-to-finish duration (1s) and the swipe threshold (40pt) are unvalidated guesses** —
+  exactly the kind of thing that should change based on actually cooking with the app, not be
+  locked in from a first implementation.
 - **The step illustration is the same size/prominence for every step regardless of content** — a
-  step like "let it rest for 5 minutes" and a step like "sear undisturbed, 3 minutes per side"
-  have very different "what do I actually need to see" needs; the layout doesn't distinguish them.
-- **Nothing currently scales a recipe's ingredient quantities to a different serving count** —
-  `servings` is displayed but not adjustable, which is a common real want in a recipe app.
-- **The partner's connection-state dot (green/yellow/red) has no explanation on tap** — a first-time
-  two-person user has to already know what it means.
-- **"Mirror mode" for a non-curated recipe cooked two-person doesn't distinguish the two phones'
-  content at all** — both show identical instructions with no assignee tint, which may read as
-  "why bother," compared to a curated split's clear division. Worth revisiting whether mirror mode
-  should feel more like "cooking together" (e.g. showing both people's names/avatars more
-  prominently) rather than just "two copies of solo mode."
-- **No confirmation before "Start Cooking" leaves the overview screen** — for a long or unfamiliar
-  recipe, a brief "you won't see the full ingredient list again until you finish" nudge might
-  reduce having to back out mid-cook to double-check something.
-- **Difficulty and spice level are currently my own back-of-envelope calls, not calibrated against
-  anything** — worth a real rubric (or user-submitted ratings) once there's more than 8 recipes.
+  5-minute rest and a "sear 3 min per side, don't touch it" step have very different "what do I
+  need to see" needs; the layout doesn't distinguish them.
+- **Nothing scales ingredient quantities to a different serving count** — `servings` is displayed
+  but not adjustable.
+- **The partner's connection-state dot (green/yellow/red) has no explanation on tap.**
+- **No confirmation before "Start Cooking" leaves the overview screen** — for an unfamiliar
+  recipe, a brief "you won't see the full ingredient list again until you finish" nudge might help.
+- **Difficulty and spice level are my own back-of-envelope calls**, not calibrated against
+  anything — worth a real rubric (or user ratings) once there's more than 8 recipes.
 
 ### Product-direction interview (pass 4)
 
-Asked directly, since the iteration ideas above are observations, not decisions:
+- **Real usage so far**: tried briefly / simulated a cook-through, went smoothly.
+- **Hands-free control (Siri/Watch)**: explicitly not wanted right now — tap/swipe/hold stays the
+  interaction model.
+- **Long-term audience**: personal use for now, but might want to share it eventually — worth
+  keeping in mind for later (signing/distribution, review-quality permission strings) without
+  acting on it yet.
+- **Top priority named**: timer notifications — implemented that same pass.
 
-- **Real usage so far**: tried briefly / simulated a cook-through, went smoothly. Not yet a full
-  real meal, but enough signal to keep building rather than pause for more testing first.
-- **Hands-free control (Siri/Watch)**: explicitly **not** wanted right now — tap/swipe/hold stays
-  the interaction model. (Raised because the original pain point was messy hands touching the
-  phone, and every interaction so far still requires that; deliberately shelved, not forgotten.)
-- **Long-term audience**: personal use for now, but might want to share it with others eventually
-  — worth keeping in mind for later (signing/distribution, and making the Info.plist permission
-  strings review-quality) without acting on it yet.
-- **Top priority named**: timer notifications — implemented this same pass (§1, §4).
+### Current direction (pass 5)
+
+Explicitly requested next, in order: build a real persistence layer ("the memory"), *then* add
+more recipes, with AI-assisted recipe-to-two-person conversion flagged as a good idea for later
+but skipped now since it'd cost money. Also asked directly whether generating step illustrations
+is reasonable to ask of me — answered in-session: I have no image-generation tool available in
+this environment, so I can't produce the artwork myself; I can build whatever asset pipeline is
+needed to wire in real images once you have them (AI-generated elsewhere, stock, or your own),
+same as the `imageSystemName` pipeline already works today.
 
 ## 7. Git / repo
 

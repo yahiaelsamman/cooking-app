@@ -5,42 +5,63 @@ struct RecipeModelTests {
 
     // MARK: - Sample data integrity
 
-    @Test func allSampleRecipesHaveContiguousOrdering() {
+    @Test func allSoloStepListsAreContiguouslyOrdered() {
         for recipe in SampleRecipes.all {
-            let orders = recipe.steps.map(\.order).sorted()
-            let expected = Array(0..<recipe.steps.count)
-            #expect(orders == expected, "\(recipe.title) steps are not contiguously ordered from 0")
+            let orders = recipe.soloSteps.map(\.order).sorted()
+            let expected = Array(0..<recipe.soloSteps.count)
+            #expect(orders == expected, "\(recipe.title) solo steps are not contiguously ordered from 0")
         }
     }
 
-    @Test func allSampleRecipesHaveAtLeastOneStep() {
+    @Test func allTwoPersonStepListsAreContiguouslyOrdered() {
         for recipe in SampleRecipes.all {
-            #expect(!recipe.steps.isEmpty, "\(recipe.title) has no steps")
+            guard let twoPersonSteps = recipe.twoPersonSteps else { continue }
+            let orders = twoPersonSteps.map(\.order).sorted()
+            let expected = Array(0..<twoPersonSteps.count)
+            #expect(orders == expected, "\(recipe.title) two-person steps are not contiguously ordered from 0")
+        }
+    }
+
+    @Test func allSampleRecipesHaveAtLeastOneSoloStep() {
+        for recipe in SampleRecipes.all {
+            #expect(!recipe.soloSteps.isEmpty, "\(recipe.title) has no solo steps")
         }
     }
 
     @Test func twoPersonRecipesContainBothPersonTracks() {
-        for recipe in SampleRecipes.all where recipe.hasCuratedSplit {
-            let hasA = recipe.steps.contains { $0.assignee == .personA }
-            let hasB = recipe.steps.contains { $0.assignee == .personB }
-            #expect(hasA, "\(recipe.title) is two-person but has no personA steps")
-            #expect(hasB, "\(recipe.title) is two-person but has no personB steps")
+        for recipe in SampleRecipes.all {
+            guard let twoPersonSteps = recipe.twoPersonSteps else { continue }
+            let hasA = twoPersonSteps.contains { $0.assignee == .personA }
+            let hasB = twoPersonSteps.contains { $0.assignee == .personB }
+            #expect(hasA, "\(recipe.title) has two-person steps but no personA steps")
+            #expect(hasB, "\(recipe.title) has two-person steps but no personB steps")
         }
     }
 
-    @Test func soloRecipesContainOnlySoloSteps() {
-        for recipe in SampleRecipes.all where !recipe.hasCuratedSplit {
-            let allSolo = recipe.steps.allSatisfy { $0.assignee == .solo }
-            #expect(allSolo, "\(recipe.title) is solo but contains non-solo steps")
+    @Test func soloStepsAreAlwaysTaggedSolo() {
+        for recipe in SampleRecipes.all {
+            let allSolo = recipe.soloSteps.allSatisfy { $0.assignee == .solo }
+            #expect(allSolo, "\(recipe.title)'s solo steps contain a non-.solo assignee")
+        }
+    }
+
+    @Test func soloStepInstructionsNeverSayBoth() {
+        // The whole point of authoring a separate solo version rather than deriving one from the
+        // two-person split: it should read naturally for one person, not carry "Both:" phrasing
+        // left over from the shared two-person steps.
+        for recipe in SampleRecipes.all {
+            for step in recipe.soloSteps {
+                #expect(!step.instruction.hasPrefix("Both:"), "\(recipe.title) solo step reads like a two-person shared step: \(step.instruction)")
+            }
         }
     }
 
     // MARK: - Track filtering
 
-    @Test func soloTrackReturnsFullOrderedStepList() {
+    @Test func soloTrackReturnsFullOrderedSoloStepList() {
         let recipe = SampleRecipes.scrambledEggs
         let track = recipe.track(for: nil)
-        #expect(track.count == recipe.steps.count)
+        #expect(track.count == recipe.soloSteps.count)
         #expect(track.map(\.order) == track.map(\.order).sorted())
     }
 
@@ -65,58 +86,71 @@ struct RecipeModelTests {
         #expect(track.map(\.order) == track.map(\.order).sorted())
     }
 
-    // MARK: - hasCuratedSplit / mirror mode
-
-    @Test func curatedRecipesReportHasCuratedSplit() {
-        for recipe in SampleRecipes.all where recipe.steps.contains(where: { $0.assignee == .personA }) {
-            #expect(recipe.hasCuratedSplit)
-        }
-    }
-
-    @Test func soloOnlyRecipesReportNoCuratedSplit() {
-        for recipe in SampleRecipes.all where recipe.steps.allSatisfy({ $0.assignee == .solo }) {
-            #expect(!recipe.hasCuratedSplit)
-        }
-    }
-
-    @Test func twoPersonModeOnANonCuratedRecipeMirrorsTheFullListToBothRoles() {
-        // A recipe with no personA/personB steps at all (every solo sample recipe) should still
-        // support being started in two-person mode — each phone gets the *complete* step list
-        // rather than an empty filtered track, so two people can cook it together side by side
-        // even without a real division of labor.
-        let recipe = SampleRecipes.scrambledEggs
-        #expect(!recipe.hasCuratedSplit)
-
-        let trackA = recipe.track(for: .personA)
-        let trackB = recipe.track(for: .personB)
-        let soloTrack = recipe.track(for: nil)
-
-        #expect(trackA.count == soloTrack.count)
-        #expect(trackB.count == soloTrack.count)
-        #expect(trackA.map(\.id) == soloTrack.map(\.id))
-        #expect(trackB.map(\.id) == soloTrack.map(\.id))
-    }
-
-    @Test func twoPersonModeOnACuratedRecipeStillDividesLabor() {
-        // Regression guard: adding the mirror-mode fallback must not change behavior for
-        // recipes that do have a real split.
-        let recipe = SampleRecipes.pastaForTwo
-        #expect(recipe.hasCuratedSplit)
-
-        let trackA = recipe.track(for: .personA)
-        let soloTrack = recipe.track(for: nil)
-        #expect(trackA.count < soloTrack.count)
-    }
-
     @Test func personAAndPersonBTracksBothContainSharedSteps() {
         let recipe = SampleRecipes.pastaForTwo
-        let sharedCount = recipe.steps.filter { $0.assignee == .shared }.count
+        let sharedCount = recipe.twoPersonSteps!.filter { $0.assignee == .shared }.count
 
         let trackA = recipe.track(for: .personA)
         let trackB = recipe.track(for: .personB)
 
         #expect(trackA.filter { $0.assignee == .shared }.count == sharedCount)
         #expect(trackB.filter { $0.assignee == .shared }.count == sharedCount)
+    }
+
+    // MARK: - supportsTwoPerson
+
+    @Test func recipesWithTwoPersonStepsReportSupportsTwoPerson() {
+        for recipe in SampleRecipes.all where recipe.twoPersonSteps != nil {
+            #expect(recipe.supportsTwoPerson)
+        }
+    }
+
+    @Test func soloOnlyRecipesReportNoTwoPersonSupport() {
+        for recipe in SampleRecipes.all where recipe.twoPersonSteps == nil {
+            #expect(!recipe.supportsTwoPerson)
+        }
+    }
+
+    @Test func atLeastTwoRecipesSupportTwoPerson() {
+        let count = SampleRecipes.all.filter(\.supportsTwoPerson).count
+        #expect(count >= 2)
+    }
+
+    @Test func trackForRoleFallsBackToSoloStepsWhenRecipeHasNoTwoPersonSteps() {
+        // Defensive fallback only — the UI never actually requests a role on a recipe that
+        // doesn't support two-person mode, since the toggle isn't offered for it at all.
+        let recipe = SampleRecipes.scrambledEggs
+        #expect(!recipe.supportsTwoPerson)
+
+        let track = recipe.track(for: .personA)
+        #expect(track.map(\.id) == recipe.soloSteps.sorted { $0.order < $1.order }.map(\.id))
+    }
+
+    // MARK: - Cook time by mode
+
+    @Test func cookTimeForSoloModeIsAlwaysTheSoloValue() {
+        for recipe in SampleRecipes.all {
+            #expect(recipe.cookTimeMinutes(forTwoPerson: false) == recipe.soloCookTimeMinutes)
+        }
+    }
+
+    @Test func cookTimeForTwoPersonModeUsesTheTwoPersonValueWhenPresent() {
+        let recipe = SampleRecipes.pastaForTwo
+        #expect(recipe.twoPersonCookTimeMinutes != nil)
+        #expect(recipe.cookTimeMinutes(forTwoPerson: true) == recipe.twoPersonCookTimeMinutes)
+    }
+
+    @Test func twoPersonCookTimeIsShorterThanSoloForRecipesWithACuratedSplit() {
+        // Splitting labor should actually save time — a regression guard against accidentally
+        // authoring a two-person time that isn't actually faster than cooking it alone.
+        for recipe in SampleRecipes.all where recipe.supportsTwoPerson {
+            #expect(recipe.cookTimeMinutes(forTwoPerson: true) < recipe.cookTimeMinutes(forTwoPerson: false), "\(recipe.title)'s two-person time isn't faster than solo")
+        }
+    }
+
+    @Test func cookTimeForTwoPersonModeFallsBackToSoloValueWhenRecipeHasNoTwoPersonSteps() {
+        let recipe = SampleRecipes.scrambledEggs
+        #expect(recipe.cookTimeMinutes(forTwoPerson: true) == recipe.soloCookTimeMinutes)
     }
 
     // MARK: - CookingSessionViewModel (pure logic, no live networking)
@@ -200,7 +234,7 @@ struct RecipeModelTests {
     @Test func startTimerSetsRunningStateForTimedStep() {
         let recipe = SampleRecipes.searedSteak
         let session = CookingSessionViewModel(recipe: recipe)
-        let timedStep = recipe.steps.first { $0.timerSeconds == 180 }!
+        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 180 }!
 
         session.startTimer(for: timedStep)
 
@@ -213,7 +247,7 @@ struct RecipeModelTests {
     @Test func cancelTimerClearsRunningState() {
         let recipe = SampleRecipes.searedSteak
         let session = CookingSessionViewModel(recipe: recipe)
-        let timedStep = recipe.steps.first { $0.timerSeconds == 180 }!
+        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 180 }!
 
         session.startTimer(for: timedStep)
         session.cancelTimer(for: timedStep)
@@ -225,7 +259,7 @@ struct RecipeModelTests {
     @Test func startTimerOnStepWithoutTimerSecondsDoesNothing() {
         let recipe = SampleRecipes.scrambledEggs
         let session = CookingSessionViewModel(recipe: recipe)
-        let untimedStep = recipe.steps.first { $0.timerSeconds == nil }!
+        let untimedStep = recipe.soloSteps.first { $0.timerSeconds == nil }!
 
         session.startTimer(for: untimedStep)
 
@@ -236,8 +270,8 @@ struct RecipeModelTests {
     @Test func timersStackAcrossMultipleSteps() {
         let recipe = SampleRecipes.pastaForTwo
         let session = CookingSessionViewModel(recipe: recipe, role: .personA)
-        let sauceStep = recipe.steps.first { $0.timerSeconds == 600 && $0.assignee == .personA }!
-        let otherTimedStep = recipe.steps.first { $0.assignee == .personB && $0.timerSeconds != nil }!
+        let sauceStep = recipe.twoPersonSteps!.first { $0.timerSeconds == 600 && $0.assignee == .personA }!
+        let otherTimedStep = recipe.twoPersonSteps!.first { $0.assignee == .personB && $0.timerSeconds != nil }!
 
         session.startTimer(for: sauceStep)
         session.startTimer(for: otherTimedStep)
@@ -259,7 +293,7 @@ struct RecipeModelTests {
     @Test func restartingATimerOnTheSameStepReplacesItRatherThanStacking() {
         let recipe = SampleRecipes.searedSteak
         let session = CookingSessionViewModel(recipe: recipe)
-        let timedStep = recipe.steps.first { $0.timerSeconds == 180 }!
+        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 180 }!
 
         session.startTimer(for: timedStep)
         session.startTimer(for: timedStep)
@@ -274,7 +308,10 @@ struct RecipeModelTests {
         for recipe in SampleRecipes.all {
             #expect((1...3).contains(recipe.difficulty), "\(recipe.title) has an out-of-range difficulty")
             #expect((0...3).contains(recipe.spiceLevel), "\(recipe.title) has an out-of-range spice level")
-            #expect(recipe.cookTimeMinutes > 0, "\(recipe.title) has a non-positive cook time")
+            #expect(recipe.soloCookTimeMinutes > 0, "\(recipe.title) has a non-positive solo cook time")
+            if let twoPersonCookTimeMinutes = recipe.twoPersonCookTimeMinutes {
+                #expect(twoPersonCookTimeMinutes > 0, "\(recipe.title) has a non-positive two-person cook time")
+            }
             #expect(!recipe.ingredients.isEmpty, "\(recipe.title) has no ingredients")
             #expect(!recipe.iconSystemName.isEmpty, "\(recipe.title) has no icon")
         }
@@ -282,14 +319,12 @@ struct RecipeModelTests {
 
     @Test func allStepsHaveAnImage() {
         for recipe in SampleRecipes.all {
-            for step in recipe.steps {
-                #expect(!step.imageSystemName.isEmpty, "\(recipe.title) step \(step.order) has no image")
+            for step in recipe.soloSteps {
+                #expect(!step.imageSystemName.isEmpty, "\(recipe.title) solo step \(step.order) has no image")
+            }
+            for step in recipe.twoPersonSteps ?? [] {
+                #expect(!step.imageSystemName.isEmpty, "\(recipe.title) two-person step \(step.order) has no image")
             }
         }
-    }
-
-    @Test func atLeastTwoTwoPersonRecipesExist() {
-        let twoPersonCount = SampleRecipes.all.filter(\.hasCuratedSplit).count
-        #expect(twoPersonCount >= 2)
     }
 }

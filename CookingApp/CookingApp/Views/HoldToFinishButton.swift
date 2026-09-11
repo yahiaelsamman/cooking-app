@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Finishing the recipe requires a 2-second hold rather than the usual single tap/swipe — a
+/// Finishing the recipe requires a 1-second hold rather than the usual single tap/swipe — a
 /// plain tap on the final step is too easy to trigger by accident, and there's no "undo" for
 /// accidentally landing on the completion screen beyond backing out again.
 struct HoldToFinishButton: View {
@@ -9,7 +9,7 @@ struct HoldToFinishButton: View {
     @State private var isHolding = false
     @State private var holdProgress: CGFloat = 0
 
-    private let holdDuration: Double = 2.0
+    private let holdDuration: Double = 1.0
 
     var body: some View {
         ZStack {
