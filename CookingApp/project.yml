@@ -1,0 +1,35 @@
+name: CookingApp
+options:
+  bundleIdPrefix: com.yahia
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  CookingAppCore:
+    path: ../CookingAppCore
+targets:
+  CookingApp:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: CookingApp
+    dependencies:
+      - package: CookingAppCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yahia.cookingapp
+        CODE_SIGN_STYLE: Automatic
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: true
+    info:
+      path: CookingApp/Info.plist
+      properties:
+        UILaunchScreen: {}
+        CFBundleDisplayName: "Cooking App"
+        NSLocalNetworkUsageDescription: "Cooking App uses your local network to sync cooking progress with your partner's iPhone during a two-person recipe."
+        NSBonjourServices:
+          - "_cook-sync._tcp"
+          - "_cook-sync._udp"

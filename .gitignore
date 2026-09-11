@@ -1,0 +1,15 @@
+# Xcode
+CookingApp/CookingApp.xcodeproj/xcuserdata/
+CookingApp/CookingApp.xcodeproj/project.xcworkspace/xcuserdata/
+CookingApp/CookingApp.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+*.xcuserstate
+DerivedData/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+CookingAppCore/.build/
+CookingAppCore/.swiftpm/
+
+# macOS
+.DS_Store
