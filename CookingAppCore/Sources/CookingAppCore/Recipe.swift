@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 public enum StepAssignee: String, Codable, Sendable {
     case solo
@@ -71,32 +72,40 @@ public struct Ingredient: Identifiable, Codable, Hashable, Sendable {
     }
 }
 
-public struct Recipe: Identifiable, Codable, Hashable, Sendable {
-    public let id: UUID
-    public let title: String
-    public let summary: String
-    public let servings: Int?
+/// The only `@Model` type in this app — a real on-device database record, queryable via
+/// `@Query` and persisted by SwiftData across launches. `RecipeStep`/`Ingredient`/`DietaryTag`
+/// deliberately stay plain `Codable` value types embedded on this model (as attributes, not
+/// SwiftData relationships): they never need independent identity or querying outside their
+/// parent recipe, so giving them their own `@Model`/relationship machinery would just be
+/// SwiftData relationship-modeling complexity (inverse-relationship ambiguity between two
+/// same-type to-many relationships on one parent, in particular) for no real benefit.
+@Model
+public final class Recipe {
+    @Attribute(.unique) public var id: UUID
+    public var title: String
+    public var summary: String
+    public var servings: Int?
     /// The solo-cooking step list — always present, every step tagged `.solo`. Written as its
     /// own version, not derived from `twoPersonSteps`: it reads naturally for one person (no
     /// "Both:" phrasing, no assignee-based hue shifts in the UI) and its cook time reflects doing
     /// everything sequentially rather than splitting labor.
-    public let soloSteps: [RecipeStep]
+    public var soloSteps: [RecipeStep]
     /// The two-person task split, if this recipe has one. `nil` means there's no sensible way to
     /// divide this recipe's steps between two people — two-person mode simply isn't offered for
     /// it at all (see `supportsTwoPerson`), rather than falling back to some generic mirror of
     /// the solo steps.
-    public let twoPersonSteps: [RecipeStep]?
+    public var twoPersonSteps: [RecipeStep]?
     /// SF Symbol shown as this recipe's "photo" on the list/overview screens.
-    public let iconSystemName: String
+    public var iconSystemName: String
     /// 1...3, rendered as filled-out-of-3 stars.
-    public let difficulty: Int
+    public var difficulty: Int
     /// 0...3, rendered as filled-out-of-3 flames. 0 means not spicy at all.
-    public let spiceLevel: Int
-    public let soloCookTimeMinutes: Int
+    public var spiceLevel: Int
+    public var soloCookTimeMinutes: Int
     /// `nil` when `twoPersonSteps` is `nil`.
-    public let twoPersonCookTimeMinutes: Int?
-    public let dietaryTags: [DietaryTag]
-    public let ingredients: [Ingredient]
+    public var twoPersonCookTimeMinutes: Int?
+    public var dietaryTags: [DietaryTag]
+    public var ingredients: [Ingredient]
 
     public init(
         id: UUID = UUID(),
@@ -148,5 +157,22 @@ public struct Recipe: Identifiable, Codable, Hashable, Sendable {
         return twoPersonSteps
             .filter { $0.assignee == .shared || $0.assignee == role }
             .sorted { $0.order < $1.order }
+    }
+}
+
+// MARK: - Identifiable / Hashable
+
+// @Model classes don't get Swift's automatic Equatable/Hashable synthesis (that only applies to
+// structs/enums) — these are identity-based on `id`, which is what NavigationPath/Route usage and
+// SwiftData's own duplicate-seeding checks both rely on.
+extension Recipe: Identifiable {}
+
+extension Recipe: Hashable {
+    public static func == (lhs: Recipe, rhs: Recipe) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }

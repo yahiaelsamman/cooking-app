@@ -1,14 +1,16 @@
 import SwiftUI
+import SwiftData
 import CookingAppCore
 
 struct RecipeListView: View {
     @Environment(ActiveSessionStore.self) private var sessionStore
+    @Query(sort: \Recipe.title) private var recipes: [Recipe]
     @State private var path = NavigationPath()
 
     var body: some View {
         NavigationStack(path: $path) {
             ZStack(alignment: .bottomTrailing) {
-                List(SampleRecipes.all) { recipe in
+                List(recipes) { recipe in
                     Button {
                         path.append(Route.detail(recipe))
                     } label: {

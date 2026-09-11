@@ -18,8 +18,20 @@ for the specifics of what changed when.
 ### `CookingAppCore/` — a local Swift Package (all the testable logic)
 
 - **`Recipe.swift`** — `Recipe`, `RecipeStep`, `StepAssignee`, `DietaryTag`
-  (`vegetarian`/`vegan`/`glutenFree`/`lactoseFree`/`nutFree`), `Ingredient`. A `Recipe` carries
-  **two independently-authored step lists**, not one list with a derived variant:
+  (`vegetarian`/`vegan`/`glutenFree`/`lactoseFree`/`nutFree`), `Ingredient`. **`Recipe` is now a
+  SwiftData `@Model` class** — a real on-device database record, not a hardcoded Swift value —
+  added in pass 5 as the "memory" layer requested before adding more recipes. `RecipeStep`,
+  `Ingredient`, and `DietaryTag` deliberately stayed plain `Codable` structs/enums embedded on the
+  model as attributes rather than becoming their own `@Model` types with SwiftData relationships:
+  they never need independent identity or querying outside their parent recipe, so giving them
+  relationship machinery would only add SwiftData's relationship-modeling complexity (in
+  particular, inverse-relationship ambiguity between `soloSteps` and `twoPersonSteps` — two
+  separate to-many relationships targeting the same model type) for no real benefit. Since `@Model`
+  classes don't get Swift's automatic `Equatable`/`Hashable` synthesis (only structs/enums get
+  that), `Recipe` has a small hand-written `Hashable` conformance based on `id`.
+
+  A `Recipe` carries **two independently-authored step lists**, not one list with a derived
+  variant:
   - `soloSteps: [RecipeStep]` — always present, every step tagged `.solo`, written to read
     naturally for one person (no "Both:" phrasing).
   - `twoPersonSteps: [RecipeStep]?` — `nil` if this recipe has no sensible way to split labor
@@ -67,14 +79,24 @@ for the specifics of what changed when.
   button that jumps back into the *same* session object — see the "resume" note below for why
   that's what makes Person A/B role preservation work.
 - **`PeerConnectionViewModel.swift`** — host/join connection screen logic.
+- **`RecipeSeeder.swift`** *(new, pass 5)* — `seedIfNeeded(context:)` inserts the 8
+  `SampleRecipes` into a `ModelContext` only if the store currently has zero `Recipe` records, so
+  it's safe to call on every launch without ever overwriting recipes a future version lets the
+  user add, edit, or delete. `SampleRecipes.swift` itself is unchanged — same hardcoded Swift
+  recipes as before, just now used as seed data for a real store instead of being the store.
 
 ### `CookingApp/` — the iOS app target (thin SwiftUI views over Core)
 
-- **`RecipeListView.swift`** — rows show a spice-level flame row (only when `spiceLevel > 0`)
-  alongside difficulty stars, the solo cook time, and an "Also for two" badge only for
-  `supportsTwoPerson` recipes. A bottom-right floating **"Resume Cooking"** button appears
-  whenever `ActiveSessionStore.hasActiveSession`. Requests notification permission once, in
-  `.onAppear` — i.e. at app start, not the first time you open a recipe or start a timer.
+- **`CookingAppApp.swift`** — creates a `ModelContainer` for `Recipe` in `init()`, calls
+  `RecipeSeeder.seedIfNeeded` against its `mainContext`, and attaches it via `.modelContainer(_:)`
+  — alongside the `ActiveSessionStore`/`UNUserNotificationCenter` setup from earlier passes.
+- **`RecipeListView.swift`** — recipes now come from `@Query(sort: \Recipe.title) private var
+  recipes: [Recipe]`, a live SwiftData query, not the static `SampleRecipes.all` array. Rows show
+  a spice-level flame row (only when `spiceLevel > 0`) alongside difficulty stars, the solo cook
+  time, and an "Also for two" badge only for `supportsTwoPerson` recipes. A bottom-right floating
+  **"Resume Cooking"** button appears whenever `ActiveSessionStore.hasActiveSession`. Requests
+  notification permission once, in `.onAppear` — i.e. at app start, not the first time you open a
+  recipe or start a timer.
 - **`RecipeDetailView.swift`** — a **Solo / Two-Person segmented picker** appears *only* when
   `recipe.supportsTwoPerson`; a recipe without a two-person version shows no toggle at all. The
   displayed cook time updates live with the picker (`recipe.cookTimeMinutes(forTwoPerson:)`), and
@@ -109,9 +131,6 @@ for the specifics of what changed when.
   suppresses the system banner/sound while the app is foregrounded (`willPresent` →
   `completionHandler([])`), since that case already gets the in-app alert — stops you from seeing
   both for the same event.
-- **`CookingAppApp.swift`** — creates one `ActiveSessionStore` and injects it via
-  `.environment(_:)`; sets `UNUserNotificationCenter.current().delegate` at launch.
-
 ### On "resume" and role preservation
 
 Leaving the step screen and coming back used to mean re-choosing Host or Join, which could flip
@@ -124,8 +143,9 @@ not — there's still no disk persistence; see Next Steps).
 
 ## 2. How to run it
 
-This sandbox only has Xcode **Command Line Tools** installed, not full Xcode, so `xcodebuild`/the
-iOS Simulator wasn't available here — see §3's tooling note. On a Mac with full Xcode installed:
+Full Xcode (26.6) is now installed in this environment as of pass 5 — it wasn't for passes 1-4 (see
+§3's tooling note for what changed and what that means for verification level). Just open the
+project normally:
 
 1. Open `CookingApp/CookingApp.xcodeproj` in Xcode (generated by
    [XcodeGen](https://github.com/yonaskolb/XcodeGen) from `CookingApp/project.yml`; depends on the
@@ -170,13 +190,32 @@ process's threading model doesn't reliably guarantee — a test that could silen
 the coverage. State transitions (`startTimer`/`cancelTimer`/stacking) are tested deterministically
 instead; the actual countdown-to-alert behavior is a manual check (below).
 
-### Tooling note — no full Xcode in this sandbox
+### Tooling note — full Xcode became available mid-session (pass 5)
 
-No `xcodebuild`/iOS Simulator here in any pass so far. `CookingAppCore` (all non-UI logic) is
-genuinely built and tested with `swift test`. `CookingApp.xcodeproj` is generated via `xcodegen`
-and validated with `plutil -lint`, not hand-authored. The SwiftUI files under
-`CookingApp/CookingApp/Views/` are reviewed by hand — this has caught real bugs before shipping
-(see pitfalls) — but **open the project in Xcode and build once before relying on it**.
+Passes 1-4 had only Xcode Command Line Tools in this sandbox — no `xcodebuild`, no Simulator, so
+the entire `CookingApp` iOS target (every SwiftUI view) was hand-reviewed but never actually
+compiled. That changed partway through pass 5: full Xcode 26.6 turned out to be installed at
+`/Applications/Xcode.app` (not there in earlier passes). Since global `xcode-select` in this
+sandbox still points at Command Line Tools, verification here used a per-command
+`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` override rather than changing that
+system-wide default — you won't need this yourself; opening the project in Xcode normally just
+uses whichever Xcode you have.
+
+With that available, this pass actually:
+- Ran `swift build`/`swift test` for `CookingAppCore` with the real Xcode toolchain (needed
+  specifically for SwiftData's `@Model` macro, whose plugin binary lives inside Xcode.app and
+  isn't resolvable from Command Line Tools alone) — 67/67 tests passed.
+- Ran `xcodebuild build` for the full `CookingApp` scheme against an iPhone 17 Simulator —
+  **BUILD SUCCEEDED**, the first real compile of every SwiftUI file written across all five passes.
+- Installed and launched the built app on that Simulator (`xcrun simctl install`/`launch`) and
+  took a screenshot confirming the recipe list renders correctly with live, SwiftData-backed data
+  — difficulty stars, spice flames, cook time, dietary tags, and the "Also for two" badge all
+  showing as expected, recipes sorted by title via the `@Query`.
+- Could **not** go further into automated UI interaction (tapping into a recipe, exercising the
+  step screen) — that needs either `osascript`/System Events accessibility permission (not granted
+  in this sandbox, and not something to grant non-interactively) or a proper XCUITest target
+  (not set up). So the step-through screen, two-person flow, timers, hold-to-finish, and
+  notifications are still exactly as before: hand-reviewed, not yet run.
 
 **Manual verification checklist** (needs a real device/Xcode):
 
@@ -236,22 +275,29 @@ and validated with `plutil -lint`, not hand-authored. The SwiftUI files under
 
 ## 5. Next steps (explicitly deferred)
 
-1. **A real persistence/"memory" layer** — in progress next; see §6 below for the direction.
-2. **Real illustrations/photos** — SF Symbols were a deliberate MVP choice; swapping in real art
+1. **More recipes**, now that they land in a real store rather than needing new Swift code per
+   recipe — explicitly next, per the direction in §6.
+2. **In-app recipe creation/editing UI** — the persistence layer (§1) supports it; there's no UI
+   for it yet, since this pass only seeded seed data, it didn't add a way to add/edit from the app.
+3. **AI-assisted recipe-to-two-person conversion** — flagged as a good idea for once there's
+   budget for it; explicitly skipped for now since it costs money (see §6).
+4. **Real illustrations/photos** — SF Symbols were a deliberate MVP choice; swapping in real art
    is a data-shape change (`imageSystemName: String` → an asset name or URL) plus a pipeline, not
    just new files. Also see §6 — you asked directly whether this is reasonable to hand to me.
-3. **True background reconnection** — declared background modes so a two-person session survives
+5. **True background reconnection** — declared background modes so a two-person session survives
    more than a brief backgrounding.
-4. **Curated two-person splits for the 5 currently-solo recipes**, if any turn out to split
+6. **Curated two-person splits for the 5 currently-solo recipes**, if any turn out to split
    sensibly in practice — not guessed at; a recipe simply has no two-person option until one is
    deliberately authored for it (see the removed-mirror-mode pitfall above for why).
-5. **Role selection UI** — let two people swap who's "Person A."
-6. **A sturdier leave/rejoin protocol** — an ack for `leaveSession`, and reusing a specific prior
+7. **Role selection UI** — let two people swap who's "Person A."
+8. **A sturdier leave/rejoin protocol** — an ack for `leaveSession`, and reusing a specific prior
    peer connection on reconnect rather than the current "any peer that shows up" auto-invite.
-7. **CloudKit/iCloud sync**, for two-person mode over the internet and cross-device recipe sync.
-8. **Accounts, recipe sharing, Android** — still explicitly out of scope.
-9. **An Xcode-level UI test target**, once full Xcode is available, for the tap/swipe/hold gesture
-   flows that `CookingAppCoreTests` deliberately doesn't cover.
+9. **CloudKit/iCloud sync**, for two-person mode over the internet and cross-device recipe sync —
+   and now a more natural fit, since recipes already live in a real SwiftData store.
+10. **Accounts, recipe sharing, Android** — still explicitly out of scope.
+11. **An XCUITest target**, now that full Xcode is available (§3) — the natural next step for
+    verification is tapping through the actual app (recipe → detail → step screen → timers →
+    hold-to-finish) rather than only confirming it builds and the list screen renders.
 
 ## 6. UX/product iteration ideas & direction
 
@@ -281,9 +327,10 @@ and validated with `plutil -lint`, not hand-authored. The SwiftUI files under
 
 ### Current direction (pass 5)
 
-Explicitly requested next, in order: build a real persistence layer ("the memory"), *then* add
-more recipes, with AI-assisted recipe-to-two-person conversion flagged as a good idea for later
-but skipped now since it'd cost money. Also asked directly whether generating step illustrations
+Explicitly requested, in order: build a real persistence layer ("the memory") — **done this
+pass**, `Recipe` is now a SwiftData `@Model`, see §1 — *then* add more recipes next, with
+AI-assisted recipe-to-two-person conversion flagged as a good idea for later but skipped now since
+it'd cost money. Also asked directly whether generating step illustrations
 is reasonable to ask of me — answered in-session: I have no image-generation tool available in
 this environment, so I can't produce the artwork myself; I can build whatever asset pipeline is
 needed to wire in real images once you have them (AI-generated elsewhere, stock, or your own),
