@@ -8,6 +8,12 @@ private let serviceType = "cook-sync"
 /// Wraps MultipeerConnectivity to sync cooking progress between exactly two nearby peers.
 /// Networking is strictly additive: local step navigation must keep working with no peer
 /// connected at all, so nothing in this service ever blocks the caller.
+///
+/// Delegate callbacks below are thin `DispatchQueue.main.async` wrappers around `internal`
+/// (not `private`) handler methods — MultipeerConnectivity calls delegates on an arbitrary
+/// queue, so production code needs the dispatch, but tests can call the synchronous handlers
+/// directly (via `@testable import`) without needing a real MC session or waiting on the main
+/// queue to drain.
 @Observable
 public final class PeerSyncService: NSObject {
     public private(set) var connectionState: ConnectionState = .idle
@@ -17,6 +23,13 @@ public final class PeerSyncService: NSObject {
     public private(set) var connectedPeerName: String?
 
     public var onRecipeSync: ((UUID) -> Void)?
+    /// `(stepIndex in partner's own track, total duration in seconds)`.
+    public var onPartnerTimerStarted: ((Int, Int) -> Void)?
+    /// `stepIndex` in the partner's own track.
+    public var onPartnerTimerCancelled: ((Int) -> Void)?
+    /// Fired when the partner explicitly ends the session (as opposed to just dropping out of
+    /// range, which triggers auto-reconnect instead — see `handleSessionStateChange`).
+    public var onPartnerLeft: (() -> Void)?
 
     private let myPeerID: MCPeerID
     private let session: MCSession
@@ -73,8 +86,15 @@ public final class PeerSyncService: NSObject {
     // MARK: - Sending
 
     public func sendProgress(stepIndex: Int) {
-        guard connectionState == .connected, !session.connectedPeers.isEmpty else { return }
         send(.progressUpdate(stepIndex: stepIndex))
+    }
+
+    public func sendTimerStarted(stepIndex: Int, durationSeconds: Int) {
+        send(.timerStarted(stepIndex: stepIndex, durationSeconds: durationSeconds))
+    }
+
+    public func sendTimerCancelled(stepIndex: Int) {
+        send(.timerCancelled(stepIndex: stepIndex))
     }
 
     private func sendRecipeSync(recipeID: UUID) {
@@ -82,12 +102,27 @@ public final class PeerSyncService: NSObject {
     }
 
     private func send(_ message: SyncMessage) {
-        guard !session.connectedPeers.isEmpty else { return }
+        guard connectionState == .connected, !session.connectedPeers.isEmpty else { return }
         guard let data = try? JSONEncoder().encode(message) else { return }
         try? session.send(data, toPeers: session.connectedPeers, with: .reliable)
     }
 
     // MARK: - Teardown
+
+    /// A deliberate, user-initiated end to the session — tells the partner first (best-effort;
+    /// this can't be guaranteed to arrive if the connection is already degrading) and then
+    /// fully tears down locally with no auto-reconnect attempt. Contrast with a connection just
+    /// dropping, which `attemptAutoReconnect` tries to recover from instead.
+    ///
+    /// No separate "is this deliberate" flag is needed to suppress auto-reconnect: `stop()`
+    /// below resets `hasConnectedBefore` to `false` synchronously, and that happens before the
+    /// framework's own (always-async) `.notConnected` callback for the resulting disconnect can
+    /// possibly arrive — so `handleSessionStateChange`'s auto-reconnect guard already sees a
+    /// clean slate by the time it runs.
+    public func leaveSession() {
+        send(.leaveSession())
+        stop()
+    }
 
     public func stop() {
         advertiser?.stopAdvertisingPeer()
@@ -100,6 +135,9 @@ public final class PeerSyncService: NSObject {
         connectedPeerName = nil
         hasConnectedBefore = false
         autoReconnecting = false
+        role = nil
+        partnerStepIndex = nil
+        partnerRecipeID = nil
     }
 
     // MARK: - Auto-reconnect
@@ -121,6 +159,72 @@ public final class PeerSyncService: NSObject {
             break
         }
     }
+
+    // MARK: - Testable synchronous handlers
+
+    // These contain the actual logic for each delegate callback. The delegate methods below
+    // dispatch to these on the main queue for production use; tests call them directly.
+
+    func handleSessionStateChange(_ state: MCSessionState, peerID: MCPeerID) {
+        switch state {
+        case .connected:
+            connectionState = .connected
+            connectedPeerName = peerID.displayName
+            hasConnectedBefore = true
+            autoReconnecting = false
+            // Resync current progress immediately so a reconnect self-heals both sides
+            // without needing to track/replay any messages that were missed while apart.
+            if role == .host, let recipeID = partnerRecipeID {
+                sendRecipeSync(recipeID: recipeID)
+            }
+        case .connecting:
+            connectionState = .connecting
+        case .notConnected:
+            connectionState = .disconnected
+            connectedPeerName = nil
+            if hasConnectedBefore {
+                attemptAutoReconnect()
+            }
+        @unknown default:
+            break
+        }
+    }
+
+    func handleReceivedMessage(_ message: SyncMessage) {
+        switch message.type {
+        case .recipeSync:
+            if let recipeID = message.recipeID {
+                partnerRecipeID = recipeID
+                onRecipeSync?(recipeID)
+            }
+        case .progressUpdate:
+            partnerStepIndex = message.stepIndex
+        case .timerStarted:
+            if let stepIndex = message.stepIndex, let duration = message.timerDurationSeconds {
+                onPartnerTimerStarted?(stepIndex, duration)
+            }
+        case .timerCancelled:
+            if let stepIndex = message.stepIndex {
+                onPartnerTimerCancelled?(stepIndex)
+            }
+        case .leaveSession:
+            onPartnerLeft?()
+            stop()
+        }
+    }
+
+    func handleFoundPeer(_ peerID: MCPeerID) {
+        if !discoveredPeers.contains(peerID) {
+            discoveredPeers.append(peerID)
+        }
+        if autoReconnecting {
+            invite(peer: peerID)
+        }
+    }
+
+    func handleLostPeer(_ peerID: MCPeerID) {
+        discoveredPeers.removeAll { $0 == peerID }
+    }
 }
 
 // MARK: - MCSessionDelegate
@@ -128,43 +232,14 @@ public final class PeerSyncService: NSObject {
 extension PeerSyncService: MCSessionDelegate {
     public func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
         DispatchQueue.main.async {
-            switch state {
-            case .connected:
-                self.connectionState = .connected
-                self.connectedPeerName = peerID.displayName
-                self.hasConnectedBefore = true
-                self.autoReconnecting = false
-                // Resync current progress immediately so a reconnect self-heals both sides
-                // without needing to track/replay any messages that were missed while apart.
-                if self.role == .host, let recipeID = self.partnerRecipeID {
-                    self.sendRecipeSync(recipeID: recipeID)
-                }
-            case .connecting:
-                self.connectionState = .connecting
-            case .notConnected:
-                self.connectionState = .disconnected
-                self.connectedPeerName = nil
-                if self.hasConnectedBefore {
-                    self.attemptAutoReconnect()
-                }
-            @unknown default:
-                break
-            }
+            self.handleSessionStateChange(state, peerID: peerID)
         }
     }
 
     public func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
         guard let message = try? JSONDecoder().decode(SyncMessage.self, from: data) else { return }
         DispatchQueue.main.async {
-            switch message.type {
-            case .recipeSync:
-                if let recipeID = message.recipeID {
-                    self.partnerRecipeID = recipeID
-                    self.onRecipeSync?(recipeID)
-                }
-            case .progressUpdate:
-                self.partnerStepIndex = message.stepIndex
-            }
+            self.handleReceivedMessage(message)
         }
     }
 
@@ -186,18 +261,13 @@ extension PeerSyncService: MCNearbyServiceAdvertiserDelegate {
 extension PeerSyncService: MCNearbyServiceBrowserDelegate {
     public func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID, withDiscoveryInfo info: [String: String]?) {
         DispatchQueue.main.async {
-            if !self.discoveredPeers.contains(peerID) {
-                self.discoveredPeers.append(peerID)
-            }
-            if self.autoReconnecting {
-                self.invite(peer: peerID)
-            }
+            self.handleFoundPeer(peerID)
         }
     }
 
     public func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
         DispatchQueue.main.async {
-            self.discoveredPeers.removeAll { $0 == peerID }
+            self.handleLostPeer(peerID)
         }
     }
 }

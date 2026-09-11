@@ -5,9 +5,11 @@ import CookingAppCore
 struct StepView: View {
     let session: CookingSessionViewModel
     @Binding var path: NavigationPath
+    @Environment(ActiveSessionStore.self) private var sessionStore
 
     @State private var showTimerFinishedAlert = false
     @State private var finishedTimerStepInstruction = ""
+    @State private var showEndSessionConfirm = false
 
     var body: some View {
         ZStack {
@@ -21,6 +23,28 @@ struct StepView: View {
         }
         .navigationBarBackButtonHidden(true)
         .disablesInteractiveSwipeBack()
+        .toolbar {
+            if session.role != nil && !session.isComplete && session.partnerConnectionState != .idle {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("End Session", role: .destructive) {
+                        showEndSessionConfirm = true
+                    }
+                    .font(.caption)
+                }
+            }
+        }
+        .confirmationDialog(
+            "End the shared session?",
+            isPresented: $showEndSessionConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("End Session", role: .destructive) {
+                session.endSharedSession()
+            }
+            Button("Keep Cooking Together", role: .cancel) {}
+        } message: {
+            Text("Your partner will be disconnected too. You can keep cooking on your own afterward.")
+        }
         .onAppear {
             session.onTimerFinished = { step in
                 finishedTimerStepInstruction = step.instruction
@@ -32,6 +56,14 @@ struct StepView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(finishedTimerStepInstruction)
+        }
+        .alert("Partner Ended the Session", isPresented: .constant(session.partnerDidLeave)) {
+            Button("OK") {
+                sessionStore.clear()
+                path = NavigationPath()
+            }
+        } message: {
+            Text("You can keep cooking on your own — the recipe is still right here.")
         }
     }
 
@@ -48,11 +80,9 @@ struct StepView: View {
                     .padding(.top, 8)
             }
 
-            if let runningStep = session.runningTimerStep, runningStep.id != session.currentStep?.id {
-                elsewhereTimerBanner(for: runningStep)
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-            }
+            TimerStackView(timers: otherTimers)
+                .padding(.horizontal)
+                .padding(.top, 8)
 
             Spacer()
 
@@ -77,13 +107,25 @@ struct StepView: View {
 
             Spacer()
 
+            if session.isLastStep {
+                HoldToFinishButton { session.advance() }
+                    .padding(.bottom, 12)
+            }
+
+            // Always available, even on the last step — the hold-to-finish control above adds
+            // to this, it doesn't replace it.
             backButtonRow
         }
         // Most of the screen advances to the next step on tap — the large target is
         // deliberate: this needs to work reliably with wet or messy hands while cooking.
         // A left/right swipe does the same thing as a convenience, but is never required.
+        // On the final step, tap/swipe-forward is disabled in favor of the deliberate
+        // hold-to-finish control above — going back still works normally.
         .contentShape(Rectangle())
-        .onTapGesture { session.advance() }
+        .onTapGesture {
+            guard !session.isLastStep else { return }
+            session.advance()
+        }
         .gesture(stepSwipeGesture)
     }
 
@@ -94,6 +136,7 @@ struct StepView: View {
                 let vertical = value.translation.height
                 guard abs(horizontal) > abs(vertical) else { return }
                 if horizontal < 0 {
+                    guard !session.isLastStep else { return }
                     session.advance()
                 } else {
                     session.goBack()
@@ -101,19 +144,15 @@ struct StepView: View {
             }
     }
 
-    private func elsewhereTimerBanner(for step: RecipeStep) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "timer")
-            Text("Timer running on another step: \(StepTimerControl.formatted(session.timerRemainingSeconds))")
-                .font(.caption.weight(.medium))
-                .lineLimit(1)
-            Spacer(minLength: 0)
-        }
-        .foregroundStyle(.orange)
-        .padding(8)
-        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
-        .contentShape(Rectangle())
-        .onTapGesture {} // absorb — don't advance the current step when tapping this banner
+    /// Every timer that isn't the current step's own — mine on other steps, plus the partner's,
+    /// each labeled with the task it's timing (see `TimerStackView`).
+    private var otherTimers: [TimerChipInfo] {
+        let mine = session.activeTimers
+            .filter { $0.step.id != session.currentStep?.id }
+            .map { TimerChipInfo(step: $0.step, remainingSeconds: $0.remainingSeconds, isMine: true) }
+        let partner = session.partnerActiveTimers
+            .map { TimerChipInfo(step: $0.step, remainingSeconds: $0.remainingSeconds, isMine: false) }
+        return mine + partner
     }
 
     private var backButtonRow: some View {
@@ -145,11 +184,12 @@ struct StepView: View {
 
             VStack(spacing: 12) {
                 Button("Back to Recipes") {
+                    sessionStore.clear()
                     path = NavigationPath()
                 }
                 .buttonStyle(.borderedProminent)
 
-                // In case the last tap/swipe past the final step was an accident and you're
+                // In case the last tap/hold past the final step was an accident and you're
                 // not actually done cooking yet.
                 Button("Go Back") {
                     session.goBack()

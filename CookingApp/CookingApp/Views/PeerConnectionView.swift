@@ -5,6 +5,7 @@ import MultipeerConnectivity
 struct PeerConnectionView: View {
     @State private var viewModel: PeerConnectionViewModel
     @Binding var path: NavigationPath
+    @Environment(ActiveSessionStore.self) private var sessionStore
 
     init(recipe: Recipe, path: Binding<NavigationPath>) {
         _viewModel = State(initialValue: PeerConnectionViewModel(recipe: recipe))
@@ -38,6 +39,7 @@ struct PeerConnectionView: View {
                 role: role.stepAssignee,
                 peerSync: viewModel.peerSync
             )
+            sessionStore.setActive(session)
             path.append(Route.steps(session))
         }
         .onDisappear {

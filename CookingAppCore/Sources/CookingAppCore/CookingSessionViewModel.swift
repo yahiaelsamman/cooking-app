@@ -1,6 +1,15 @@
 import Foundation
 import Observation
 
+/// A running countdown for one step. `id` is the step's own id, so a step can only have one
+/// timer at a time — starting it again while already running just restarts the countdown.
+public struct ActiveTimer: Identifiable, Hashable, Sendable {
+    public let step: RecipeStep
+    public let totalSeconds: Int
+    public var remainingSeconds: Int
+    public var id: UUID { step.id }
+}
+
 /// Drives the step-through experience for one cooking session. Works identically for solo
 /// recipes (`role: nil`, `peerSync: nil`) and two-person recipes — local navigation never
 /// depends on a connected peer, sync is a strictly additive layer on top.
@@ -13,26 +22,44 @@ public final class CookingSessionViewModel {
 
     private let peerSync: PeerSyncService?
 
-    // MARK: - Timer
+    // MARK: - Timers (stack — more than one can run at once)
 
-    /// The step a running countdown belongs to, if any. Lives independently of `currentIndex`
-    /// so a timer started on one step keeps running while you navigate to other steps.
-    public private(set) var runningTimerStepID: UUID?
-    public private(set) var timerRemainingSeconds: Int = 0
-    /// Fires once, off the main run loop's Timer, when a countdown reaches zero.
+    /// Timers *I* started, keyed by step. Live independently of `currentIndex`, so starting a
+    /// timer on one step and moving to another keeps it counting down in the background.
+    public private(set) var activeTimers: [ActiveTimer] = []
+    /// A mirror of the partner's running timers, kept in sync by `timerStarted`/`timerCancelled`
+    /// messages and then ticked locally (so it's not sending a message every second).
+    public private(set) var partnerActiveTimers: [ActiveTimer] = []
+    /// Fires once per step, when a countdown *I* started reaches zero.
     public var onTimerFinished: ((RecipeStep) -> Void)?
 
-    private var timer: Timer?
+    private var ticker: Timer?
+
+    // MARK: - Partner session lifecycle
+
+    /// True once the partner has explicitly ended the session (as opposed to just dropping out
+    /// of range, which triggers `PeerSyncService`'s own auto-reconnect instead).
+    public private(set) var partnerDidLeave = false
 
     public init(recipe: Recipe, role: StepAssignee? = nil, peerSync: PeerSyncService? = nil) {
         self.recipe = recipe
         self.role = role
         self.track = recipe.track(for: role)
         self.peerSync = peerSync
+
+        peerSync?.onPartnerTimerStarted = { [weak self] stepIndex, duration in
+            self?.handlePartnerTimerStarted(stepIndex: stepIndex, duration: duration)
+        }
+        peerSync?.onPartnerTimerCancelled = { [weak self] stepIndex in
+            self?.handlePartnerTimerCancelled(stepIndex: stepIndex)
+        }
+        peerSync?.onPartnerLeft = { [weak self] in
+            self?.partnerDidLeave = true
+        }
     }
 
     deinit {
-        timer?.invalidate()
+        ticker?.invalidate()
     }
 
     public var currentStep: RecipeStep? {
@@ -45,6 +72,10 @@ public final class CookingSessionViewModel {
         currentIndex >= track.count
     }
 
+    public var isLastStep: Bool {
+        currentIndex == track.count - 1
+    }
+
     public var progressText: String {
         "Step \(min(currentIndex + 1, track.count)) of \(track.count)"
     }
@@ -54,6 +85,10 @@ public final class CookingSessionViewModel {
         return Double(min(currentIndex, track.count)) / Double(track.count)
     }
 
+    /// Advances to the next step. On the final step this completes the recipe — callers that
+    /// want to require deliberate confirmation before finishing (e.g. a hold-to-confirm gesture)
+    /// should guard `isLastStep` themselves before calling this; the view model doesn't enforce
+    /// any particular confirmation UI.
     public func advance() {
         guard currentIndex < track.count else { return }
         currentIndex += 1
@@ -66,63 +101,134 @@ public final class CookingSessionViewModel {
         peerSync?.sendProgress(stepIndex: currentIndex)
     }
 
+    /// `nil` for a solo session; otherwise the opposite of `role`.
+    private var partnerRole: StepAssignee? {
+        switch role {
+        case .personA: return .personB
+        case .personB: return .personA
+        default: return nil
+        }
+    }
+
     /// The partner's current step, resolved locally from the recipe's master step list —
     /// only the index travels over the wire.
     public var partnerStep: RecipeStep? {
-        guard let peerSync, let partnerIndex = peerSync.partnerStepIndex else { return nil }
-        let partnerRole: StepAssignee? = role == .personA ? .personB : (role == .personB ? .personA : nil)
+        guard let peerSync, let partnerIndex = peerSync.partnerStepIndex, let partnerRole else { return nil }
         let partnerTrack = recipe.track(for: partnerRole)
         guard partnerIndex >= 0, partnerIndex < partnerTrack.count else { return nil }
         return partnerTrack[partnerIndex]
+    }
+
+    /// The partner's progress through *their* track, as a 0...1 fraction — comparable directly
+    /// against `progressFraction` even when the two tracks have different lengths, which is what
+    /// lets a "how far ahead is my partner" slider make sense.
+    public var partnerProgressFraction: Double? {
+        guard let peerSync, let partnerIndex = peerSync.partnerStepIndex, let partnerRole else { return nil }
+        let partnerTrack = recipe.track(for: partnerRole)
+        guard !partnerTrack.isEmpty else { return nil }
+        return Double(min(partnerIndex, partnerTrack.count)) / Double(partnerTrack.count)
     }
 
     public var partnerConnectionState: ConnectionState {
         peerSync?.connectionState ?? .idle
     }
 
-    /// The step whose timer is currently running, resolved from the local track — `nil` once
-    /// the timer finishes or is cancelled.
-    public var runningTimerStep: RecipeStep? {
-        guard let runningTimerStepID else { return nil }
-        return track.first { $0.id == runningTimerStepID }
+    /// Sends a deliberate end-of-session signal to the partner (if connected) and tears down
+    /// the local peer connection with no auto-reconnect attempt. Local step navigation keeps
+    /// working afterwards — ending the shared session doesn't stop you from finishing the
+    /// recipe on your own.
+    public func endSharedSession() {
+        peerSync?.leaveSession()
+    }
+
+    // MARK: - Timers
+
+    public func activeTimer(for step: RecipeStep) -> ActiveTimer? {
+        activeTimers.first { $0.step.id == step.id }
     }
 
     public func startTimer(for step: RecipeStep) {
         guard let duration = step.timerSeconds else { return }
-        timer?.invalidate()
-        runningTimerStepID = step.id
-        timerRemainingSeconds = duration
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        if let idx = activeTimers.firstIndex(where: { $0.step.id == step.id }) {
+            activeTimers[idx].remainingSeconds = duration
+        } else {
+            activeTimers.append(ActiveTimer(step: step, totalSeconds: duration, remainingSeconds: duration))
+        }
+        ensureTicking()
+        if let index = track.firstIndex(where: { $0.id == step.id }) {
+            peerSync?.sendTimerStarted(stepIndex: index, durationSeconds: duration)
+        }
+    }
+
+    public func cancelTimer(for step: RecipeStep) {
+        guard activeTimers.contains(where: { $0.step.id == step.id }) else { return }
+        activeTimers.removeAll { $0.step.id == step.id }
+        if let index = track.firstIndex(where: { $0.id == step.id }) {
+            peerSync?.sendTimerCancelled(stepIndex: index)
+        }
+        stopTickingIfIdle()
+    }
+
+    private func handlePartnerTimerStarted(stepIndex: Int, duration: Int) {
+        guard let partnerRole else { return }
+        let partnerTrack = recipe.track(for: partnerRole)
+        guard stepIndex >= 0, stepIndex < partnerTrack.count else { return }
+        let step = partnerTrack[stepIndex]
+        if let idx = partnerActiveTimers.firstIndex(where: { $0.step.id == step.id }) {
+            partnerActiveTimers[idx].remainingSeconds = duration
+        } else {
+            partnerActiveTimers.append(ActiveTimer(step: step, totalSeconds: duration, remainingSeconds: duration))
+        }
+        ensureTicking()
+    }
+
+    private func handlePartnerTimerCancelled(stepIndex: Int) {
+        guard let partnerRole else { return }
+        let partnerTrack = recipe.track(for: partnerRole)
+        guard stepIndex >= 0, stepIndex < partnerTrack.count else { return }
+        let stepID = partnerTrack[stepIndex].id
+        partnerActiveTimers.removeAll { $0.step.id == stepID }
+        stopTickingIfIdle()
+    }
+
+    private func ensureTicking() {
+        guard ticker == nil else { return }
+        ticker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.tick()
         }
     }
 
-    public func cancelTimer() {
-        timer?.invalidate()
-        timer = nil
-        runningTimerStepID = nil
-        timerRemainingSeconds = 0
+    private func stopTickingIfIdle() {
+        guard activeTimers.isEmpty, partnerActiveTimers.isEmpty else { return }
+        ticker?.invalidate()
+        ticker = nil
     }
 
     private func tick() {
-        guard timerRemainingSeconds > 0 else {
-            finishTimer()
-            return
+        var finished: [RecipeStep] = []
+        for i in activeTimers.indices.reversed() {
+            guard activeTimers[i].remainingSeconds > 0 else { continue }
+            activeTimers[i].remainingSeconds -= 1
+            if activeTimers[i].remainingSeconds == 0 {
+                let step = activeTimers[i].step
+                finished.append(step)
+                activeTimers.remove(at: i)
+                if let index = track.firstIndex(where: { $0.id == step.id }) {
+                    peerSync?.sendTimerCancelled(stepIndex: index) // let the partner know it's done too
+                }
+            }
         }
-        timerRemainingSeconds -= 1
-        if timerRemainingSeconds == 0 {
-            finishTimer()
+        for i in partnerActiveTimers.indices.reversed() {
+            guard partnerActiveTimers[i].remainingSeconds > 0 else { continue }
+            partnerActiveTimers[i].remainingSeconds -= 1
+            if partnerActiveTimers[i].remainingSeconds == 0 {
+                partnerActiveTimers.remove(at: i)
+            }
         }
-    }
-
-    private func finishTimer() {
-        timer?.invalidate()
-        timer = nil
-        let finishedStep = runningTimerStep
-        runningTimerStepID = nil
-        if let finishedStep {
-            onTimerFinished?(finishedStep)
+        for step in finished {
+            onTimerFinished?(step)
         }
+        stopTickingIfIdle()
     }
 }
 

@@ -2,17 +2,29 @@ import SwiftUI
 import CookingAppCore
 
 struct RecipeListView: View {
+    @Environment(ActiveSessionStore.self) private var sessionStore
     @State private var path = NavigationPath()
 
     var body: some View {
         NavigationStack(path: $path) {
-            List(SampleRecipes.all) { recipe in
-                Button {
-                    path.append(Route.detail(recipe))
-                } label: {
-                    RecipeRow(recipe: recipe)
+            ZStack(alignment: .bottomTrailing) {
+                List(SampleRecipes.all) { recipe in
+                    Button {
+                        path.append(Route.detail(recipe))
+                    } label: {
+                        RecipeRow(recipe: recipe)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+
+                if sessionStore.hasActiveSession {
+                    ResumeSessionButton {
+                        if let session = sessionStore.currentSession {
+                            path.append(Route.steps(session))
+                        }
+                    }
+                    .padding(20)
+                }
             }
             .navigationTitle("Recipes")
             .navigationDestination(for: Route.self) { route in
@@ -25,6 +37,26 @@ struct RecipeListView: View {
                     StepView(session: session, path: $path)
                 }
             }
+        }
+    }
+}
+
+/// Bottom-right floating button that jumps straight back into whatever session is currently
+/// active — skipping the recipe/connect flow entirely, which is what preserves Person A/B roles
+/// on a two-person session: it re-enters the *same* `CookingSessionViewModel`, it never asks you
+/// to choose Host or Join again.
+private struct ResumeSessionButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label("Resume Cooking", systemImage: "flame.fill")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.accentColor, in: Capsule())
+                .foregroundStyle(.white)
+                .shadow(radius: 4, y: 2)
         }
     }
 }
@@ -50,9 +82,12 @@ private struct RecipeRow: View {
 
                 HStack(spacing: 10) {
                     DifficultyStarsView(difficulty: recipe.difficulty)
+                    if recipe.spiceLevel > 0 {
+                        SpiceLevelView(spiceLevel: recipe.spiceLevel)
+                    }
                     Label("\(recipe.cookTimeMinutes) min", systemImage: "clock.fill")
-                    if recipe.isTwoPerson {
-                        Label("Two-person", systemImage: "person.2.fill")
+                    if recipe.hasCuratedSplit {
+                        Label("Task-split for two", systemImage: "person.2.fill")
                             .foregroundStyle(.blue)
                     }
                 }
@@ -86,5 +121,21 @@ struct DifficultyStarsView: View {
                 Image(systemName: position <= difficulty ? "star.fill" : "star")
             }
         }
+    }
+}
+
+/// 1-3 filled-out-of-3 flames, used wherever a recipe's spice level is shown. Callers should
+/// only show this when `spiceLevel > 0` — a recipe with no spice doesn't need an empty row of
+/// outlined flames competing for attention with difficulty/cook-time.
+struct SpiceLevelView: View {
+    let spiceLevel: Int
+
+    var body: some View {
+        HStack(spacing: 1) {
+            ForEach(1...3, id: \.self) { position in
+                Image(systemName: position <= spiceLevel ? "flame.fill" : "flame")
+            }
+        }
+        .foregroundStyle(.red)
     }
 }

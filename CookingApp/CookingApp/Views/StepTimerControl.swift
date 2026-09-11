@@ -10,11 +10,11 @@ struct StepTimerControl: View {
 
     var body: some View {
         if let seconds = step.timerSeconds {
-            if session.runningTimerStepID == step.id {
+            if let running = session.activeTimer(for: step) {
                 Button {
-                    session.cancelTimer()
+                    session.cancelTimer(for: step)
                 } label: {
-                    Label(Self.formatted(session.timerRemainingSeconds), systemImage: "timer")
+                    Label(Self.formatted(running.remainingSeconds), systemImage: "timer")
                         .font(.title3.monospacedDigit().weight(.semibold))
                 }
                 .buttonStyle(.borderedProminent)

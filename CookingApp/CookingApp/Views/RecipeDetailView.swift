@@ -1,12 +1,20 @@
 import SwiftUI
 import CookingAppCore
 
+private enum CookingMode: String, CaseIterable {
+    case solo = "Solo"
+    case twoPerson = "Two-Person"
+}
+
 /// Shown the first time you tap into a recipe — an overview (ingredients + a read-through of
 /// every step) so you can decide whether to actually cook it before committing to "Start
 /// Cooking" and losing the wall-of-text view in favor of the one-step-at-a-time screen.
 struct RecipeDetailView: View {
     let recipe: Recipe
     @Binding var path: NavigationPath
+    @Environment(ActiveSessionStore.self) private var sessionStore
+
+    @State private var mode: CookingMode = .solo
 
     var body: some View {
         ScrollView {
@@ -18,6 +26,8 @@ struct RecipeDetailView: View {
                 if !recipe.dietaryTags.isEmpty {
                     dietaryTagsRow
                 }
+
+                modePicker
 
                 startCookingButton
 
@@ -58,6 +68,12 @@ struct RecipeDetailView: View {
                 DifficultyStarsView(difficulty: recipe.difficulty)
                 Text("Difficulty").font(.caption2).foregroundStyle(.secondary)
             }
+            if recipe.spiceLevel > 0 {
+                VStack(spacing: 4) {
+                    SpiceLevelView(spiceLevel: recipe.spiceLevel)
+                    Text("Spice").font(.caption2).foregroundStyle(.secondary)
+                }
+            }
             VStack(spacing: 4) {
                 Label("\(recipe.cookTimeMinutes) min", systemImage: "clock.fill")
                 Text("Cook Time").font(.caption2).foregroundStyle(.secondary)
@@ -66,13 +82,6 @@ struct RecipeDetailView: View {
                 VStack(spacing: 4) {
                     Label("\(servings)", systemImage: "person.fill")
                     Text("Servings").font(.caption2).foregroundStyle(.secondary)
-                }
-            }
-            if recipe.isTwoPerson {
-                VStack(spacing: 4) {
-                    Label("2", systemImage: "person.2.fill")
-                        .foregroundStyle(.blue)
-                    Text("Two-Person").font(.caption2).foregroundStyle(.secondary)
                 }
             }
         }
@@ -92,6 +101,28 @@ struct RecipeDetailView: View {
             }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    /// Every recipe can be cooked solo or with a partner — two-person mode divides labor when
+    /// there's a curated split, and otherwise mirrors the full recipe to both phones so you can
+    /// still cook together side by side.
+    private var modePicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Picker("Cooking mode", selection: $mode) {
+                ForEach(CookingMode.allCases, id: \.self) { option in
+                    Text(option.rawValue).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if mode == .twoPerson {
+                Text(recipe.hasCuratedSplit
+                     ? "Splits into two tracks — you and your partner each handle half, with a few steps together."
+                     : "No task split for this one — you'll each cook the full recipe on your own phone, synced together.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private var startCookingButton: some View {
@@ -127,7 +158,7 @@ struct RecipeDetailView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Steps").font(.title3.bold())
 
-            if recipe.isTwoPerson {
+            if recipe.hasCuratedSplit {
                 stepsGroup(title: "Together", steps: recipe.steps.filter { $0.assignee == .shared }.sorted { $0.order < $1.order })
                 stepsGroup(title: "Person A", steps: recipe.steps.filter { $0.assignee == .personA }.sorted { $0.order < $1.order })
                 stepsGroup(title: "Person B", steps: recipe.steps.filter { $0.assignee == .personB }.sorted { $0.order < $1.order })
@@ -160,10 +191,11 @@ struct RecipeDetailView: View {
     }
 
     private func startCooking() {
-        if recipe.isTwoPerson {
+        if mode == .twoPerson {
             path.append(Route.peerConnection(recipe))
         } else {
             let session = CookingSessionViewModel(recipe: recipe)
+            sessionStore.setActive(session)
             path.append(Route.steps(session))
         }
     }

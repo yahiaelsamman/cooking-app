@@ -49,4 +49,42 @@ struct SyncMessageCodingTests {
         #expect(decoded.recipeID == nil)
         #expect(decoded.stepIndex == nil)
     }
+
+    @Test func timerStartedRoundTripsThroughJSON() throws {
+        let original = SyncMessage.timerStarted(stepIndex: 3, durationSeconds: 600)
+
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(SyncMessage.self, from: data)
+
+        #expect(decoded == original)
+        #expect(decoded.type == .timerStarted)
+        #expect(decoded.stepIndex == 3)
+        #expect(decoded.timerDurationSeconds == 600)
+        #expect(decoded.recipeID == nil)
+    }
+
+    @Test func timerCancelledRoundTripsThroughJSON() throws {
+        let original = SyncMessage.timerCancelled(stepIndex: 3)
+
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(SyncMessage.self, from: data)
+
+        #expect(decoded == original)
+        #expect(decoded.type == .timerCancelled)
+        #expect(decoded.stepIndex == 3)
+        #expect(decoded.timerDurationSeconds == nil)
+    }
+
+    @Test func leaveSessionRoundTripsThroughJSON() throws {
+        let original = SyncMessage.leaveSession()
+
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(SyncMessage.self, from: data)
+
+        #expect(decoded == original)
+        #expect(decoded.type == .leaveSession)
+        #expect(decoded.recipeID == nil)
+        #expect(decoded.stepIndex == nil)
+        #expect(decoded.timerDurationSeconds == nil)
+    }
 }

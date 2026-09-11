@@ -12,7 +12,6 @@ public enum SampleRecipes {
         title: "Classic Scrambled Eggs",
         summary: "Soft, creamy scrambled eggs in under 5 minutes.",
         servings: 1,
-        isTwoPerson: false,
         steps: [
             RecipeStep(order: 0, instruction: "Crack 3 eggs into a bowl.", assignee: .solo, imageSystemName: "basket.fill"),
             RecipeStep(order: 1, instruction: "Add a splash of milk and a pinch of salt.", assignee: .solo, imageSystemName: "sparkles"),
@@ -39,7 +38,6 @@ public enum SampleRecipes {
         title: "Pan-Seared Steak with Garlic Butter",
         summary: "A restaurant-quality steak crust, finished with garlic butter.",
         servings: 1,
-        isTwoPerson: false,
         steps: [
             RecipeStep(order: 0, instruction: "Take the steak out of the fridge and let it come to room temperature.", assignee: .solo, timerSeconds: 1800, imageSystemName: "clock.fill"),
             RecipeStep(order: 1, instruction: "Pat the steak dry and season generously with salt and pepper on both sides.", assignee: .solo, imageSystemName: "sparkles"),
@@ -70,7 +68,6 @@ public enum SampleRecipes {
         title: "Weeknight Pasta for Two",
         summary: "A simple tomato pasta split into two tracks so you can both cook at once.",
         servings: 2,
-        isTwoPerson: true,
         steps: [
             RecipeStep(order: 0, instruction: "Both: gather all ingredients and put a large pot of water on to boil.", assignee: .shared, imageSystemName: "flame.fill"),
 
@@ -109,7 +106,6 @@ public enum SampleRecipes {
         title: "Avocado Toast with Fried Egg",
         summary: "Crisp sourdough, creamy avocado, and a perfectly fried egg.",
         servings: 1,
-        isTwoPerson: false,
         steps: [
             RecipeStep(order: 0, instruction: "Toast the bread until golden and crisp.", assignee: .solo, imageSystemName: "flame.fill"),
             RecipeStep(order: 1, instruction: "Halve and pit the avocado.", assignee: .solo, imageSystemName: "scissors"),
@@ -141,7 +137,6 @@ public enum SampleRecipes {
         title: "Classic Grilled Cheese",
         summary: "Golden, buttery bread with melted cheddar in the middle.",
         servings: 1,
-        isTwoPerson: false,
         steps: [
             RecipeStep(order: 0, instruction: "Butter one side of each bread slice.", assignee: .solo, imageSystemName: "basket.fill"),
             RecipeStep(order: 1, instruction: "Heat a skillet over medium-low heat.", assignee: .solo, imageSystemName: "flame.fill"),
@@ -169,7 +164,6 @@ public enum SampleRecipes {
         title: "Simple Tomato Soup",
         summary: "A comforting, blended tomato soup from a can of good tomatoes.",
         servings: 2,
-        isTwoPerson: false,
         steps: [
             RecipeStep(order: 0, instruction: "Dice the onion and mince the garlic.", assignee: .solo, imageSystemName: "scissors"),
             RecipeStep(order: 1, instruction: "Heat olive oil in a pot over medium heat.", assignee: .solo, imageSystemName: "flame.fill"),
@@ -204,7 +198,6 @@ public enum SampleRecipes {
         title: "Homemade Pizza Night",
         summary: "Stretch, sauce, top, and bake — split into a dough-and-sauce track and a toppings track.",
         servings: 2,
-        isTwoPerson: true,
         steps: [
             RecipeStep(order: 0, instruction: "Both: gather ingredients and preheat the oven as hot as it will go with a pizza stone or tray inside.", assignee: .shared, imageSystemName: "flame.fill"),
 
@@ -242,7 +235,6 @@ public enum SampleRecipes {
         title: "Taco Tuesday for Two",
         summary: "Seasoned protein on one track, fresh toppings on the other, tacos together at the end.",
         servings: 2,
-        isTwoPerson: true,
         steps: [
             RecipeStep(order: 0, instruction: "Both: gather all ingredients and warm a skillet for the tortillas.", assignee: .shared, imageSystemName: "flame.fill"),
 
@@ -259,6 +251,7 @@ public enum SampleRecipes {
         ],
         iconSystemName: "takeoutbag.and.cup.and.straw.fill",
         difficulty: 2,
+        spiceLevel: 2,
         cookTimeMinutes: 30,
         dietaryTags: [],
         ingredients: [
