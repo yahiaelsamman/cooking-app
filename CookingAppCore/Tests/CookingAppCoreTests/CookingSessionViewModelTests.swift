@@ -89,6 +89,45 @@ struct CookingSessionViewModelTests {
         #expect(session.partnerActiveTimers.count == 1) // untouched by cancelling my own
     }
 
+    // MARK: - Notification scheduling hooks
+
+    @Test func startingATimerFiresOnTimerScheduledWithItsDuration() {
+        let session = CookingSessionViewModel(recipe: SampleRecipes.searedSteak)
+        let step = session.track.first { $0.timerSeconds == 180 }!
+
+        var scheduled: (RecipeStep, Int)?
+        session.onTimerScheduled = { scheduled = ($0, $1) }
+
+        session.startTimer(for: step)
+
+        #expect(scheduled?.0.id == step.id)
+        #expect(scheduled?.1 == 180)
+    }
+
+    @Test func cancellingATimerFiresOnTimerUnscheduled() {
+        let session = CookingSessionViewModel(recipe: SampleRecipes.searedSteak)
+        let step = session.track.first { $0.timerSeconds == 180 }!
+        session.startTimer(for: step)
+
+        var unscheduledStep: RecipeStep?
+        session.onTimerUnscheduled = { unscheduledStep = $0 }
+        session.cancelTimer(for: step)
+
+        #expect(unscheduledStep?.id == step.id)
+    }
+
+    @Test func cancellingATimerThatIsntRunningDoesNotFireOnTimerUnscheduled() {
+        let recipe = SampleRecipes.searedSteak
+        let session = CookingSessionViewModel(recipe: recipe)
+        let neverStartedStep = recipe.steps.first { $0.timerSeconds == 180 }!
+
+        var fired = false
+        session.onTimerUnscheduled = { _ in fired = true }
+        session.cancelTimer(for: neverStartedStep)
+
+        #expect(!fired)
+    }
+
     @Test func partnerLeavingSessionSetsPartnerDidLeave() {
         let peerSync = PeerSyncService(displayName: "me")
         let session = CookingSessionViewModel(recipe: SampleRecipes.pastaForTwo, role: .personB, peerSync: peerSync)

@@ -32,6 +32,15 @@ public final class CookingSessionViewModel {
     public private(set) var partnerActiveTimers: [ActiveTimer] = []
     /// Fires once per step, when a countdown *I* started reaches zero.
     public var onTimerFinished: ((RecipeStep) -> Void)?
+    /// Fires when *I* start a timer, with its duration — the app layer uses this to schedule a
+    /// local notification, so the timer still reaches you if the phone is locked or you've
+    /// switched apps by the time it finishes.
+    public var onTimerScheduled: ((RecipeStep, Int) -> Void)?
+    /// Fires when a timer *I* started is cancelled before finishing — the app layer uses this to
+    /// cancel the corresponding pending notification. (Natural completion is `onTimerFinished`,
+    /// not this — the app layer cancels the pending notification there too, since it's redundant
+    /// once you've already seen the in-app alert.)
+    public var onTimerUnscheduled: ((RecipeStep) -> Void)?
 
     private var ticker: Timer?
 
@@ -158,6 +167,7 @@ public final class CookingSessionViewModel {
         if let index = track.firstIndex(where: { $0.id == step.id }) {
             peerSync?.sendTimerStarted(stepIndex: index, durationSeconds: duration)
         }
+        onTimerScheduled?(step, duration)
     }
 
     public func cancelTimer(for step: RecipeStep) {
@@ -167,6 +177,7 @@ public final class CookingSessionViewModel {
             peerSync?.sendTimerCancelled(stepIndex: index)
         }
         stopTickingIfIdle()
+        onTimerUnscheduled?(step)
     }
 
     private func handlePartnerTimerStarted(stepIndex: Int, duration: Int) {

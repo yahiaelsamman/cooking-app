@@ -9,13 +9,15 @@ iPhones sync progress live over `MultipeerConnectivity` (no internet, no account
 Repo: https://github.com/yahiaelsamman/cooking-app
 
 See `/Users/yahiaelsaman/.claude/plans/tranquil-wishing-deer.md` for the original approved plan
-(the initial MVP build). This document now covers three passes:
+(the initial MVP build). This document now covers four passes:
 1. The initial MVP (recipe list → step-through → two-person sync).
 2. Illustrations, an ingredients/overview screen, difficulty/dietary/cook-time metadata, a real
    timer, swipe navigation, basic reconnection, and five more sample recipes.
 3. Timer task-labeling and stacking, hold-to-confirm completion, a partner-vs-me progress slider,
    spice level, session resume/rejoin with role preservation, graceful two-person session ending,
    and the solo/two-person mode toggle (including "mirror mode" for recipes with no task split).
+4. Local notifications for finished timers, following a short interview about product direction
+   (see the bottom of §6) that surfaced this as the most-requested next gap.
 
 ## 1. What was built
 
@@ -102,8 +104,19 @@ See `/Users/yahiaelsaman/.claude/plans/tranquil-wishing-deer.md` for the origina
   partner-step readout.
 - **`StepTimerControl.swift`** — updated for the stacking API (`activeTimer(for:)`/
   `cancelTimer(for:)` instead of a single scalar running-timer id).
-- **`CookingAppApp.swift`** — now creates one `ActiveSessionStore` and injects it via
+- **`CookingAppApp.swift`** — creates one `ActiveSessionStore` and injects it via
   `.environment(_:)`; every view above reads it with `@Environment(ActiveSessionStore.self)`.
+  Also sets `UNUserNotificationCenter.current().delegate` at launch (see below).
+- **`Notifications/NotificationScheduler.swift`** *(new)* — schedules/cancels a local
+  notification per step timer (identified by the step's own id, so multiple stacked timers each
+  get their own independent notification). `StepView` wires this to `CookingSessionViewModel`'s
+  `onTimerScheduled`/`onTimerUnscheduled`/`onTimerFinished` hooks: schedule on start, cancel on
+  manual cancel *and* on natural finish (the in-app alert already covers the foreground case, so
+  the notification would otherwise be a redundant duplicate for that case only).
+- **`Notifications/NotificationDelegate.swift`** *(new)* — a `UNUserNotificationCenterDelegate`
+  that suppresses the system banner/sound while the app is foregrounded (`willPresent` →
+  `completionHandler([])`), since a foreground finish always gets the in-app alert instead. This
+  is what stops you from seeing both a system banner *and* the in-app alert for the same timer.
 
 ### On "resume" and role preservation
 
@@ -133,7 +146,7 @@ iOS Simulator wasn't available here — see §3's tooling note. On a Mac with fu
 
 ## 3. How the tests were run
 
-**59/59 tests passed** when last run in this session (`swift test` from `CookingAppCore/`), across
+**62/62 tests passed** when last run in this session (`swift test` from `CookingAppCore/`), across
 four files:
 
 - **`RecipeModelTests.swift`** — sample-data integrity, track filtering (including the new
@@ -154,7 +167,14 @@ four files:
 - **`CookingSessionViewModelTests.swift`** *(new)* — partner-timer mirroring resolved against the
   partner's own track (not mine), `partnerProgressFraction`'s track-length normalization,
   `partnerDidLeave` firing only from an *incoming* leave (not from my own `endSharedSession()`),
-  local navigation continuing after ending a shared session, and `ActiveSessionStore`.
+  local navigation continuing after ending a shared session, `ActiveSessionStore`, and the
+  `onTimerScheduled`/`onTimerUnscheduled` notification-scheduling hooks (that a cancel on a timer
+  that was never started doesn't fire a stray unschedule).
+
+Notification *delivery* itself (`NotificationScheduler`/`NotificationDelegate`, both in the App
+target) isn't unit-tested — `UNUserNotificationCenter` needs a real app process/authorization
+state to do anything meaningful, so this is a manual-verification item (see below), not something
+`CookingAppCoreTests` could cover even if it lived in Core.
 
 Why the timer's real 1-second countdown-to-zero isn't itself unit-tested: Foundation's `Timer`
 needs an actively-spinning `RunLoop`, which the app's main run loop provides but a `swift test`
@@ -183,6 +203,12 @@ build once before relying on it**; this pass added more iOS-only surface area th
   a blue chip on the other, "End Session" tearing down both sides, auto-reconnect after toggling
   Airplane Mode on one phone and back, and resuming a two-person session via "Resume Cooking"
   with roles intact.
+- **Notifications specifically**: accept the permission prompt on first launch (or check
+  Settings → Notifications → Cooking App if it was missed/denied); start a timer, background the
+  app or lock the phone, and confirm the notification arrives with the right step's text at
+  roughly the right time; separately, start a timer and stay in the app until it finishes, and
+  confirm you see *only* the in-app alert, not a system banner too (that's
+  `NotificationDelegate` doing its job).
 
 ## 4. Known pitfalls
 
@@ -201,6 +227,14 @@ build once before relying on it**; this pass added more iOS-only surface area th
   the back button on the last step entirely — on review, that would have left the last step with
   no button-based way to go back (only an undiscoverable swipe), so the back button now stays
   alongside it always.
+- **Notification permission is requested lazily**, the moment `StepView` first appears — not at
+  app launch. If it's denied, `NotificationScheduler.schedule` silently no-ops (no crash, no
+  error surfaced in the UI) — a finished timer then only ever shows the in-app alert, with no
+  indication to the user that they're missing the background case. Worth a visible "notifications
+  are off" hint somewhere if this turns out to matter in practice.
+- **Only *my own* timers get notifications, not the partner's mirrored ones.** Scoped this way
+  deliberately (see §6) — the stated problem was "I might miss my own timer," not "I want to be
+  notified about my partner's."
 - **The `leaveSession` message is best-effort.** It's sent right before disconnecting, but if the
   connection is already degrading there's no guarantee it arrives — the receiving side would then
   just see a plain drop and try to auto-reconnect instead of recognizing a deliberate end. No
@@ -243,9 +277,8 @@ scheduled above as deferred engineering work:
 - **The hold-to-finish duration (2s) and the swipe threshold (40pt) are unvalidated guesses.**
   Both are exactly the kind of thing that should change based on actually cooking with the app a
   few times, not be locked in from a first implementation.
-- **Timer notifications don't reach you if the phone is asleep or you've switched apps** — a
-  local notification (not just an in-app alert) would matter a lot for anything with a timer
-  longer than a minute or two, which is most of them.
+- ~~Timer notifications don't reach you if the phone is asleep or you've switched apps~~ — **done**
+  in pass 4 (§1, `NotificationScheduler`/`NotificationDelegate`).
 - **The step illustration is the same size/prominence for every step regardless of content** — a
   step like "let it rest for 5 minutes" and a step like "sear undisturbed, 3 minutes per side"
   have very different "what do I actually need to see" needs; the layout doesn't distinguish them.
@@ -263,6 +296,20 @@ scheduled above as deferred engineering work:
   reduce having to back out mid-cook to double-check something.
 - **Difficulty and spice level are currently my own back-of-envelope calls, not calibrated against
   anything** — worth a real rubric (or user-submitted ratings) once there's more than 8 recipes.
+
+### Product-direction interview (pass 4)
+
+Asked directly, since the iteration ideas above are observations, not decisions:
+
+- **Real usage so far**: tried briefly / simulated a cook-through, went smoothly. Not yet a full
+  real meal, but enough signal to keep building rather than pause for more testing first.
+- **Hands-free control (Siri/Watch)**: explicitly **not** wanted right now — tap/swipe/hold stays
+  the interaction model. (Raised because the original pain point was messy hands touching the
+  phone, and every interaction so far still requires that; deliberately shelved, not forgotten.)
+- **Long-term audience**: personal use for now, but might want to share it with others eventually
+  — worth keeping in mind for later (signing/distribution, and making the Info.plist permission
+  strings review-quality) without acting on it yet.
+- **Top priority named**: timer notifications — implemented this same pass (§1, §4).
 
 ## 7. Git / repo
 

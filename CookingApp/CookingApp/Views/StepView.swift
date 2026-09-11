@@ -46,7 +46,18 @@ struct StepView: View {
             Text("Your partner will be disconnected too. You can keep cooking on your own afterward.")
         }
         .onAppear {
+            NotificationScheduler.requestAuthorizationIfNeeded()
+            session.onTimerScheduled = { step, duration in
+                NotificationScheduler.schedule(step: step, durationSeconds: duration)
+            }
+            session.onTimerUnscheduled = { step in
+                NotificationScheduler.cancel(step: step)
+            }
             session.onTimerFinished = { step in
+                // Cancel the corresponding notification — we're about to show our own in-app
+                // alert, and reaching this callback at all means the app was foregrounded when
+                // the timer hit zero, so the notification would just be a redundant duplicate.
+                NotificationScheduler.cancel(step: step)
                 finishedTimerStepInstruction = step.instruction
                 showTimerFinishedAlert = true
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
