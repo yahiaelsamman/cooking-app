@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import CookingAppCore
 
 private enum CookingMode: String, CaseIterable {
@@ -16,6 +17,7 @@ struct RecipeDetailView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var mode: CookingMode = .solo
+    @State private var showEditRecipe = false
 
     var body: some View {
         ScrollView {
@@ -47,6 +49,11 @@ struct RecipeDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if recipe.isUserCreated {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Edit") { showEditRecipe = true }
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     recipe.isFavorite.toggle()
@@ -57,6 +64,9 @@ struct RecipeDetailView: View {
                 }
                 .accessibilityLabel(recipe.isFavorite ? "Remove from favorites" : "Add to favorites")
             }
+        }
+        .sheet(isPresented: $showEditRecipe, onDismiss: popBackIfRecipeWasDeleted) {
+            RecipeEditorView(existingRecipe: recipe)
         }
     }
 
@@ -262,6 +272,17 @@ struct RecipeDetailView: View {
             let session = CookingSessionViewModel(recipe: recipe)
             sessionStore.setActive(session)
             path.append(Route.steps(session))
+        }
+    }
+
+    /// `RecipeEditorView`'s delete option is only reachable via this edit sheet, so this is the
+    /// only place a dangling `recipe` reference can happen here — after it deletes and dismisses,
+    /// this screen would otherwise still be showing a now-gone recipe's stale in-memory values.
+    private func popBackIfRecipeWasDeleted() {
+        let id = recipe.id
+        let stillExists = (try? modelContext.fetch(FetchDescriptor<Recipe>(predicate: #Predicate { $0.id == id })))?.isEmpty == false
+        if !stillExists {
+            path = NavigationPath()
         }
     }
 }

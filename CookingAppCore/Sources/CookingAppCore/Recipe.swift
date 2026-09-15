@@ -9,14 +9,18 @@ public enum StepAssignee: String, Codable, Sendable {
 }
 
 public struct RecipeStep: Identifiable, Codable, Hashable, Sendable {
-    public let id: UUID
-    public let order: Int
-    public let instruction: String
-    public let assignee: StepAssignee
+    public var id: UUID
+    /// `var`, not `let` — despite every other use of a `RecipeStep` treating it as an immutable
+    /// value (a recipe is seeded once and never mutated except via `RecipeEditorView`), these need
+    /// to be mutable so SwiftUI's `Binding` dynamic member lookup (`ForEach($steps) { $step in
+    /// TextField(text: $step.instruction) }`) can produce a writable sub-binding at all.
+    public var order: Int
+    public var instruction: String
+    public var assignee: StepAssignee
     /// Drives the live countdown in StepTimerControl — nil means the step has no timer at all.
-    public let timerSeconds: Int?
+    public var timerSeconds: Int?
     /// SF Symbol name shown as this step's illustration.
-    public let imageSystemName: String
+    public var imageSystemName: String
 
     public init(id: UUID = UUID(), order: Int, instruction: String, assignee: StepAssignee, timerSeconds: Int? = nil, imageSystemName: String) {
         self.id = id
@@ -61,9 +65,10 @@ public enum DietaryTag: String, Codable, CaseIterable, Hashable, Sendable {
 }
 
 public struct Ingredient: Identifiable, Codable, Hashable, Sendable {
-    public let id: UUID
-    public let name: String
-    public let amount: String
+    public var id: UUID
+    /// `var` for the same reason as `RecipeStep`'s properties — see its doc comment.
+    public var name: String
+    public var amount: String
 
     public init(id: UUID = UUID(), name: String, amount: String) {
         self.id = id
@@ -141,6 +146,14 @@ public final class Recipe {
     /// recipe's value to match the new order. Independent of alphabetical/rating sort modes, which
     /// don't read this field at all.
     public var sortOrder: Int = 0
+    /// `true` only for a recipe created through `RecipeEditorView`, never for a bundled
+    /// `SampleRecipes` one. Deliberately kept separate from "has the user edited this" — editing
+    /// and deleting are both restricted to user-created recipes for now (see `RecipeEditorView`):
+    /// editing a curated bundled recipe's authored content is out of scope, and deleting one would
+    /// need `RecipeSeeder` to track a tombstone (see its doc comment) so it doesn't just come back
+    /// on the next launch — neither problem exists for a recipe that was never bundled to begin
+    /// with.
+    public var isUserCreated: Bool = false
 
     public init(
         id: UUID = UUID(),
@@ -162,7 +175,8 @@ public final class Recipe {
         personalNotes: String = "",
         timesCooked: Int = 0,
         lastCookedDate: Date? = nil,
-        sortOrder: Int = 0
+        sortOrder: Int = 0,
+        isUserCreated: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -184,6 +198,7 @@ public final class Recipe {
         self.timesCooked = timesCooked
         self.lastCookedDate = lastCookedDate
         self.sortOrder = sortOrder
+        self.isUserCreated = isUserCreated
     }
 
     /// Whether two-person mode should be offered for this recipe at all.

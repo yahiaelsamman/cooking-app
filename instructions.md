@@ -577,6 +577,59 @@ iCloud was tagging onto freshly-written `.build` output *while* the build was st
 `swift test --scratch-path /tmp/...` instead of the default `.build/` inside the synced folder.
 Worth knowing if `swift build`/`swift test` starts failing the same way again in this repo.
 
+### Pass 10 — in-app recipe creation/editing
+
+Continuing the same extended, autonomous pass — the next item on §5's own next-steps list once
+pass 9's three explicit requests were done: a way to add/edit recipes from inside the app, rather
+than needing a Swift source change for every new recipe.
+
+**Scope decision**: editing and deleting are both restricted to a recipe actually created through
+this new editor, never a bundled `SampleRecipes` one. Two reasons, not one: editing a curated
+recipe's hand-authored content (especially a two-person split — real divided labor, not something
+a form can generate) is a different, bigger problem than adding a new solo recipe; and deleting a
+bundled recipe would come back on the next launch under pass 9's additive `RecipeSeeder` without a
+tombstone, which doesn't exist yet (see `RecipeSeeder`'s doc comment). A new `Recipe.isUserCreated`
+field marks which recipes are safe for both — `false` for all 20 bundled recipes, `true` only for
+one made through `RecipeEditorView`. Two-person splits are out of scope for this editor entirely, for
+the "not something a form can generate" reason above — a recipe created here is always solo-only,
+same as 11 of the 20 bundled recipes already are.
+
+**`RecipeEditorView.swift`** (new) — one shared form for both add and edit, presented as a sheet:
+title/summary/servings, difficulty/spice/cook-time, dietary tag toggles, a dynamic ingredients list
+(add/remove rows), and a dynamic steps list (add/remove/reorder, each just plain instruction text —
+no per-step timer/image configuration in this first cut, matching how simple the bundled recipes'
+own step authoring already keeps those). Validates before allowing Save (non-empty title, a
+positive cook time, at least one non-empty ingredient and step) and silently drops any blank
+ingredient/step rows rather than saving them. A "Delete Recipe" option appears only when editing an
+already-`isUserCreated` recipe.
+
+Reachable from two places: a "+" button in `RecipeListView`'s toolbar (creates new), and an "Edit"
+button in `RecipeDetailView`'s toolbar, shown only when `recipe.isUserCreated`. Deleting from the
+edit sheet leaves `RecipeDetailView` holding a reference to a now-gone `Recipe` — handled by
+`popBackIfRecipeWasDeleted()`, run in the sheet's `onDismiss`: it re-fetches by id, and pops back to
+the recipe list if that comes back empty.
+
+**A real model change this required**: `RecipeStep` and `Ingredient`'s stored properties changed
+from `let` to `var`. Both are plain structs that were never mutated after construction anywhere in
+the app before this — but SwiftUI's `Binding` dynamic member lookup (`ForEach($steps) { $step in
+TextField(text: $step.instruction) }`, the mechanism the editor's ingredient/step rows are built on)
+needs a settable property to produce a writable sub-binding at all, and won't compile against a
+`let`. Low-risk change: nothing relies on these being immutable, and both are still just local
+value types everywhere else they're used.
+
+**Testing**: App-layer view logic (the form's validation, save/delete behavior) isn't unit-tested,
+consistent with how every other SwiftUI view in this app is verified — see §3's tooling notes on
+why that's a build+manual-verification concern, not a `CookingAppCoreTests` one. `RecipeModelTests`
+gained one more assertion to its existing "no bundled recipe hardcodes fake user data" guard:
+`isUserCreated` must be `false` for all 20. Still 126/126 tests passing after the `let`→`var`
+changes (Codable/Hashable synthesis is unaffected by mutability). `xcodebuild build` for the full
+`CookingApp` scheme — **BUILD SUCCEEDED**. Visually verified on the iPhone 17 Simulator with the
+same temporary, fully-reverted debug auto-nav technique as pass 9: the "New Recipe" form renders
+correctly end to end (toolbar, Basics fields, Dietary Tags toggles), no crash or layout issue.
+Editing an existing recipe, deleting one, and the dynamic add/remove/reorder row interactions
+weren't exercised this way — same real-touch-input limitation as pass 9's swipe/drag verification
+gap.
+
 ## 4. Known pitfalls
 
 - **A "mirror mode" was tried and then removed.** An earlier pass let two-person mode work on
@@ -634,11 +687,21 @@ Worth knowing if `swift build`/`swift test` starts failing the same way again in
   turning on the favorites-only filter while sorted by "My Order" switches you to "A–Z" instead of
   letting you drag within the filtered subset, since that would scramble the full ordering for
   whatever's hidden. Switch favorites off to reorder the complete list.
-- **Swipe-to-favorite and drag-to-reorder were never verified with a real touch** *(pass 9)* — both
-  compiled and the surrounding UI (toolbar controls, drag handles, row content) was confirmed to
-  render via screenshot, but neither gesture itself could be exercised without accessibility
-  automation or an XCUITest target, neither of which exists in this sandbox. Worth a deliberate
-  check on a real device.
+- **Swipe-to-favorite, drag-to-reorder, and the recipe editor's row add/remove/reorder were never
+  verified with a real touch** *(pass 9/10)* — all compiled and the surrounding UI (toolbar
+  controls, drag handles, row content, the New Recipe form) was confirmed to render via
+  screenshot, but none of the actual gestures could be exercised without accessibility automation
+  or an XCUITest target, neither of which exists in this sandbox. Worth a deliberate check on a
+  real device.
+- **You can't edit a bundled recipe, or delete any recipe that isn't your own** *(pass 10)* — both
+  are deliberate scope decisions, not oversights (see pass 10's write-up in §3 and §5's items 2/3
+  for the reasons — curated content and the missing seeder tombstone, respectively), but worth
+  knowing if you go looking for an edit/delete option on one of the original 20 and don't find it.
+- **`RecipeStep`/`Ingredient` are mutable now** *(pass 10)* — changed from `let` to `var` stored
+  properties so `RecipeEditorView`'s SwiftUI bindings could compile. Nothing relies on their
+  immutability elsewhere today, but it's no longer enforced by the type system either — a future
+  change that mutates a step/ingredient somewhere unexpected (rather than constructing a fresh one,
+  the convention everywhere else in the codebase) wouldn't be caught at compile time.
 - **No automated UI testing exists** *(all passes)* — verification for anything that can't be
   driven from `CookingAppCoreTests` (a full app build, screen-by-screen rendering) has relied each
   pass on either hand-review or a temporary, fully-reverted debug hack in `RecipeListView` to
@@ -649,48 +712,55 @@ Worth knowing if `swift build`/`swift test` starts failing the same way again in
 ## 5. Next steps (explicitly deferred)
 
 1. **~~More recipes~~ — done (pass 9), 8 → 20.** Still nothing stopping more being added the same
-   way; still no in-app authoring UI (see next item), so any further additions are still a code
-   change, not something done from the app itself.
-2. **In-app recipe creation/editing/deletion UI** — the persistence layer (§1) supports it; there's
-   still no UI for it. Whichever pass adds *deletion* specifically needs to also give
-   `RecipeSeeder` a tombstone (e.g. a stored set of deleted bundled ids) — pass 9 made seeding
-   additive-by-id specifically so new bundled recipes reach existing installs, but that same
-   change means a deleted bundled recipe would silently come back on the next launch without a
-   tombstone to check against. Harmless today only because deletion doesn't exist yet.
-3. **AI-assisted recipe-to-two-person conversion** — flagged as a good idea for once there's
+   way; since pass 10, this doesn't have to be a code change anymore either — see next item.
+2. **~~In-app recipe creation/editing UI~~ — done (pass 10), for user-created recipes.** Still open:
+   editing a *bundled* recipe's content, and deleting a bundled recipe at all — both need more than
+   `RecipeEditorView` does today. Deletion specifically still needs `RecipeSeeder` to grow a
+   tombstone (e.g. a stored set of deleted bundled ids) before it could safely apply to bundled
+   recipes — pass 9's additive-by-id seeding means a deleted bundled recipe would otherwise just
+   come back on the next launch. Not a problem yet, since deletion is scoped to user-created
+   recipes only, which the seeder never looks at.
+3. **A two-person split editor** — `RecipeEditorView` (pass 10) only creates solo recipes. A real
+   split is hand-divided labor, not something to auto-generate from a solo step list; if this is
+   ever wanted, it'd need a deliberately different editing flow, not an extension of the current
+   form.
+4. **AI-assisted recipe-to-two-person conversion** — flagged as a good idea for once there's
    budget for it; explicitly skipped for now since it costs money (see §6).
-4. **Per-step photos** — recipe-level hero photos are done (pass 8), but every step still shows
+5. **Per-step photos** — recipe-level hero photos are done (pass 8), but every step still shows
    `PlaceholderPhotoView`'s gradient-plus-SF-Symbol card. Deliberately out of scope for pass 8's
    smaller first cut (~60-90 images vs. 8) — same fetch/install pipeline could extend to steps if
    it's worth the larger sourcing effort.
-5. **True background reconnection** — declared background modes so a two-person session survives
+6. **True background reconnection** — declared background modes so a two-person session survives
    more than a brief backgrounding.
-6. **Curated two-person splits for the 5 currently-solo recipes**, if any turn out to split
-   sensibly in practice — not guessed at; a recipe simply has no two-person option until one is
-   deliberately authored for it (see the removed-mirror-mode pitfall above for why).
-7. **A sturdier leave/rejoin protocol** — an ack for `leaveSession`, and reusing a specific prior
+7. **Curated two-person splits for the 5 currently-solo original recipes**, if any turn out to
+   split sensibly in practice — not guessed at; a recipe simply has no two-person option until one
+   is deliberately authored for it (see the removed-mirror-mode pitfall above for why). Pass 9 also
+   added 6 more solo-only recipes among its 12, for the same reason.
+8. **A sturdier leave/rejoin protocol** — an ack for `leaveSession`, and reusing a specific prior
    peer connection on reconnect rather than the current "any peer that shows up" auto-invite.
-8. **CloudKit/iCloud sync**, for two-person mode over the internet and cross-device recipe sync —
+9. **CloudKit/iCloud sync**, for two-person mode over the internet and cross-device recipe sync —
    and now a more natural fit, since recipes already live in a real SwiftData store.
-9. **Accounts, recipe sharing, Android** — still explicitly out of scope.
-10. **An XCUITest target**, now that full Xcode is available (§3) — the natural next step for
+10. **Accounts, recipe sharing, Android** — still explicitly out of scope.
+11. **An XCUITest target**, now that full Xcode is available (§3) — the natural next step for
     verification is tapping through the actual app (recipe → detail → step screen → timers →
-    hold-to-finish) rather than only confirming it builds and the list screen renders, and would
-    replace pass 7's temporary-debug-hack approach to screenshotting new screens.
-11. **A real, designed app icon** *(pass 7)* — still hand-drawn placeholder quality (see the
+    hold-to-finish, plus now the recipe editor's add/edit/delete/reorder flows) rather than only
+    confirming it builds and screens render, and would replace pass 7's temporary-debug-hack
+    approach to screenshotting new screens.
+12. **A real, designed app icon** *(pass 7)* — still hand-drawn placeholder quality (see the
     pitfalls list); swap in real branding whenever you have it. (Recipe hero photos are real now,
-    as of pass 8 — see item 4 above for what's still placeholder-quality: per-step art.)
-12. **Editable cook name / role after first launch** *(pass 7)* — the name is set once at first
+    as of pass 8 — see item 5 above for what's still placeholder-quality: per-step art.)
+13. **Editable cook name / role after first launch** *(pass 7)* — the name is set once at first
     launch with no settings screen to change it later, and the host's Person A/B choice is made
     fresh each time you host rather than remembered from last time.
-13. **Hero photos for the 12 recipes added in pass 9** — same `fetch_recipe_photos.py` /
+14. **Hero photos for the 12 recipes added in pass 9** — same `fetch_recipe_photos.py` /
     `install_recipe_photo.py` pipeline from pass 8, just not run yet for the new recipes (no
     Pexels key available this pass). They show the placeholder card in the meantime, same as
     every recipe did before pass 8.
-14. **Verify swipe-to-favorite and drag-to-reorder on a real device** *(pass 9)* — both are
-    unverified beyond "the surrounding UI renders and compiles" (see the pitfalls list) — this
-    sandbox has no way to inject a real touch/drag gesture.
-15. **A settings/about screen for personal notes and ratings at a glance** — right now
+15. **Verify real-touch interactions on a real device** *(pass 9/10)* — swipe-to-favorite,
+    drag-to-reorder in "My Order," and the recipe editor's add/remove/reorder ingredient and step
+    rows are all unverified beyond "the surrounding UI renders and compiles" (see the pitfalls
+    list) — this sandbox has no way to inject a real touch/drag gesture.
+16. **A settings/about screen for personal notes and ratings at a glance** — right now
     "My Notes" only exists per-recipe on the detail screen; there's no cross-recipe view like "all
     my 5-star recipes" beyond the Top Rated sort mode, and no way to see/edit notes without
     opening each recipe individually.
@@ -767,6 +837,17 @@ since they were the most mechanical of the three and benefited from the seeder f
 in place. See pass 9's write-up in §3 for the full detail, including a real SwiftData
 cross-container hazard hit while testing the seeder change, and an unrelated iCloud-sync build
 issue hit and worked around along the way.
+
+### Current direction (pass 10)
+
+Same extended autonomous session as pass 9, continuing rather than stopping once pass 9's three
+explicit requests were done — moved to the next item on §5's own next-steps list: in-app recipe
+creation/editing, previously a "you'd have to edit Swift source" limitation ever since the pass-5
+persistence layer was built specifically to remove exactly that limitation. Deliberately scoped
+down from "full recipe CRUD" to "create/edit/delete a recipe you made in the app" — editing a
+bundled recipe's authored content and deleting one at all were both left out, for reasons specific
+to each (see §5's items 2/3 and pass 10's write-up in §3) rather than just running out of time for
+them.
 
 ## 7. Git / repo
 

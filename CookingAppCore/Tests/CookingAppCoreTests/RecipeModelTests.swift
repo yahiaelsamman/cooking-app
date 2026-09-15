@@ -409,6 +409,7 @@ struct RecipeModelTests {
             #expect(recipe.personalNotes.isEmpty, "\(recipe.title) has hardcoded personal notes")
             #expect(recipe.timesCooked == 0, "\(recipe.title) has a hardcoded cook count")
             #expect(recipe.lastCookedDate == nil, "\(recipe.title) has a hardcoded last-cooked date")
+            #expect(!recipe.isUserCreated, "\(recipe.title) is marked user-created but is part of the bundle")
         }
     }
 

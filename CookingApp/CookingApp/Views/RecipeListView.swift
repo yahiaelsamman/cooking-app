@@ -22,6 +22,7 @@ struct RecipeListView: View {
     @State private var showWelcomeName = false
     @State private var sortMode: RecipeSortMode = .myOrder
     @State private var showFavoritesOnly = false
+    @State private var showAddRecipe = false
 
     private var displayedRecipes: [Recipe] {
         let base = showFavoritesOnly ? recipes.filter(\.isFavorite) : recipes
@@ -90,6 +91,14 @@ struct RecipeListView: View {
                     }
                     .pickerStyle(.menu)
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showAddRecipe = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("Add Recipe")
+                }
             }
             .onAppear {
                 // Requested once, right at app start — not the first time you happen to start a
@@ -114,6 +123,9 @@ struct RecipeListView: View {
                     showWelcomeName = false
                 }
                 .interactiveDismissDisabled()
+            }
+            .sheet(isPresented: $showAddRecipe) {
+                RecipeEditorView()
             }
         }
     }
