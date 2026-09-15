@@ -487,10 +487,24 @@ public enum SampleRecipes {
             RecipeStep(order: 6, instruction: "Toss the drained pasta with the shrimp and sauce.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath"),
             RecipeStep(order: 7, instruction: "Finish with chopped parsley and serve.", assignee: .solo, imageSystemName: "leaf.fill")
         ],
+        twoPersonSteps: [
+            RecipeStep(order: 0, instruction: "Both: gather ingredients and get a pot of salted water on to boil.", assignee: .shared, imageSystemName: "flame.fill"),
+
+            RecipeStep(order: 1, instruction: "Cook the linguine until al dente, then drain.", assignee: .personA, timerSeconds: 600, imageSystemName: "timer"),
+
+            RecipeStep(order: 2, instruction: "Pat the shrimp dry and season with salt and pepper.", assignee: .personB, imageSystemName: "sparkles"),
+            RecipeStep(order: 3, instruction: "Melt butter with olive oil in a skillet and cook garlic and red pepper flakes until fragrant.", assignee: .personB, timerSeconds: 60, imageSystemName: "timer"),
+            RecipeStep(order: 4, instruction: "Add the shrimp and cook until just pink, about 2 minutes per side.", assignee: .personB, timerSeconds: 240, imageSystemName: "timer"),
+            RecipeStep(order: 5, instruction: "Pour in white wine and lemon juice, and simmer briefly.", assignee: .personB, imageSystemName: "drop.fill"),
+
+            RecipeStep(order: 6, instruction: "Both: toss the drained pasta with the shrimp and sauce.", assignee: .shared, imageSystemName: "arrow.triangle.2.circlepath"),
+            RecipeStep(order: 7, instruction: "Both: finish with chopped parsley and serve.", assignee: .shared, imageSystemName: "leaf.fill")
+        ],
         iconSystemName: "fork.knife.circle.fill",
         difficulty: 2,
         spiceLevel: 1,
         soloCookTimeMinutes: 25,
+        twoPersonCookTimeMinutes: 18,
         ingredients: [
             Ingredient(name: "Linguine", amount: "200g"),
             Ingredient(name: "Shrimp, peeled and deveined", amount: "400g"),
@@ -565,9 +579,23 @@ public enum SampleRecipes {
             RecipeStep(order: 6, instruction: "Toss the lettuce with Caesar dressing and shaved parmesan.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath"),
             RecipeStep(order: 7, instruction: "Top with the sliced chicken and croutons.", assignee: .solo, imageSystemName: "fork.knife")
         ],
+        twoPersonSteps: [
+            RecipeStep(order: 0, instruction: "Both: gather ingredients.", assignee: .shared, imageSystemName: "basket.fill"),
+
+            RecipeStep(order: 1, instruction: "Season the chicken breast with salt and pepper.", assignee: .personA, imageSystemName: "sparkles"),
+            RecipeStep(order: 2, instruction: "Heat olive oil in a skillet and sear the chicken until cooked through, about 6 minutes per side.", assignee: .personA, timerSeconds: 720, imageSystemName: "timer"),
+            RecipeStep(order: 3, instruction: "Let the chicken rest, then slice it.", assignee: .personA, timerSeconds: 300, imageSystemName: "clock.fill"),
+
+            RecipeStep(order: 4, instruction: "Chop the romaine lettuce into bite-sized pieces.", assignee: .personB, imageSystemName: "scissors"),
+            RecipeStep(order: 5, instruction: "Toast bread cubes in a dry pan until golden for croutons.", assignee: .personB, timerSeconds: 240, imageSystemName: "timer"),
+
+            RecipeStep(order: 6, instruction: "Both: toss the lettuce with Caesar dressing and shaved parmesan.", assignee: .shared, imageSystemName: "arrow.triangle.2.circlepath"),
+            RecipeStep(order: 7, instruction: "Both: top with the sliced chicken and croutons.", assignee: .shared, imageSystemName: "fork.knife")
+        ],
         iconSystemName: "leaf.fill",
         difficulty: 2,
         soloCookTimeMinutes: 30,
+        twoPersonCookTimeMinutes: 20,
         ingredients: [
             Ingredient(name: "Chicken breast", amount: "1"),
             Ingredient(name: "Romaine lettuce", amount: "1 head"),
@@ -593,9 +621,21 @@ public enum SampleRecipes {
             RecipeStep(order: 5, instruction: "Roast until the salmon flakes easily and the asparagus is tender.", assignee: .solo, timerSeconds: 720, imageSystemName: "timer"),
             RecipeStep(order: 6, instruction: "Squeeze fresh lemon juice over everything before serving.", assignee: .solo, imageSystemName: "drop.fill")
         ],
+        twoPersonSteps: [
+            RecipeStep(order: 0, instruction: "Both: preheat the oven and line a sheet pan with foil.", assignee: .shared, imageSystemName: "flame.fill"),
+
+            RecipeStep(order: 1, instruction: "Trim the woody ends off the asparagus.", assignee: .personA, imageSystemName: "scissors"),
+            RecipeStep(order: 2, instruction: "Mince the garlic and slice the lemon.", assignee: .personB, imageSystemName: "scissors"),
+
+            RecipeStep(order: 3, instruction: "Both: arrange the salmon and asparagus on the sheet pan.", assignee: .shared, imageSystemName: "basket.fill"),
+            RecipeStep(order: 4, instruction: "Both: drizzle with olive oil, scatter garlic, and season with salt, pepper, and lemon slices.", assignee: .shared, imageSystemName: "drop.fill"),
+            RecipeStep(order: 5, instruction: "Both: roast until the salmon flakes easily and the asparagus is tender.", assignee: .shared, timerSeconds: 720, imageSystemName: "timer"),
+            RecipeStep(order: 6, instruction: "Both: squeeze fresh lemon juice over everything before serving.", assignee: .shared, imageSystemName: "drop.fill")
+        ],
         iconSystemName: "leaf.fill",
         difficulty: 1,
         soloCookTimeMinutes: 25,
+        twoPersonCookTimeMinutes: 20,
         dietaryTags: [.glutenFree, .lactoseFree],
         ingredients: [
             Ingredient(name: "Salmon fillets", amount: "2"),
@@ -715,10 +755,25 @@ public enum SampleRecipes {
             RecipeStep(order: 5, instruction: "Cook until golden and crisp, then flip and cook the other side.", assignee: .solo, timerSeconds: 180, imageSystemName: "timer"),
             RecipeStep(order: 6, instruction: "Slice into wedges and serve with salsa and sour cream.", assignee: .solo, imageSystemName: "fork.knife")
         ],
+        twoPersonSteps: [
+            RecipeStep(order: 0, instruction: "Both: gather ingredients.", assignee: .shared, imageSystemName: "basket.fill"),
+
+            RecipeStep(order: 1, instruction: "Season the chicken with cumin, chili powder, and salt.", assignee: .personA, imageSystemName: "sparkles"),
+            RecipeStep(order: 2, instruction: "Heat oil in a skillet and cook the chicken until done.", assignee: .personA, timerSeconds: 480, imageSystemName: "timer"),
+            RecipeStep(order: 3, instruction: "Let the chicken rest briefly, then dice or shred it.", assignee: .personA, imageSystemName: "clock.fill"),
+
+            RecipeStep(order: 4, instruction: "Dice the bell pepper and have extra cheese ready.", assignee: .personB, imageSystemName: "scissors"),
+            RecipeStep(order: 5, instruction: "Lay a tortilla in a skillet and sprinkle cheese over half.", assignee: .personB, imageSystemName: "basket.fill"),
+
+            RecipeStep(order: 6, instruction: "Both: add the chicken, bell pepper, and more cheese, then fold the tortilla over.", assignee: .shared, imageSystemName: "arrow.triangle.2.circlepath"),
+            RecipeStep(order: 7, instruction: "Both: cook until golden and crisp, then flip and cook the other side.", assignee: .shared, timerSeconds: 180, imageSystemName: "timer"),
+            RecipeStep(order: 8, instruction: "Both: slice into wedges and serve with salsa and sour cream.", assignee: .shared, imageSystemName: "fork.knife")
+        ],
         iconSystemName: "takeoutbag.and.cup.and.straw.fill",
         difficulty: 1,
         spiceLevel: 1,
         soloCookTimeMinutes: 20,
+        twoPersonCookTimeMinutes: 14,
         ingredients: [
             Ingredient(name: "Chicken breast", amount: "1"),
             Ingredient(name: "Cumin", amount: "1 tsp"),

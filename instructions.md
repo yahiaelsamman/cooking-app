@@ -630,6 +630,23 @@ Editing an existing recipe, deleting one, and the dynamic add/remove/reorder row
 weren't exercised this way — same real-touch-input limitation as pass 9's swipe/drag verification
 gap.
 
+### Pass 11 — curated two-person splits for 4 more recipes
+
+Continuing the same session, per §5's item 7: went through the 11 solo-only recipes (5 original +
+6 from pass 9) and hand-authored a two-person split for the 4 where dividing labor genuinely helps
+— **Shrimp Scampi** (pasta boiling and shrimp/sauce are truly parallel stations), **Chicken Caesar
+Salad** (searing chicken and prepping lettuce/croutons don't share a station), **Baked Salmon with
+Asparagus** (brief parallel prep before a shared, unattended roast), and **Chicken Quesadillas**
+(cooking the chicken and prepping toppings can happen side by side). Deliberately did **not** force
+a split onto the other 7: Scrambled Eggs, Pan-Seared Steak, Grilled Cheese, Simple Tomato Soup,
+Caprese Salad, Banana Pancakes, and Avocado Toast with Fried Egg are each single-station, too quick,
+or (Avocado Toast, Grilled Cheese) a single serving to begin with — matching the project's existing
+stance that a recipe simply has no two-person option until one is genuinely deliberately authored
+for it, not guessed at (see the removed-mirror-mode pitfall). Two-person-capable recipes: 9 → 13 of
+20. 126/126 tests still passing (the generic cross-recipe tests — contiguous step ordering, both
+person tracks present, two-person time faster than solo — cover new splits automatically, no test
+changes needed). `xcodebuild build` for the full `CookingApp` scheme — **BUILD SUCCEEDED**.
+
 ## 4. Known pitfalls
 
 - **A "mirror mode" was tried and then removed.** An earlier pass let two-person mode work on
@@ -732,10 +749,12 @@ gap.
    it's worth the larger sourcing effort.
 6. **True background reconnection** — declared background modes so a two-person session survives
    more than a brief backgrounding.
-7. **Curated two-person splits for the 5 currently-solo original recipes**, if any turn out to
-   split sensibly in practice — not guessed at; a recipe simply has no two-person option until one
-   is deliberately authored for it (see the removed-mirror-mode pitfall above for why). Pass 9 also
-   added 6 more solo-only recipes among its 12, for the same reason.
+7. **~~Curated two-person splits~~ — done for 4 more recipes in pass 11 (9 → 13 of 20).** The
+   remaining 7 solo-only recipes (Scrambled Eggs, Pan-Seared Steak, Grilled Cheese, Simple Tomato
+   Soup, Caprese Salad, Banana Pancakes, Avocado Toast with Fried Egg) were deliberately left
+   solo-only — each is single-station, too quick, or single-serving to begin with — not overlooked.
+   Still true for any future recipe: no two-person option until one is genuinely worth authoring
+   for it (see the removed-mirror-mode pitfall above for why).
 8. **A sturdier leave/rejoin protocol** — an ack for `leaveSession`, and reusing a specific prior
    peer connection on reconnect rather than the current "any peer that shows up" auto-invite.
 9. **CloudKit/iCloud sync**, for two-person mode over the internet and cross-device recipe sync —
@@ -848,6 +867,15 @@ down from "full recipe CRUD" to "create/edit/delete a recipe you made in the app
 bundled recipe's authored content and deleting one at all were both left out, for reasons specific
 to each (see §5's items 2/3 and pass 10's write-up in §3) rather than just running out of time for
 them.
+
+### Current direction (pass 11)
+
+Same session again — moved to §5's next remaining item that didn't need an external dependency
+(no Pexels key for more photos, no real device for background-mode/touch-gesture verification):
+curated two-person splits for the recipes still missing one. Exercised the same judgment the
+project has used since the mirror-mode removal — split where it genuinely helps, leave the rest
+solo-only rather than mechanically splitting all 11. See pass 11's write-up in §3 for which 4 got
+one and why the other 7 didn't.
 
 ## 7. Git / repo
 
