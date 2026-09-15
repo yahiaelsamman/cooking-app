@@ -52,6 +52,7 @@ struct RecipeDetailView: View {
             if recipe.isUserCreated {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Edit") { showEditRecipe = true }
+                        .accessibilityIdentifier("editRecipeButton")
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -63,6 +64,7 @@ struct RecipeDetailView: View {
                         .foregroundStyle(.pink)
                 }
                 .accessibilityLabel(recipe.isFavorite ? "Remove from favorites" : "Add to favorites")
+                .accessibilityIdentifier("detailFavoriteButton")
             }
         }
         .sheet(isPresented: $showEditRecipe, onDismiss: popBackIfRecipeWasDeleted) {

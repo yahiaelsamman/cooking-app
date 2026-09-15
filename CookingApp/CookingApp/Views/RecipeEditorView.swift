@@ -68,7 +68,9 @@ struct RecipeEditorView: View {
             Form {
                 Section("Basics") {
                     TextField("Title", text: $title)
+                        .accessibilityIdentifier("editorTitleField")
                     TextField("Summary", text: $summary, axis: .vertical)
+                        .accessibilityIdentifier("editorSummaryField")
                     TextField("Servings (optional)", text: $servingsText)
                         .keyboardType(.numberPad)
                 }
@@ -78,6 +80,7 @@ struct RecipeEditorView: View {
                     Stepper("Spice level: \(spiceLevel)", value: $spiceLevel, in: 0...3)
                     TextField("Cook time (minutes)", text: $soloCookTimeText)
                         .keyboardType(.numberPad)
+                        .accessibilityIdentifier("editorCookTimeField")
                 }
 
                 Section("Dietary Tags") {
@@ -95,9 +98,11 @@ struct RecipeEditorView: View {
                     ForEach($ingredients) { $ingredient in
                         HStack {
                             TextField("Name", text: $ingredient.name)
+                                .accessibilityIdentifier("ingredientNameField")
                             TextField("Amount", text: $ingredient.amount)
                                 .frame(width: 100)
                                 .multilineTextAlignment(.trailing)
+                                .accessibilityIdentifier("ingredientAmountField")
                         }
                     }
                     .onDelete { ingredients.remove(atOffsets: $0) }
@@ -106,11 +111,13 @@ struct RecipeEditorView: View {
                     } label: {
                         Label("Add Ingredient", systemImage: "plus.circle")
                     }
+                    .accessibilityIdentifier("addIngredientButton")
                 }
 
                 Section("Steps") {
                     ForEach($steps) { $step in
                         TextField("Instruction", text: $step.instruction, axis: .vertical)
+                            .accessibilityIdentifier("stepInstructionField")
                     }
                     .onDelete { indices in
                         steps.remove(atOffsets: indices)
@@ -125,6 +132,7 @@ struct RecipeEditorView: View {
                     } label: {
                         Label("Add Step", systemImage: "plus.circle")
                     }
+                    .accessibilityIdentifier("addStepButton")
                 }
 
                 if existingRecipe?.isUserCreated == true {
@@ -144,6 +152,7 @@ struct RecipeEditorView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                         .disabled(!isValid)
+                        .accessibilityIdentifier("saveRecipeButton")
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     // Only meaningful for reordering steps/deleting ingredients — no separate

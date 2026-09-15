@@ -647,6 +647,43 @@ for it, not guessed at (see the removed-mirror-mode pitfall). Two-person-capable
 person tracks present, two-person time faster than solo — cover new splits automatically, no test
 changes needed). `xcodebuild build` for the full `CookingApp` scheme — **BUILD SUCCEEDED**.
 
+### Pass 12 — an XCUITest target (built and wired, but not successfully run in this sandbox)
+
+Moved to §5's XCUITest item — every earlier pass's "verified via screenshot" note existed
+specifically because there was no way to drive a real tap/swipe/drag, and passes 9/10 had
+accumulated a real backlog of genuinely-unverified interactions (swipe-to-favorite, drag-reorder,
+the recipe editor's dynamic rows) because of it.
+
+**What was built**: a `CookingAppUITests` target (added to `project.yml`, wired into the
+`CookingApp` scheme's test action) with 4 tests in `CookingAppUITests.swift` — recipe list → detail
+navigation, the favorite toggle's immediate reactivity, swipe-to-favorite-from-the-list actually
+persisting (checked by reopening detail), and the full add-recipe form flow (fill every field,
+save, confirm the new recipe appears and looks user-created). Two small, permanent (not
+temporary-and-reverted, unlike every earlier pass's screenshot hack) additions make this possible:
+`CookingAppApp` uses an in-memory SwiftData store when launched with `-UITesting`, so every test
+run starts from exactly the 20 bundled recipes with no leftover state from a previous run or
+interference with a real user's data; `RecipeListView` skips requesting the system notification
+permission under the same flag, since that system dialog can't be reliably dismissed from XCUITest.
+Also added `accessibilityIdentifier`s to every element the tests need to address reliably (row
+buttons keyed by recipe title, the add/favorite/save buttons, the editor's text fields).
+
+**What actually happened running it**: the target built, compiled, linked, and code-signed
+successfully — real confirmation the test code itself is correct Swift and the target is wired up
+right. But `xcodebuild test` itself never got further than "loading Accessibility" during test-
+runner bootstrap: it stalled for the full 70-second watchdog timeout and failed before a single
+test ran, on the very first attempt — before memory pressure was ever a factor. A second attempt
+(after a clean simulator reboot) was killed by the *host machine itself* running low on real
+memory; since this is the actual laptop this session runs on, not a disposable sandbox, a third
+attempt wasn't made rather than risk straining it further. The first failure's timing (immediate,
+pre-memory-pressure) points to the sandboxed simulator here lacking full support for XCUITest's
+accessibility-based automation — plausibly a headless/no-real-window-server limitation — rather
+than something retrying would fix.
+
+**So**: the target and tests are real, committed, and ready to run — just unverified in *this*
+environment. Running them from Xcode directly (⌘U) or `xcodebuild test` on a normal interactive
+Mac should work; if the same "loading Accessibility" stall happens there too, that'd be worth
+reporting as a genuine Simulator/Xcode issue rather than an environment-sandbox one.
+
 ## 4. Known pitfalls
 
 - **A "mirror mode" was tried and then removed.** An earlier pass let two-person mode work on
@@ -719,12 +756,17 @@ changes needed). `xcodebuild build` for the full `CookingApp` scheme — **BUILD
   immutability elsewhere today, but it's no longer enforced by the type system either — a future
   change that mutates a step/ingredient somewhere unexpected (rather than constructing a fresh one,
   the convention everywhere else in the codebase) wouldn't be caught at compile time.
-- **No automated UI testing exists** *(all passes)* — verification for anything that can't be
-  driven from `CookingAppCoreTests` (a full app build, screen-by-screen rendering) has relied each
-  pass on either hand-review or a temporary, fully-reverted debug hack in `RecipeListView` to
-  auto-navigate to a screen for a screenshot (see pass 7's note in §3) — there's still no
-  accessibility automation (`osascript`/System Events) or XCUITest target in this sandbox (see
-  Next Steps).
+- **`CookingAppUITests` exists but has never actually run** *(pass 12)* — it builds, compiles, and
+  links correctly, but `xcodebuild test` stalls indefinitely at "loading Accessibility" during
+  test-runner bootstrap in this sandbox, before any test executes. Looks like a sandbox/headless
+  limitation (no real window server for the Simulator's UI-automation layer to hook into) rather
+  than a problem with the test code — see pass 12's write-up in §3. Try running it from a normal
+  interactive Mac (Xcode ⌘U) before assuming the tests themselves are broken.
+- **Before pass 12, no automated UI testing existed at all** *(passes 1-11)* — verification for
+  anything that couldn't be driven from `CookingAppCoreTests` relied on hand-review or a temporary,
+  fully-reverted debug hack in `RecipeListView` to auto-navigate to a screen for a screenshot (see
+  pass 7's note in §3) — there was no accessibility automation (`osascript`/System Events) or
+  XCUITest target in this sandbox at all until pass 12 (see above for its current status).
 
 ## 5. Next steps (explicitly deferred)
 
@@ -760,11 +802,12 @@ changes needed). `xcodebuild build` for the full `CookingApp` scheme — **BUILD
 9. **CloudKit/iCloud sync**, for two-person mode over the internet and cross-device recipe sync —
    and now a more natural fit, since recipes already live in a real SwiftData store.
 10. **Accounts, recipe sharing, Android** — still explicitly out of scope.
-11. **An XCUITest target**, now that full Xcode is available (§3) — the natural next step for
-    verification is tapping through the actual app (recipe → detail → step screen → timers →
-    hold-to-finish, plus now the recipe editor's add/edit/delete/reorder flows) rather than only
-    confirming it builds and screens render, and would replace pass 7's temporary-debug-hack
-    approach to screenshotting new screens.
+11. **~~An XCUITest target~~ — built in pass 12, but never successfully run in this sandbox** (see
+    pass 12's write-up in §3 for why — looks like an environment limitation, not a code problem).
+    Actually running `CookingAppUITests` (Xcode ⌘U, or `xcodebuild test`, on a normal interactive
+    Mac) is the immediate next step, before writing more tests against it. Once it's confirmed
+    working, the natural next expansion is coverage for the step screen (timers, hold-to-finish,
+    swipe nav) and the two-person flow, which pass 12 didn't attempt.
 12. **A real, designed app icon** *(pass 7)* — still hand-drawn placeholder quality (see the
     pitfalls list); swap in real branding whenever you have it. (Recipe hero photos are real now,
     as of pass 8 — see item 5 above for what's still placeholder-quality: per-step art.)
@@ -876,6 +919,19 @@ curated two-person splits for the recipes still missing one. Exercised the same 
 project has used since the mirror-mode removal — split where it genuinely helps, leave the rest
 solo-only rather than mechanically splitting all 11. See pass 11's write-up in §3 for which 4 got
 one and why the other 7 didn't.
+
+### Current direction (pass 12)
+
+Same session, moved to the XCUITest target next — explicitly on the roadmap since pass 7, and the
+direct fix for a real, accumulating gap: every pass from 7 through 11 had at least one interaction
+it could only confirm "renders correctly," never "actually works," for lack of any way to drive a
+real touch. Built the target, wrote 4 tests covering exactly that backlog (swipe-to-favorite,
+the add-recipe flow, favorite-toggle reactivity, list→detail navigation), and got it to build and
+link correctly — then hit a wall actually running it: an immediate stall in the Simulator's own
+accessibility/automation bootstrap, independent of (and before) a separate low-memory condition on
+the host machine itself. Decided not to keep retrying a resource-intensive operation against a real
+low-memory signal from the actual laptop this session runs on — landed the infrastructure as real,
+usable groundwork instead, documented plainly as un-run rather than claimed as verified.
 
 ## 7. Git / repo
 

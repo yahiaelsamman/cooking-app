@@ -38,6 +38,7 @@ struct WelcomeNameView: View {
                 .padding(.horizontal, 40)
                 .submitLabel(.done)
                 .onSubmit(save)
+                .accessibilityIdentifier("welcomeNameField")
 
             Text("Used so a cooking partner sees your name, not your device's.")
                 .font(.caption)

@@ -82,6 +82,7 @@ struct RecipeListView: View {
                             .foregroundStyle(.pink)
                     }
                     .accessibilityLabel(showFavoritesOnly ? "Show all recipes" : "Show favorites only")
+                    .accessibilityIdentifier("favoritesFilterButton")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Picker("Sort", selection: $sortMode) {
@@ -98,12 +99,18 @@ struct RecipeListView: View {
                         Image(systemName: "plus")
                     }
                     .accessibilityLabel("Add Recipe")
+                    .accessibilityIdentifier("addRecipeButton")
                 }
             }
             .onAppear {
-                // Requested once, right at app start — not the first time you happen to start a
-                // timer — so the permission prompt doesn't ambush you mid-cook.
-                NotificationScheduler.requestAuthorizationIfNeeded()
+                // The system notification permission dialog can't be reliably dismissed from
+                // XCUITest, so UI tests skip requesting it entirely — CookingAppUITests always
+                // launches with this flag.
+                if !ProcessInfo.processInfo.arguments.contains("-UITesting") {
+                    // Requested once, right at app start — not the first time you happen to
+                    // start a timer — so the permission prompt doesn't ambush you mid-cook.
+                    NotificationScheduler.requestAuthorizationIfNeeded()
+                }
                 if cookName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     showWelcomeName = true
                 }
@@ -138,6 +145,7 @@ struct RecipeListView: View {
             RecipeRow(recipe: recipe)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("recipeRow_\(recipe.title)")
         .swipeActions(edge: .leading) {
             Button {
                 recipe.isFavorite.toggle()
@@ -145,6 +153,7 @@ struct RecipeListView: View {
             } label: {
                 Label(recipe.isFavorite ? "Unfavorite" : "Favorite", systemImage: recipe.isFavorite ? "heart.slash" : "heart")
             }
+            .accessibilityIdentifier("swipeFavoriteButton_\(recipe.title)")
             .tint(.pink)
         }
     }

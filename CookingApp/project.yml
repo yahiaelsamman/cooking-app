@@ -33,3 +33,21 @@ targets:
         NSBonjourServices:
           - "_cook-sync._tcp"
           - "_cook-sync._udp"
+    scheme:
+      testTargets:
+        - CookingAppUITests
+  CookingAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: CookingAppUITests
+    dependencies:
+      - target: CookingApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yahia.cookingapp.uitests
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: true
+        TEST_TARGET_NAME: CookingApp

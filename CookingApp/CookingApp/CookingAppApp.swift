@@ -14,7 +14,16 @@ struct CookingAppApp: App {
         UNUserNotificationCenter.current().delegate = notificationDelegate
 
         do {
-            modelContainer = try ModelContainer(for: Recipe.self)
+            if ProcessInfo.processInfo.arguments.contains("-UITesting") {
+                // XCUITest launches with this flag — an in-memory store means every test run
+                // starts from exactly the 20 bundled recipes and nothing else (no leftover
+                // custom recipes/favorites/ratings from a previous run), and never touches the
+                // real on-device store a person actually cooks from.
+                let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+                modelContainer = try ModelContainer(for: Recipe.self, configurations: configuration)
+            } else {
+                modelContainer = try ModelContainer(for: Recipe.self)
+            }
         } catch {
             fatalError("Could not create the recipe store: \(error)")
         }
