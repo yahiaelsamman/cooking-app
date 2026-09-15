@@ -424,6 +424,34 @@ struct RecipeModelTests {
         #expect(SampleRecipes.all.count >= 20)
     }
 
+    // MARK: - Recipe.nextSortOrder(after:)
+
+    @Test func nextSortOrderIsZeroForAnEmptyList() {
+        #expect(Recipe.nextSortOrder(after: []) == 0)
+    }
+
+    @Test func nextSortOrderIsOneMoreThanTheCurrentMax() {
+        let recipes = [
+            makeMinimalRecipe(sortOrder: 3),
+            makeMinimalRecipe(sortOrder: 7),
+            makeMinimalRecipe(sortOrder: 1)
+        ]
+        #expect(Recipe.nextSortOrder(after: recipes) == 8)
+    }
+
+    private func makeMinimalRecipe(sortOrder: Int) -> Recipe {
+        Recipe(
+            title: "Test",
+            summary: "Test",
+            soloSteps: [RecipeStep(order: 0, instruction: "Do it.", assignee: .solo, imageSystemName: "star")],
+            iconSystemName: "star",
+            difficulty: 1,
+            soloCookTimeMinutes: 1,
+            ingredients: [Ingredient(name: "Thing", amount: "1")],
+            sortOrder: sortOrder
+        )
+    }
+
     @Test func allStepsHaveAnImage() {
         for recipe in SampleRecipes.all {
             for step in recipe.soloSteps {

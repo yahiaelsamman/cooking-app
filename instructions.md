@@ -684,6 +684,68 @@ environment. Running them from Xcode directly (⌘U) or `xcodebuild test` on a n
 Mac should work; if the same "loading Accessibility" stall happens there too, that'd be worth
 reporting as a genuine Simulator/Xcode issue rather than an environment-sandbox one.
 
+### Pass 13 — a self-review pass over everything from passes 9-12, and real fixes
+
+With the XCUITest target un-runnable in this sandbox and the host machine having just shown real
+memory pressure, switched to something that needed neither a simulator nor heavy compute: an
+actual code-review pass (the `/code-review` skill, `high` effort) over the full diff since pass 9
+began (`eaeef4e..HEAD`). It surfaced 10 findings; fixed the ones that were real bugs, left the
+stylistic/premature-optimization ones alone with reasoning recorded here rather than just silently
+skipped.
+
+**Fixed:**
+- **`sortOrder` corruption via the Sort menu, not just the favorites button.** The favorites-filter
+  button was the only place guarding against "drag-reorder while filtered" — but switching to "My
+  Order" directly from the sort Picker while the filter was already on reached the same bad state
+  through a door that guard didn't cover. Fixed by replacing the imperative one-off check with a
+  reactive `canReorder` computed property (`sortMode == .myOrder && !showFavoritesOnly`) that both
+  the `List`'s edit-mode/`.onMove` wiring now read directly — correct no matter which control gets
+  you into that combination, since it's evaluated fresh every time, not just when one specific
+  button is tapped.
+- **A real crash risk deleting a recipe from the edit sheet.** `RecipeDetailView` holds a live
+  `@Bindable` reference to `recipe`; the old flow deleted it from inside the sheet and popped the
+  nav stack only in `onDismiss` — after the dismiss animation, leaving a window where
+  `RecipeDetailView`'s still-mounted body could read a model SwiftData had already removed.
+  Restructured so `RecipeEditorView` no longer deletes directly: it calls a new `onDelete` closure
+  instead, and `RecipeDetailView`'s implementation of that closure resets `path` *before* actually
+  deleting — the screen is off the navigation stack before the model is gone, not after.
+- **`RecipeEditorView.save()` had no guard of its own against editing a non-user-created recipe** —
+  only reachable indirectly today (`RecipeDetailView`'s Edit button is itself gated), but the view's
+  own doc comment claims this restriction, so it should enforce it, not just assume every caller
+  will. Added an `assertionFailure` + early return.
+- **Default sort mode changed from "My Order" to "A–Z."** Two independent reasons converged on the
+  same fix: an install that had already seeded recipes before `sortOrder` existed would have every
+  one of them migrate to the same value (SwiftData backfills a new field's inline default, which
+  is `0` for all existing rows) — opening straight into "My Order" would show them in an arbitrary
+  tied-at-zero order instead of the previous alphabetical one. Separately, `List` forced into edit
+  mode by default (needed for "My Order"'s drag handles) may suppress the new leading swipe-to-
+  favorite action — untestable in this sandbox, but defaulting away from edit mode sidesteps it for
+  the common case regardless. "My Order" is still there, just opt-in now.
+- **Servings had no validation** — `isValid` now also requires that if anything's been typed, it
+  parses to a positive number, matching how cook time is already validated.
+- **`nextSortOrder` was computed identically in two places** (`RecipeSeeder` and
+  `RecipeEditorView`, both written this session) — extracted to `Recipe.nextSortOrder(after:)`, a
+  shared static helper, with its own two unit tests.
+
+128/128 tests passing (126 + 2 new for the shared helper); `xcodebuild build` for the full
+`CookingApp` scheme — **BUILD SUCCEEDED** (a plain build only, not `test` — see pass 12's note on
+why simulator-heavy operations were being used sparingly for the remainder of this session).
+
+**Deliberately left alone, with reasoning:**
+- **`RecipeSeeder` fetches every full `Recipe` row just to compute existing ids**, rather than a
+  cheaper id-only fetch. At the realistic scale this app will ever reach (tens of recipes, not
+  thousands), the decoding cost is genuinely negligible — fixing this now would be optimizing for a
+  scale that will never occur, which is exactly the kind of premature work the project's own
+  conventions steer away from.
+- **`StarRatingView` duplicates the icon-row rendering pattern** already in
+  `DifficultyStarsView`/`SpiceLevelView`. Real observation, but the three aren't identical (one's
+  interactive with tap handling and a different symbol/fill count, two are static) — unifying them
+  is a legitimate future cleanup, not urgent enough to do instead of the correctness fixes above.
+- **`RecipeEditorView.save()`'s create/edit branches are two similar-but-not-identical field
+  blocks**, which have to be kept in sync by hand for any future field. Restructuring into one
+  shared code path is a bigger change with its own risk; noted as a real maintenance cost to keep
+  in mind, not fixed this pass.
+
 ## 4. Known pitfalls
 
 - **A "mirror mode" was tried and then removed.** An earlier pass let two-person mode work on
@@ -737,10 +799,12 @@ reporting as a genuine Simulator/Xcode issue rather than an environment-sandbox 
   favorite/rating/notes/cook-count the user had already set on it. A device that seeded the
   original 8 before photos existed still needs an uninstall/reinstall to see photos on *those*
   specific 8 rows; every recipe added from pass 9 onward arrives automatically.
-- **Reordering ("My Order") always operates on the full recipe list, not the filtered one** —
-  turning on the favorites-only filter while sorted by "My Order" switches you to "A–Z" instead of
-  letting you drag within the filtered subset, since that would scramble the full ordering for
-  whatever's hidden. Switch favorites off to reorder the complete list.
+- **Reordering only works with the favorites filter off** *(fixed more robustly in pass 13 — see
+  its write-up in §3)* — turning on "Favorites only" while sorted by "My Order" hides the drag
+  handles (rather than switching your sort mode away, as an earlier version of this did); dragging
+  within a filtered subset would otherwise scramble the full ordering for whatever's hidden. Turn
+  the filter off to reorder the complete list; the sort Picker still reads "My Order" the whole
+  time.
 - **Swipe-to-favorite, drag-to-reorder, and the recipe editor's row add/remove/reorder were never
   verified with a real touch** *(pass 9/10)* — all compiled and the surrounding UI (toolbar
   controls, drag handles, row content, the New Recipe form) was confirmed to render via
@@ -932,6 +996,15 @@ accessibility/automation bootstrap, independent of (and before) a separate low-m
 the host machine itself. Decided not to keep retrying a resource-intensive operation against a real
 low-memory signal from the actual laptop this session runs on — landed the infrastructure as real,
 usable groundwork instead, documented plainly as un-run rather than claimed as verified.
+
+### Current direction (pass 13)
+
+With the simulator having just shown real resource limits (pass 12), switched to work that needed
+neither it nor heavy compute: an actual review of everything built across passes 9-12, rather than
+more building. Fixed what the review found to be real (a data-corruption bug, a crash risk, two
+smaller gaps) and explicitly declined to fix what wasn't worth the churn right now (a
+premature-optimization suggestion, a stylistic duplication) — recorded with reasoning in pass 13's
+write-up in §3 either way, so "why wasn't this fixed" has an answer instead of silence.
 
 ## 7. Git / repo
 

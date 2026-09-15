@@ -204,6 +204,14 @@ public final class Recipe {
     /// Whether two-person mode should be offered for this recipe at all.
     public var supportsTwoPerson: Bool { twoPersonSteps != nil }
 
+    /// The `sortOrder` a newly-added recipe should get to land at the end of "My Order" — shared
+    /// by `RecipeSeeder` (appending missing bundled recipes) and `RecipeEditorView` (creating a
+    /// user-made one), so both agree on the same "append after the current max" policy rather
+    /// than encoding it twice.
+    public static func nextSortOrder(after existing: [Recipe]) -> Int {
+        (existing.map(\.sortOrder).max() ?? -1) + 1
+    }
+
     public func cookTimeMinutes(forTwoPerson: Bool) -> Int {
         forTwoPerson ? (twoPersonCookTimeMinutes ?? soloCookTimeMinutes) : soloCookTimeMinutes
     }

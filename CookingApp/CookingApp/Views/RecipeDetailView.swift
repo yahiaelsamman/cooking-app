@@ -67,8 +67,8 @@ struct RecipeDetailView: View {
                 .accessibilityIdentifier("detailFavoriteButton")
             }
         }
-        .sheet(isPresented: $showEditRecipe, onDismiss: popBackIfRecipeWasDeleted) {
-            RecipeEditorView(existingRecipe: recipe)
+        .sheet(isPresented: $showEditRecipe) {
+            RecipeEditorView(existingRecipe: recipe, onDelete: deleteRecipeAndPopBack)
         }
     }
 
@@ -277,14 +277,14 @@ struct RecipeDetailView: View {
         }
     }
 
-    /// `RecipeEditorView`'s delete option is only reachable via this edit sheet, so this is the
-    /// only place a dangling `recipe` reference can happen here — after it deletes and dismisses,
-    /// this screen would otherwise still be showing a now-gone recipe's stale in-memory values.
-    private func popBackIfRecipeWasDeleted() {
-        let id = recipe.id
-        let stillExists = (try? modelContext.fetch(FetchDescriptor<Recipe>(predicate: #Predicate { $0.id == id })))?.isEmpty == false
-        if !stillExists {
-            path = NavigationPath()
-        }
+    /// Navigates away *before* actually deleting — this screen holds a live `@Bindable` reference
+    /// to `recipe`, so deleting it while still on screen (even mid-dismiss-animation, which is
+    /// what a naive `onDismiss`-triggered delete would do) risks this view's body reading a model
+    /// SwiftData has already faulted out from under it. Resetting `path` first means this view is
+    /// no longer part of the active navigation stack by the time the delete actually happens.
+    private func deleteRecipeAndPopBack() {
+        path = NavigationPath()
+        modelContext.delete(recipe)
+        try? modelContext.save()
     }
 }

@@ -20,9 +20,16 @@ struct RecipeListView: View {
     @State private var path = NavigationPath()
     @AppStorage("cookName") private var cookName: String = ""
     @State private var showWelcomeName = false
-    @State private var sortMode: RecipeSortMode = .myOrder
+    @State private var sortMode: RecipeSortMode = .alphabetical
     @State private var showFavoritesOnly = false
     @State private var showAddRecipe = false
+
+    /// Reordering must never run against a favorites-filtered subset — that would rewrite
+    /// `sortOrder` 0..<k only across the visible rows, colliding with and corrupting the
+    /// `sortOrder`s of every hidden recipe. Computed reactively (rather than only checked at the
+    /// one place `showFavoritesOnly` gets toggled) so it stays correct no matter which control —
+    /// the favorites button *or* the sort Picker — is what brings both conditions true at once.
+    private var canReorder: Bool { sortMode == .myOrder && !showFavoritesOnly }
 
     private var displayedRecipes: [Recipe] {
         let base = showFavoritesOnly ? recipes.filter(\.isFavorite) : recipes
@@ -44,7 +51,7 @@ struct RecipeListView: View {
         NavigationStack(path: $path) {
             ZStack(alignment: .bottomTrailing) {
                 List {
-                    if sortMode == .myOrder {
+                    if canReorder {
                         ForEach(displayedRecipes) { recipe in
                             recipeRow(for: recipe)
                         }
@@ -55,7 +62,7 @@ struct RecipeListView: View {
                         }
                     }
                 }
-                .environment(\.editMode, .constant(sortMode == .myOrder ? .active : .inactive))
+                .environment(\.editMode, .constant(canReorder ? .active : .inactive))
 
                 if sessionStore.hasActiveSession {
                     ResumeSessionButton {
@@ -71,12 +78,6 @@ struct RecipeListView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         showFavoritesOnly.toggle()
-                        if showFavoritesOnly && sortMode == .myOrder {
-                            // Dragging within a filtered subset would silently scramble the full
-                            // sortOrder sequence for hidden recipes — simplest to just leave
-                            // reorder mode while the filter narrows what's on screen.
-                            sortMode = .alphabetical
-                        }
                     } label: {
                         Image(systemName: showFavoritesOnly ? "heart.fill" : "heart")
                             .foregroundStyle(.pink)
@@ -158,9 +159,9 @@ struct RecipeListView: View {
         }
     }
 
-    /// Only reachable in `.myOrder` mode (see body) with the favorites filter off, so
-    /// `displayedRecipes` here is exactly `recipes` sorted by `sortOrder` — safe to rewrite every
-    /// recipe's `sortOrder` to match the new full ordering.
+    /// Only wired to `.onMove` when `canReorder` is true (see body), which guarantees the
+    /// favorites filter is off — so `displayedRecipes` here is exactly `recipes` sorted by
+    /// `sortOrder`, safe to rewrite in full to match the new ordering.
     private func moveRecipes(from source: IndexSet, to destination: Int) {
         var ordered = displayedRecipes
         ordered.move(fromOffsets: source, toOffset: destination)

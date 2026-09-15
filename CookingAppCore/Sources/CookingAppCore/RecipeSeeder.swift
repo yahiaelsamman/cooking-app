@@ -27,7 +27,7 @@ public enum RecipeSeeder {
 
         // New bundled recipes are appended to the end of the user's manual "My Order" ordering,
         // never interleaved into it.
-        var nextSortOrder = (existing.map(\.sortOrder).max() ?? -1) + 1
+        var nextSortOrder = Recipe.nextSortOrder(after: existing)
         for recipe in missing {
             recipe.sortOrder = nextSortOrder
             nextSortOrder += 1

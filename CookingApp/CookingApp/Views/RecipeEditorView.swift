@@ -21,6 +21,12 @@ struct RecipeEditorView: View {
 
     /// `nil` when creating a brand-new recipe.
     let existingRecipe: Recipe?
+    /// Called instead of this view deleting `existingRecipe` itself, so the presenting screen can
+    /// pop away from it *before* it's actually removed from the store — see the call site in
+    /// `RecipeDetailView` for why: that screen holds a live `@Bindable` reference to the same
+    /// recipe, and deleting out from under it while it's still on screen (even mid-dismiss-
+    /// animation) risks reading a model SwiftData has already faulted out.
+    var onDelete: (() -> Void)? = nil
 
     @State private var title: String
     @State private var summary: String
@@ -33,8 +39,9 @@ struct RecipeEditorView: View {
     @State private var steps: [RecipeStep]
     @State private var showDeleteConfirm = false
 
-    init(existingRecipe: Recipe? = nil) {
+    init(existingRecipe: Recipe? = nil, onDelete: (() -> Void)? = nil) {
         self.existingRecipe = existingRecipe
+        self.onDelete = onDelete
         _title = State(initialValue: existingRecipe?.title ?? "")
         _summary = State(initialValue: existingRecipe?.summary ?? "")
         _servingsText = State(initialValue: existingRecipe?.servings.map(String.init) ?? "")
@@ -61,6 +68,9 @@ struct RecipeEditorView: View {
             && (soloCookTimeMinutes ?? 0) > 0
             && !nonEmptyIngredients.isEmpty
             && !nonEmptySteps.isEmpty
+            // Servings is optional — but if something's been typed, it has to be a real positive
+            // number, not "0" or garbage silently saved as nil/zero.
+            && (servingsText.isEmpty || (Int(servingsText) ?? 0) > 0)
     }
 
     var body: some View {
@@ -167,11 +177,11 @@ struct RecipeEditorView: View {
                 titleVisibility: .visible
             ) {
                 Button("Delete", role: .destructive) {
-                    if let existingRecipe {
-                        modelContext.delete(existingRecipe)
-                        try? modelContext.save()
-                    }
                     dismiss()
+                    // The presenting screen (RecipeDetailView) is the one holding a live
+                    // reference to this recipe — it navigates away first, then actually deletes,
+                    // via this callback. See `onDelete`'s doc comment.
+                    onDelete?()
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
@@ -187,6 +197,15 @@ struct RecipeEditorView: View {
     }
 
     private func save() {
+        // Belt-and-suspenders: `RecipeDetailView` only ever shows the Edit button for a
+        // user-created recipe, but this view — not its caller — is the one that should actually
+        // guarantee a bundled recipe's authored content can never be overwritten.
+        if let existingRecipe, !existingRecipe.isUserCreated {
+            assertionFailure("RecipeEditorView should never be editing a non-user-created recipe")
+            dismiss()
+            return
+        }
+
         let servings = servingsText.isEmpty ? nil : Int(servingsText)
         let finalIngredients = nonEmptyIngredients
         let finalSteps = nonEmptySteps.enumerated().map { index, step -> RecipeStep in
@@ -206,7 +225,7 @@ struct RecipeEditorView: View {
             existingRecipe.ingredients = finalIngredients
             existingRecipe.soloSteps = finalSteps
         } else {
-            let nextSortOrder = (allRecipes.map(\.sortOrder).max() ?? -1) + 1
+            let nextSortOrder = Recipe.nextSortOrder(after: allRecipes)
             let recipe = Recipe(
                 title: trimmedTitle,
                 summary: summary,
