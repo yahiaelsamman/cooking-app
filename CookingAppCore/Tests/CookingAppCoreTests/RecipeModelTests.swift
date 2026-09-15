@@ -501,4 +501,63 @@ struct RecipeModelTests {
             #expect(!tag.systemImage.isEmpty)
         }
     }
+
+    // MARK: - Recipe.matchesSearch(_:) (backs RecipeListView's search field)
+
+    @Test func emptyOrWhitespaceQueryMatchesEverything() {
+        let recipe = makeSearchTestRecipe()
+        #expect(recipe.matchesSearch(""))
+        #expect(recipe.matchesSearch("   "))
+    }
+
+    @Test func matchesByTitleRegardlessOfCase() {
+        let recipe = makeSearchTestRecipe()
+        #expect(recipe.matchesSearch("scampi"))
+        #expect(recipe.matchesSearch("SCAMPI"))
+        #expect(recipe.matchesSearch("Shrimp Scampi"))
+    }
+
+    @Test func matchesBySummaryText() {
+        let recipe = makeSearchTestRecipe()
+        #expect(recipe.matchesSearch("garlicky"))
+    }
+
+    @Test func matchesByIngredientName() {
+        let recipe = makeSearchTestRecipe()
+        #expect(recipe.matchesSearch("shrimp"))
+        #expect(recipe.matchesSearch("linguine"))
+    }
+
+    @Test func matchesByDietaryTagLabel() {
+        let recipe = makeSearchTestRecipe()
+        #expect(recipe.matchesSearch("nut-free"))
+    }
+
+    @Test func doesNotMatchOnStepInstructionTextAlone() {
+        // Step instructions deliberately aren't searched — a word only present there (never in
+        // the title/summary/ingredients/tags) shouldn't surface an otherwise-unrelated recipe.
+        let recipe = makeSearchTestRecipe()
+        #expect(recipe.soloSteps.contains { $0.instruction.localizedStandardContains("colander") })
+        #expect(!recipe.matchesSearch("colander"))
+    }
+
+    @Test func doesNotMatchUnrelatedQuery() {
+        let recipe = makeSearchTestRecipe()
+        #expect(!recipe.matchesSearch("chocolate cake"))
+    }
+
+    private func makeSearchTestRecipe() -> Recipe {
+        Recipe(
+            title: "Shrimp Scampi",
+            summary: "A quick, garlicky butter-and-white-wine sauce over linguine.",
+            soloSteps: [
+                RecipeStep(order: 0, instruction: "Boil the pasta, drain in a colander.", assignee: .solo, imageSystemName: "star")
+            ],
+            iconSystemName: "star",
+            difficulty: 1,
+            soloCookTimeMinutes: 20,
+            dietaryTags: [.nutFree],
+            ingredients: [Ingredient(name: "Shrimp", amount: "1 lb"), Ingredient(name: "Linguine", amount: "8 oz")]
+        )
+    }
 }

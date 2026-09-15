@@ -746,6 +746,66 @@ why simulator-heavy operations were being used sparingly for the remainder of th
   shared code path is a bigger change with its own risk; noted as a real maintenance cost to keep
   in mind, not fixed this pass.
 
+### Pass 14 — an unattended overnight autonomous pass: search, and keeping the screen awake while cooking
+
+Kicked off with a standing instruction to run autonomously for an extended stretch (up to ~8 hours,
+self-paced, stopping at each iteration boundary once context usage gets high), generating tests,
+improving the everyday feel of the app, and drawing on general recipe-app/cooking-blog conventions
+for what a "seamless" cook-along experience should include — rather than a single specific feature
+request. Given no interactive user to check in with mid-run and this session sharing the real
+laptop's resources (see pass 12's memory-pressure note), this pass deliberately stuck to
+`swift test` and `xcodebuild build`/`build-for-testing` for verification — no `xcodebuild test`
+against the Simulator, since that's the operation pass 12 found could stall or strain the host
+machine, and nobody would be present to notice or intervene overnight.
+
+Picked two independent, low-risk, high-value items — one pulled from a real gap (no way to find a
+recipe by name/ingredient once you have 20+ of them, and it'll only grow) and one from the single
+most common cooking-app UX convention this app was still missing:
+
+- **`Recipe.matchesSearch(_:)`** (`Recipe.swift`) — case/diacritic-insensitive
+  (`localizedStandardContains`) matching against title, summary, ingredient names, and dietary tag
+  labels. Deliberately **excludes step instruction text** — matching on step wording would surface
+  unrelated recipes on common cooking verbs ("stir," "pan," "boil") rather than helping find a dish
+  by name or contents; a regression test (`doesNotMatchOnStepInstructionTextAlone`) pins this down
+  by asserting a word that's *only* in a step ("colander") doesn't match. An empty/whitespace query
+  matches everything.
+- **`RecipeListView`** gained a `.searchable(text:)` search field. `displayedRecipes` now applies
+  the search filter alongside the existing favorites filter, before sorting. `canReorder` was
+  widened to also require `searchText.isEmpty` — reordering "My Order" against a search-filtered
+  subset would corrupt `sortOrder` the exact same way the favorites-filter case already guarded
+  against (see pass 13's `canReorder` fix), so this reuses that same reactive computed property
+  rather than adding a second, separate guard.
+- **Keep the screen awake while actively cooking** (`StepView.swift`) — `UIApplication.shared.
+  isIdleTimerDisabled` is now set `true` in the step screen's `.onAppear` and reset to `false` in
+  `.onDisappear`. This was a real, conspicuous gap: cooking is a glance-at-the-phone-with-messy-hands
+  activity, and every mainstream recipe app (this is a near-universal convention worth calling out
+  explicitly, per this pass's brief to check general cooking-app practice) disables auto-lock while
+  a recipe is on screen for exactly that reason — a phone that locks itself mid-step while your
+  hands are covered in flour is a real interruption, not a cosmetic one. Scoped tightly to
+  `StepView` alone (not app-wide) so the device still sleeps normally everywhere else, including the
+  recipe list and detail screens.
+
+**Testing**: `RecipeModelTests.swift` gained a `matchesSearch` section — empty/whitespace query,
+title (case-insensitive), summary, ingredient name, dietary tag label, the step-instruction
+exclusion above, and a fully-unrelated query — all against one dedicated fixture recipe rather than
+`SampleRecipes.all`, so the assertions are about the matching logic itself, not incidental to
+whatever the bundled recipes happen to contain. 128 → **135/135 tests passing**. Also added
+`testSearchFiltersByTitleAndByIngredientName` to `CookingAppUITests.swift` (search by title, clear,
+search by an ingredient that belongs to a different recipe than the title search matched) — written
+and built successfully (`xcodebuild build-for-testing` succeeded) but, consistent with every UI test
+in this target since pass 12, **not run** in this sandbox (same Simulator-automation limitation, and
+deliberately not attempted this pass for the resource reason above). The idle-timer change isn't
+unit-tested, consistent with `NotificationScheduler`/`NotificationDelegate` and every other
+`UIApplication`/UIKit-only behavior in this app (§3) — it needs a real device/manual check, added to
+the manual-verification list below.
+`xcodebuild build` for the full `CookingApp` scheme — **BUILD SUCCEEDED**.
+
+**Added to the manual verification checklist** (§3): confirm the screen doesn't auto-lock while a
+step is showing (leave the phone untouched on the step screen past its normal auto-lock timeout),
+and confirm it locks normally again once you leave the step screen (recipe list/detail, or after
+finishing) — the idle timer is a single shared `UIApplication`-wide flag, so a bug here would either
+leave the phone unable to sleep everywhere or fail to keep it awake at all, not something subtler.
+
 ## 4. Known pitfalls
 
 - **A "mirror mode" was tried and then removed.** An earlier pass let two-person mode work on
@@ -1005,6 +1065,24 @@ more building. Fixed what the review found to be real (a data-corruption bug, a 
 smaller gaps) and explicitly declined to fix what wasn't worth the churn right now (a
 premature-optimization suggestion, a stylistic duplication) — recorded with reasoning in pass 13's
 write-up in §3 either way, so "why wasn't this fixed" has an answer instead of silence.
+
+### Current direction (pass 14 — unattended overnight run)
+
+Different framing from every pass before it: not a specific feature request or a targeted review,
+but a standing instruction to keep making autonomous, iterative progress for an extended, unattended
+stretch — self-pacing across multiple loop iterations, generating tests, improving day-to-day feel,
+and drawing on general cooking-app/recipe-blog conventions for what to prioritize, with nobody
+available to answer questions or notice a stalled/resource-heavy operation mid-run. That shaped the
+approach as much as the specific features did: verification stayed to `swift test`/`xcodebuild
+build`/`build-for-testing` only (see pass 12's memory-pressure note — this session shares the actual
+laptop, not a disposable sandbox), and each iteration was picked to be small, independent, and
+reversible rather than one large multi-part change. First iteration: recipe search (a real, growing
+gap — nothing let you find a recipe by name or ingredient once there are 20+ of them) and disabling
+the idle timer specifically on the step screen (an near-universal cooking-app convention this app
+was missing, for the concrete reason that messy hands + an auto-locking screen mid-recipe is a real
+interruption). See pass 14's write-up in §3 for what shipped and how it was verified. Later
+iterations of this same overnight run, if any, continue below this entry rather than each getting
+their own numbered pass — check git log for the granular history.
 
 ## 7. Git / repo
 

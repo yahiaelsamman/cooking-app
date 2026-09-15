@@ -216,6 +216,23 @@ public final class Recipe {
         forTwoPerson ? (twoPersonCookTimeMinutes ?? soloCookTimeMinutes) : soloCookTimeMinutes
     }
 
+    /// Whether this recipe should show up for a given search query, used by `RecipeListView`'s
+    /// search field. Matches against title, summary, ingredient names, and dietary tag labels —
+    /// deliberately not step instructions, which would surface unrelated recipes on very common
+    /// words ("stir," "pan") rather than helping someone find a dish by name or what's in it.
+    /// `localizedStandardContains` (not a plain substring check) gives case- and
+    /// diacritic-insensitive matching consistent with Finder/Spotlight-style search. An empty or
+    /// whitespace-only query matches every recipe.
+    public func matchesSearch(_ query: String) -> Bool {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return true }
+        if title.localizedStandardContains(trimmed) { return true }
+        if summary.localizedStandardContains(trimmed) { return true }
+        if ingredients.contains(where: { $0.name.localizedStandardContains(trimmed) }) { return true }
+        if dietaryTags.contains(where: { $0.label.localizedStandardContains(trimmed) }) { return true }
+        return false
+    }
+
     /// The ordered list of steps visible to a given role.
     /// - `role: nil` — solo mode: `soloSteps`, in order.
     /// - `role: .personA` / `.personB` — that person's own steps plus every `.shared` step from

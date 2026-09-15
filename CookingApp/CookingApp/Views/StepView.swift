@@ -86,11 +86,18 @@ struct StepView: View {
             if session.role != nil {
                 session.announcePresence(isAway: false)
             }
+            // Cooking is a hands-off, glance-at-the-screen activity — messy hands mean a locked
+            // screen mid-step is a real interruption, not a minor one. Every mainstream recipe
+            // app disables the idle timer for exactly this reason while a step is on screen.
+            UIApplication.shared.isIdleTimerDisabled = true
         }
         .onDisappear {
             if session.role != nil {
                 session.announcePresence(isAway: true)
             }
+            // Restore normal auto-lock the moment cooking isn't the active screen — never leave
+            // the device unable to sleep just because it once showed a recipe step.
+            UIApplication.shared.isIdleTimerDisabled = false
         }
         .onChange(of: bothFinished) { _, finished in
             guard finished else { return }

@@ -119,4 +119,21 @@ final class CookingAppUITests: XCTestCase {
         newRow.tap()
         XCTAssertTrue(app.buttons["editRecipeButton"].waitForExistence(timeout: 5), "a user-created recipe should show an Edit button")
     }
+
+    func testSearchFiltersByTitleAndByIngredientName() throws {
+        let searchField = app.searchFields.firstMatch
+        XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+
+        searchField.tap()
+        searchField.typeText("Pizza")
+        XCTAssertTrue(app.buttons["recipeRow_Homemade Pizza"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["recipeRow_Classic Scrambled Eggs"].exists, "search by title should hide non-matching recipes")
+
+        // `matchesSearch` also checks ingredient names, not just the title — verify that path too,
+        // searching for something that only appears as an ingredient of a different recipe.
+        searchField.buttons["Clear text"].tap()
+        searchField.typeText("shrimp")
+        XCTAssertTrue(app.buttons["recipeRow_Shrimp Scampi"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["recipeRow_Homemade Pizza"].exists, "search by ingredient should hide recipes that don't contain it")
+    }
 }

@@ -23,16 +23,19 @@ struct RecipeListView: View {
     @State private var sortMode: RecipeSortMode = .alphabetical
     @State private var showFavoritesOnly = false
     @State private var showAddRecipe = false
+    @State private var searchText = ""
 
-    /// Reordering must never run against a favorites-filtered subset — that would rewrite
-    /// `sortOrder` 0..<k only across the visible rows, colliding with and corrupting the
+    /// Reordering must never run against a favorites- or search-filtered subset — that would
+    /// rewrite `sortOrder` 0..<k only across the visible rows, colliding with and corrupting the
     /// `sortOrder`s of every hidden recipe. Computed reactively (rather than only checked at the
-    /// one place `showFavoritesOnly` gets toggled) so it stays correct no matter which control —
-    /// the favorites button *or* the sort Picker — is what brings both conditions true at once.
-    private var canReorder: Bool { sortMode == .myOrder && !showFavoritesOnly }
+    /// specific places `showFavoritesOnly`/`searchText` change) so it stays correct no matter
+    /// which control — the favorites button, the sort Picker, or typing into search — is what
+    /// brings any of these conditions true at once.
+    private var canReorder: Bool { sortMode == .myOrder && !showFavoritesOnly && searchText.isEmpty }
 
     private var displayedRecipes: [Recipe] {
-        let base = showFavoritesOnly ? recipes.filter(\.isFavorite) : recipes
+        let favorited = showFavoritesOnly ? recipes.filter(\.isFavorite) : recipes
+        let base = searchText.isEmpty ? favorited : favorited.filter { $0.matchesSearch(searchText) }
         switch sortMode {
         case .myOrder:
             return base.sorted { $0.sortOrder < $1.sortOrder }
@@ -74,6 +77,7 @@ struct RecipeListView: View {
                 }
             }
             .navigationTitle("Recipes")
+            .searchable(text: $searchText, prompt: "Search recipes or ingredients")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -159,9 +163,9 @@ struct RecipeListView: View {
         }
     }
 
-    /// Only wired to `.onMove` when `canReorder` is true (see body), which guarantees the
-    /// favorites filter is off — so `displayedRecipes` here is exactly `recipes` sorted by
-    /// `sortOrder`, safe to rewrite in full to match the new ordering.
+    /// Only wired to `.onMove` when `canReorder` is true (see body), which guarantees both the
+    /// favorites filter and search are off — so `displayedRecipes` here is exactly `recipes`
+    /// sorted by `sortOrder`, safe to rewrite in full to match the new ordering.
     private func moveRecipes(from source: IndexSet, to destination: Int) {
         var ordered = displayedRecipes
         ordered.move(fromOffsets: source, toOffset: destination)
