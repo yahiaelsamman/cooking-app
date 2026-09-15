@@ -75,6 +75,126 @@ public struct Ingredient: Identifiable, Codable, Hashable, Sendable {
         self.name = name
         self.amount = amount
     }
+
+    /// `amount` rescaled to a different serving count, for `RecipeDetailView`'s servings
+    /// stepper. Only the leading quantity is touched — a whole number ("2"), a decimal ("1.5"),
+    /// a simple fraction ("1/2"), or a mixed number ("1 1/2") — everything after it (a unit,
+    /// "small"/"large", or nothing at all) is preserved verbatim. Amounts with no leading number
+    /// at all ("A pinch," "To taste," "As needed") come back unchanged: there's nothing in them
+    /// to scale, and guessing would silently turn real recipe content into garbage.
+    ///
+    /// Deliberately doesn't attempt unit conversion, unicode vulgar fractions (½, ¾), or ranges
+    /// ("2-3") — none of those appear in this app's actual ingredient data (see
+    /// `SampleRecipes.swift`), and adding support for formats nothing uses yet would be exactly
+    /// the kind of speculative complexity this project's conventions steer away from.
+    public func scaledAmount(by factor: Double) -> String {
+        Ingredient.scale(amount, by: factor)
+    }
+
+    static func scale(_ amount: String, by factor: Double) -> String {
+        guard factor.isFinite, factor > 0, let quantity = parseLeadingQuantity(amount) else {
+            return amount
+        }
+        return formatQuantity(quantity.value * factor) + quantity.remainder
+    }
+
+    /// Splits `amount` into a leading numeric value and everything after it, or `nil` if it
+    /// doesn't start with a number at all.
+    private static func parseLeadingQuantity(_ amount: String) -> (value: Double, remainder: String)? {
+        var rest = Substring(amount)
+        guard let wholeDigits = consumeDigits(&rest) else { return nil }
+        let whole = Double(wholeDigits)!
+
+        // Decimal: "1.5 cups" → whole part "1", fractional digits "5".
+        if rest.first == "." {
+            var afterDot = rest
+            afterDot.removeFirst()
+            if let fractionDigits = consumeDigits(&afterDot) {
+                return (Double(wholeDigits + "." + fractionDigits)!, String(afterDot))
+            }
+        }
+
+        // Fraction with no leading whole part: "1/2 cup".
+        if rest.first == "/" {
+            var afterSlash = rest
+            afterSlash.removeFirst()
+            if let denominatorDigits = consumeDigits(&afterSlash), let denominator = Double(denominatorDigits), denominator != 0 {
+                return (whole / denominator, String(afterSlash))
+            }
+        }
+
+        // Mixed number: "1 1/2 tsp" — only if what follows the space is itself a fraction;
+        // otherwise the space just separates the number from a unit/word ("1 small").
+        if rest.first == " " {
+            var afterSpace = rest
+            afterSpace.removeFirst()
+            var probe = afterSpace
+            if let numeratorDigits = consumeDigits(&probe), probe.first == "/" {
+                var afterSlash = probe
+                afterSlash.removeFirst()
+                if let denominatorDigits = consumeDigits(&afterSlash),
+                   let numerator = Double(numeratorDigits),
+                   let denominator = Double(denominatorDigits),
+                   denominator != 0 {
+                    return (whole + numerator / denominator, String(afterSlash))
+                }
+            }
+        }
+
+        // Plain whole number, either directly followed by a unit ("200g") or by a
+        // non-fraction word after a space ("1 small").
+        return (whole, String(rest))
+    }
+
+    private static func consumeDigits(_ substring: inout Substring) -> String? {
+        var digits = ""
+        while let character = substring.first, character.isASCII, character.isNumber {
+            digits.append(character)
+            substring.removeFirst()
+        }
+        return digits.isEmpty ? nil : digits
+    }
+
+    /// Renders a scaled quantity back to text — a whole number as-is, a near-whole value snapped
+    /// to it (guards against floating-point noise like `1.9999999`), and anything else as the
+    /// nearest common cooking fraction (halves/thirds/quarters/eighths) if one is close enough,
+    /// falling back to a trimmed decimal otherwise.
+    private static func formatQuantity(_ value: Double) -> String {
+        guard value.isFinite, value > 0 else { return "0" }
+
+        let whole = value.rounded(.down)
+        let fractional = value - whole
+
+        if fractional < 0.02 { return formatWhole(whole) }
+        if fractional > 0.98 { return formatWhole(whole + 1) }
+
+        for denominator in [2, 3, 4, 8] {
+            let numerator = (fractional * Double(denominator)).rounded()
+            guard numerator > 0, numerator < Double(denominator) else { continue }
+            guard abs(fractional - numerator / Double(denominator)) < 0.02 else { continue }
+            let divisor = gcd(Int(numerator), denominator)
+            let fractionText = "\(Int(numerator) / divisor)/\(denominator / divisor)"
+            return whole > 0 ? "\(formatWhole(whole)) \(fractionText)" : fractionText
+        }
+
+        return trimmedDecimal(value)
+    }
+
+    private static func formatWhole(_ value: Double) -> String {
+        String(Int(value.rounded()))
+    }
+
+    private static func trimmedDecimal(_ value: Double) -> String {
+        let rounded = (value * 100).rounded() / 100
+        var text = String(format: "%.2f", rounded)
+        while text.hasSuffix("0") { text.removeLast() }
+        if text.hasSuffix(".") { text.removeLast() }
+        return text
+    }
+
+    private static func gcd(_ a: Int, _ b: Int) -> Int {
+        b == 0 ? a : gcd(b, a % b)
+    }
 }
 
 /// The only `@Model` type in this app — a real on-device database record, queryable via

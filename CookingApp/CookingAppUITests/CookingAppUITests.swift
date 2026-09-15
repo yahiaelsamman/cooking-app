@@ -136,4 +136,23 @@ final class CookingAppUITests: XCTestCase {
         XCTAssertTrue(app.buttons["recipeRow_Shrimp Scampi"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["recipeRow_Homemade Pizza"].exists, "search by ingredient should hide recipes that don't contain it")
     }
+
+    func testServingsStepperScalesIngredientAmountsLive() throws {
+        let row = app.buttons["recipeRow_Classic Scrambled Eggs"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+
+        // Classic Scrambled Eggs is `servings: 1` with "3" large eggs — doubling servings should
+        // double that leading number while leaving every non-numeric amount ("A splash," "A
+        // pinch," "1 knob") untouched.
+        let eggsAmount = app.staticTexts["ingredientAmount_Large eggs"]
+        XCTAssertTrue(eggsAmount.waitForExistence(timeout: 5))
+        XCTAssertEqual(eggsAmount.label, "3")
+
+        app.buttons["increaseServingsButton"].tap()
+        XCTAssertEqual(eggsAmount.label, "6")
+
+        app.buttons["decreaseServingsButton"].tap()
+        XCTAssertEqual(eggsAmount.label, "3")
+    }
 }

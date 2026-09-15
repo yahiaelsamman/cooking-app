@@ -806,6 +806,48 @@ and confirm it locks normally again once you leave the step screen (recipe list/
 finishing) — the idle timer is a single shared `UIApplication`-wide flag, so a bug here would either
 leave the phone unable to sleep everywhere or fail to keep it awake at all, not something subtler.
 
+### Pass 15 — servings scaling for ingredient amounts
+
+Second iteration of the same overnight autonomous run (pass 14). Picked up §6's own longstanding
+observation — "nothing scales ingredient quantities to a different serving count" — which had been
+sitting unaddressed because `Ingredient.amount` is a free-text string ("A pinch," "1/2 cup," "200g"),
+not a structured `(value, unit)` pair, so naive "multiply the number" scaling risks corrupting
+amounts that aren't numbers at all. Solved by parsing only the *leading* quantity and leaving
+everything else untouched, rather than a bigger data-model migration to structured quantities across
+all 20 bundled recipes' ingredients — the smaller, additive fix that doesn't touch existing content.
+
+- **`Ingredient.scaledAmount(by:)`** (`Recipe.swift`) — parses a leading whole number ("2"),
+  decimal ("1.5"), simple fraction ("1/2"), or mixed number ("1 1/2") off the front of `amount`,
+  scales just that value by `factor`, and reattaches whatever followed it verbatim (a unit with or
+  without a space, "small"/"large," or nothing). Amounts with no leading number at all ("A pinch,"
+  "To taste," "As needed" — surveyed directly from `SampleRecipes.swift` before writing this, see
+  the doc comment) come back completely unchanged rather than guessing. Scaled values are formatted
+  back as a whole number when close to one, a common cooking fraction (halves/thirds/quarters/
+  eighths) when that's a close match, or a trimmed decimal otherwise — so doubling "1/2 cup" reads
+  as "1 cup," not "1.0 cup," and doubling "3/4 cup" reads as "1 1/2 cup," not "1.5 cup." Deliberately
+  doesn't attempt unit conversion, unicode vulgar fractions (½, ¾), or ranges ("2-3") — none of
+  those appear in this app's real ingredient data, so building for them now would be speculative.
+- **`RecipeDetailView.swift`** — a servings +/- stepper next to the "Ingredients" header, shown only
+  when `recipe.servings != nil` (the same "don't offer a control that has nothing to scale relative
+  to" stance `modePicker` already takes for two-person mode). `targetServings` starts at the
+  recipe's own `servings` and is purely ephemeral view state — it resets on reopening the recipe,
+  the same as the existing solo/two-person `mode` picker, rather than being persisted; it describes
+  "how many people am I cooking for today," not a durable fact about the recipe. Every ingredient
+  row's displayed amount is `ingredient.scaledAmount(by: servingsScaleFactor)` instead of the raw
+  `amount`; the metadata row's "Servings" tile now shows `targetServings` too, so it stays in sync
+  with the stepper rather than showing a now-stale original count.
+
+**Testing**: new `IngredientScalingTests.swift` — every amount *shape* actually present in
+`SampleRecipes.swift` (plain whole numbers, spaced/unspaced units, decimals, simple fractions, and
+every qualitative amount like "A pinch"/"To taste"), plus mixed numbers (not in the bundled data yet,
+but the parser handles them), the identity case (`factor: 1` changes nothing), guard behavior for
+non-positive/non-finite factors, and a broad sweep asserting every real bundled ingredient scales to
+a non-empty string at both 2× and 0.5× without crashing. 135 → **153/153 CookingAppCoreTests
+passing**. Added `testServingsStepperScalesIngredientAmountsLive` to `CookingAppUITests.swift`
+(Classic Scrambled Eggs' "3" large eggs doubles to "6" and back) — built successfully via
+`xcodebuild build-for-testing`, not run, same sandbox limitation as every UI test since pass 12.
+`xcodebuild build`/`build-for-testing` for the full `CookingApp` scheme — both **SUCCEEDED**.
+
 ## 4. Known pitfalls
 
 - **A "mirror mode" was tried and then removed.** An earlier pass let two-person mode work on
@@ -957,8 +999,8 @@ leave the phone unable to sleep everywhere or fail to keep it awake at all, not 
 - **The step illustration is the same size/prominence for every step regardless of content** — a
   5-minute rest and a "sear 3 min per side, don't touch it" step have very different "what do I
   need to see" needs; the layout doesn't distinguish them.
-- **Nothing scales ingredient quantities to a different serving count** — `servings` is displayed
-  but not adjustable.
+- ~~**Nothing scales ingredient quantities to a different serving count**~~ — done (pass 15): a
+  servings stepper on the detail screen scales each ingredient's leading numeric quantity live.
 - **The partner's connection-state dot (green/yellow/red) has no explanation on tap.**
 - **No confirmation before "Start Cooking" leaves the overview screen** — for an unfamiliar
   recipe, a brief "you won't see the full ingredient list again until you finish" nudge might help.

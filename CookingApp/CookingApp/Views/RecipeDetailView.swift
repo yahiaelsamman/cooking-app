@@ -18,6 +18,19 @@ struct RecipeDetailView: View {
 
     @State private var mode: CookingMode = .solo
     @State private var showEditRecipe = false
+    /// Starts at the recipe's own `servings` (or 1 for a recipe that doesn't declare one — the
+    /// scaling controls simply aren't shown in that case, see `ingredientsSection`). Purely
+    /// ephemeral view state, the same as `mode` above: it resets to the recipe's base serving
+    /// count every time this screen is opened rather than being remembered, since it describes
+    /// "how many people am I cooking for right now," not a durable preference about the recipe
+    /// itself.
+    @State private var targetServings: Int
+
+    init(recipe: Recipe, path: Binding<NavigationPath>) {
+        self.recipe = recipe
+        self._path = path
+        _targetServings = State(initialValue: recipe.servings ?? 1)
+    }
 
     var body: some View {
         ScrollView {
@@ -107,9 +120,9 @@ struct RecipeDetailView: View {
                 Label("\(recipe.cookTimeMinutes(forTwoPerson: mode == .twoPerson)) min", systemImage: "clock.fill")
                 Text("Cook Time").font(.caption2).foregroundStyle(.secondary)
             }
-            if let servings = recipe.servings {
+            if recipe.servings != nil {
                 VStack(spacing: 4) {
-                    Label("\(servings)", systemImage: "person.fill")
+                    Label("\(targetServings)", systemImage: "person.fill")
                     Text("Servings").font(.caption2).foregroundStyle(.secondary)
                 }
             }
@@ -218,17 +231,61 @@ struct RecipeDetailView: View {
 
     private var ingredientsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Ingredients").font(.title3.bold())
+            HStack {
+                Text("Ingredients").font(.title3.bold())
+                Spacer()
+                // Only offered when the recipe declares a base serving count to scale relative
+                // to — same "don't show a control that has nothing sensible to do" stance as
+                // `modePicker` above for two-person mode.
+                if recipe.servings != nil {
+                    servingsStepper
+                }
+            }
             ForEach(recipe.ingredients) { ingredient in
                 HStack {
                     Text(ingredient.name)
                     Spacer()
-                    Text(ingredient.amount)
+                    Text(ingredient.scaledAmount(by: servingsScaleFactor))
                         .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("ingredientAmount_\(ingredient.name)")
                 }
                 .font(.subheadline)
             }
         }
+    }
+
+    private var servingsStepper: some View {
+        HStack(spacing: 10) {
+            Button {
+                targetServings = max(1, targetServings - 1)
+            } label: {
+                Image(systemName: "minus.circle.fill")
+            }
+            .accessibilityLabel("Fewer servings")
+            .accessibilityIdentifier("decreaseServingsButton")
+
+            Text("\(targetServings) \(targetServings == 1 ? "serving" : "servings")")
+                .font(.subheadline.weight(.medium))
+                .monospacedDigit()
+                .frame(minWidth: 70)
+
+            Button {
+                targetServings = min(20, targetServings + 1)
+            } label: {
+                Image(systemName: "plus.circle.fill")
+            }
+            .accessibilityLabel("More servings")
+            .accessibilityIdentifier("increaseServingsButton")
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Color.accentColor)
+    }
+
+    /// 1 (no change) unless the recipe declares a base `servings` count — an ingredient's amount
+    /// is only ever scaled relative to that, never guessed at.
+    private var servingsScaleFactor: Double {
+        guard let baseServings = recipe.servings, baseServings > 0 else { return 1 }
+        return Double(targetServings) / Double(baseServings)
     }
 
     private var stepsOverviewSection: some View {
