@@ -24,6 +24,7 @@ struct PeerSyncServiceTests {
     @Test func connectingThenConnectedUpdatesState() {
         let service = makeService()
         let peer = MCPeerID(displayName: "partner-device")
+        service.startBrowsing() // role must be set before .connected is legitimate — see the stray-connection guard below
 
         service.handleSessionStateChange(.connecting, peerID: peer)
         #expect(service.connectionState == .connecting)
@@ -65,6 +66,27 @@ struct PeerSyncServiceTests {
         #expect(service.connectionState == .connecting)
     }
 
+    @Test func dropAfterConnectingAsHostTriggersAutoReconnectAdvertising() {
+        // Symmetric to the joiner path above: the host side of `attemptAutoReconnect` restarts
+        // advertising rather than browsing, and never touches `discoveredPeers` (that's a
+        // joiner-only concept — a host never browses for anyone).
+        let service = makeService()
+        let peer = MCPeerID(displayName: "partner-device")
+        service.startHosting(recipeID: UUID(), hostRole: .personA) // role = .host
+        service.handleSessionStateChange(.connected, peerID: peer)
+        #expect(service.connectionState == .connected)
+
+        service.handleSessionStateChange(.notConnected, peerID: peer)
+
+        #expect(service.connectionState == .disconnected)
+        #expect(service.discoveredPeers.isEmpty)
+
+        // A rediscovered peer while auto-reconnecting as host should NOT be auto-invited (only
+        // the joiner side auto-invites; the host just keeps advertising and waits).
+        service.handleFoundPeer(peer)
+        #expect(service.connectionState == .disconnected)
+    }
+
     @Test func explicitLeaveSessionPreventsAutoReconnectOnTheResultingDisconnect() {
         let service = makeService()
         let peer = MCPeerID(displayName: "partner-device")
@@ -88,7 +110,7 @@ struct PeerSyncServiceTests {
     @Test func stopResetsStateForReuse() {
         let service = makeService()
         let peer = MCPeerID(displayName: "partner-device")
-        service.startHosting(recipeID: UUID())
+        service.startHosting(recipeID: UUID(), hostRole: .personA)
         service.handleSessionStateChange(.connected, peerID: peer)
 
         service.stop()
@@ -108,10 +130,127 @@ struct PeerSyncServiceTests {
         var callbackRecipeID: UUID?
         service.onRecipeSync = { callbackRecipeID = $0 }
 
-        service.handleReceivedMessage(.recipeSync(recipeID: recipeID))
+        service.handleReceivedMessage(.recipeSync(recipeID: recipeID, hostRole: .personA, senderName: "Alex"))
 
         #expect(service.partnerRecipeID == recipeID)
         #expect(callbackRecipeID == recipeID)
+    }
+
+    @Test func receivingRecipeSyncResolvesMyRoleAsTheOppositeOfTheHosts() {
+        // I'm the joiner (never called startHosting) — the host chose Person A for themselves,
+        // so I should resolve to Person B.
+        let service = makeService()
+        service.startBrowsing()
+
+        service.handleReceivedMessage(.recipeSync(recipeID: UUID(), hostRole: .personA, senderName: "Alex"))
+
+        #expect(service.resolvedStepAssignee == .personB)
+    }
+
+    @Test func receivingRecipeSyncResolvesMyRoleAsPersonAWhenHostChosePersonB() {
+        let service = makeService()
+        service.startBrowsing()
+
+        service.handleReceivedMessage(.recipeSync(recipeID: UUID(), hostRole: .personB, senderName: "Alex"))
+
+        #expect(service.resolvedStepAssignee == .personA)
+    }
+
+    @Test func startHostingResolvesMyOwnRoleImmediately() {
+        // The host doesn't need to wait on any message — it already knows its own role the
+        // moment it starts hosting.
+        let service = makeService()
+
+        service.startHosting(recipeID: UUID(), hostRole: .personB)
+
+        #expect(service.resolvedStepAssignee == .personB)
+    }
+
+    @Test func receivingRecipeSyncStoresThePartnersName() {
+        let service = makeService()
+        service.startBrowsing()
+
+        service.handleReceivedMessage(.recipeSync(recipeID: UUID(), hostRole: .personA, senderName: "Alex"))
+
+        #expect(service.partnerName == "Alex")
+    }
+
+    @Test func receivingIntroduceStoresThePartnersName() {
+        // The reverse direction — the joiner tells the host its name via `introduce`.
+        let service = makeService()
+
+        service.handleReceivedMessage(.introduce(name: "Sam"))
+
+        #expect(service.partnerName == "Sam")
+    }
+
+    @Test func receivingPresenceUpdateSetsPartnerIsAway() {
+        let service = makeService()
+        #expect(!service.partnerIsAway)
+
+        service.handleReceivedMessage(.presenceUpdate(isAway: true))
+        #expect(service.partnerIsAway)
+
+        service.handleReceivedMessage(.presenceUpdate(isAway: false))
+        #expect(!service.partnerIsAway)
+    }
+
+    @Test func reachingConnectedResetsPartnerIsAway() {
+        // A fresh (re)connect should assume presence until told otherwise, even if the partner
+        // was marked away right before the drop.
+        let service = makeService()
+        let peer = MCPeerID(displayName: "partner-device")
+        service.startBrowsing()
+        service.handleReceivedMessage(.presenceUpdate(isAway: true))
+        #expect(service.partnerIsAway)
+
+        service.handleSessionStateChange(.connected, peerID: peer)
+
+        #expect(!service.partnerIsAway)
+    }
+
+    @Test func onConnectedFiresOnTheInitialConnectAndEveryReconnect() {
+        let service = makeService()
+        let peer = MCPeerID(displayName: "partner-device")
+        service.startHosting(recipeID: UUID(), hostRole: .personA)
+        var connectedCount = 0
+        service.onConnected = { connectedCount += 1 }
+
+        service.handleSessionStateChange(.connected, peerID: peer)
+        #expect(connectedCount == 1)
+
+        service.handleSessionStateChange(.notConnected, peerID: peer) // triggers auto-reconnect
+        service.handleSessionStateChange(.connected, peerID: peer) // the reconnect itself
+
+        #expect(connectedCount == 2)
+    }
+
+    @Test func aStrayConnectedCallbackAfterStopIsRefusedRatherThanResurrectingState() {
+        // Regression guard for "ending the session still leaves it joinable": `role` is only
+        // non-nil between start*/stop, so a late `.connected` callback arriving after a
+        // deliberate `stop()` must be refused, not accepted.
+        let service = makeService()
+        let peer = MCPeerID(displayName: "partner-device")
+        service.startHosting(recipeID: UUID(), hostRole: .personA)
+        service.handleSessionStateChange(.connected, peerID: peer)
+        service.stop()
+
+        var connectedFired = false
+        service.onConnected = { connectedFired = true }
+        service.handleSessionStateChange(.connected, peerID: peer)
+
+        #expect(service.connectionState == .idle)
+        #expect(!connectedFired)
+    }
+
+    @Test func aStrayConnectedCallbackBeforeEverStartingIsAlsoRefused() {
+        // Same guard, but for a `PeerSyncService` that was never hosted/joined at all.
+        let service = makeService()
+        let peer = MCPeerID(displayName: "partner-device")
+
+        service.handleSessionStateChange(.connected, peerID: peer)
+
+        #expect(service.connectionState == .idle)
     }
 
     @Test func receivingProgressUpdateSetsPartnerStepIndex() {
@@ -146,7 +285,7 @@ struct PeerSyncServiceTests {
     @Test func receivingLeaveSessionFiresCallbackAndTearsDown() {
         let service = makeService()
         let peer = MCPeerID(displayName: "partner-device")
-        service.startHosting(recipeID: UUID())
+        service.startHosting(recipeID: UUID(), hostRole: .personA)
         service.handleSessionStateChange(.connected, peerID: peer)
 
         var partnerLeftFired = false

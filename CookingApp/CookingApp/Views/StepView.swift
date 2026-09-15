@@ -2,17 +2,31 @@ import SwiftUI
 import UIKit
 import CookingAppCore
 
+/// One finished-timer toast — non-blocking (unlike a `.alert`, it never demands a tap before you
+/// can keep interacting with the rest of the screen), which matters most when the timer that just
+/// finished belongs to a step you've since swiped away from.
+private struct TimerFinishedBanner: Identifiable {
+    let id = UUID()
+    let instruction: String
+}
+
 struct StepView: View {
     let session: CookingSessionViewModel
     @Binding var path: NavigationPath
     @Environment(ActiveSessionStore.self) private var sessionStore
 
-    @State private var showTimerFinishedAlert = false
-    @State private var finishedTimerStepInstruction = ""
+    @State private var timerFinishedBanners: [TimerFinishedBanner] = []
     @State private var showEndSessionConfirm = false
 
+    /// True once both people have actually finished the recipe — my own last step, and the
+    /// partner's, both reached. Detected purely from progress already exchanged (`advance()`
+    /// already sends a `progressUpdate` at the completing step), no extra message needed.
+    private var bothFinished: Bool {
+        session.role != nil && session.isComplete && session.partnerProgressFraction == 1.0
+    }
+
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             backgroundColor.ignoresSafeArea()
 
             if session.isComplete {
@@ -20,6 +34,8 @@ struct StepView: View {
             } else {
                 activeStepView
             }
+
+            timerFinishedBannerStack
         }
         .navigationBarBackButtonHidden(true)
         .disablesInteractiveSwipeBack()
@@ -54,27 +70,71 @@ struct StepView: View {
             }
             session.onTimerFinished = { step in
                 // Cancel the corresponding notification — we're about to show our own in-app
-                // alert, and reaching this callback at all means the app was foregrounded when
+                // banner, and reaching this callback at all means the app was foregrounded when
                 // the timer hit zero, so the notification would just be a redundant duplicate.
                 NotificationScheduler.cancel(step: step)
-                finishedTimerStepInstruction = step.instruction
-                showTimerFinishedAlert = true
+                let banner = TimerFinishedBanner(instruction: step.instruction)
+                timerFinishedBanners.append(banner)
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
+                Task {
+                    try? await Task.sleep(for: .seconds(4))
+                    timerFinishedBanners.removeAll { $0.id == banner.id }
+                }
+            }
+            if session.role != nil {
+                session.announcePresence(isAway: false)
             }
         }
-        .alert("Timer Finished", isPresented: $showTimerFinishedAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(finishedTimerStepInstruction)
+        .onDisappear {
+            if session.role != nil {
+                session.announcePresence(isAway: true)
+            }
         }
-        .alert("Partner Ended the Session", isPresented: .constant(session.partnerDidLeave)) {
+        .onChange(of: bothFinished) { _, finished in
+            guard finished else { return }
+            session.endSharedSession()
+            sessionStore.clear()
+        }
+        .alert(
+            session.isComplete ? "You Both Finished!" : "Partner Ended the Session",
+            isPresented: .constant(session.partnerDidLeave)
+        ) {
             Button("OK") {
                 sessionStore.clear()
                 path = NavigationPath()
             }
         } message: {
-            Text("You can keep cooking on your own — the recipe is still right here.")
+            Text(
+                session.isComplete
+                    ? "Nice work — head back to the recipe list whenever you're ready."
+                    : "You can keep cooking on your own — the recipe is still right here."
+            )
         }
+    }
+
+    private var timerFinishedBannerStack: some View {
+        VStack(spacing: 8) {
+            ForEach(timerFinishedBanners) { banner in
+                HStack(spacing: 10) {
+                    Image(systemName: "timer")
+                    Text("Timer finished: \(banner.instruction)")
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(2)
+                    Spacer(minLength: 0)
+                }
+                .padding(12)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .shadow(radius: 4, y: 2)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    timerFinishedBanners.removeAll { $0.id == banner.id }
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+        .animation(.default, value: timerFinishedBanners.map(\.id))
     }
 
     // MARK: - Active step
@@ -98,10 +158,8 @@ struct StepView: View {
 
             if let step = session.currentStep {
                 VStack(spacing: 20) {
-                    Image(systemName: step.imageSystemName)
-                        .font(.system(size: 72))
-                        .foregroundStyle(Color.accentColor)
-                        .frame(height: 90)
+                    PlaceholderPhotoView(systemImage: step.imageSystemName, tint: stepTint(for: step))
+                        .frame(width: 220, height: 160)
 
                     Text(step.instruction)
                         .font(.system(size: 30, weight: .semibold))
@@ -168,15 +226,20 @@ struct StepView: View {
     private var backButtonRow: some View {
         HStack {
             Button {
-                session.goBack()
+                if session.currentIndex == 0 {
+                    // Nothing left to step back to within the recipe — leave the step screen
+                    // entirely, back to the recipe overview. Never disabled/grayed: there's
+                    // always somewhere sensible for this button to take you.
+                    path.removeLast()
+                } else {
+                    session.goBack()
+                }
             } label: {
                 Image(systemName: "chevron.left.circle.fill")
                     .font(.system(size: 44))
                     .foregroundStyle(.secondary)
             }
             .padding()
-            .disabled(session.currentIndex == 0)
-            .opacity(session.currentIndex == 0 ? 0.3 : 1)
 
             Spacer()
         }
@@ -217,6 +280,15 @@ struct StepView: View {
         case .personB: return Color.orange.opacity(0.08)
         case .shared: return Color.purple.opacity(0.08)
         default: return Color(.systemBackground)
+        }
+    }
+
+    private func stepTint(for step: RecipeStep) -> Color {
+        switch step.assignee {
+        case .personA: return .blue
+        case .personB: return .orange
+        case .shared: return .purple
+        case .solo: return .accentColor
         }
     }
 }

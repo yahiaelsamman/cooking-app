@@ -13,3 +13,8 @@ CookingAppCore/.swiftpm/
 
 # macOS
 .DS_Store
+
+# Scratch review output from Scripts/fetch_recipe_photos.py — raw stock-photo candidates, not
+# something to keep in the repo once a winner's been picked and installed via
+# Scripts/install_recipe_photo.py (that writes the real, cropped asset into Assets.xcassets).
+Scripts/recipe_photo_candidates/

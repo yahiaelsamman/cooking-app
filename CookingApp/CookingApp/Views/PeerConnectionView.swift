@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 import CookingAppCore
 import MultipeerConnectivity
 
@@ -7,8 +8,16 @@ struct PeerConnectionView: View {
     @Binding var path: NavigationPath
     @Environment(ActiveSessionStore.self) private var sessionStore
 
+    /// Only meaningful if the user proceeds to host — the joiner is assigned whatever the host
+    /// didn't pick, so there's nothing for the joiner to choose here.
+    @State private var chosenRole: StepAssignee = .personA
+
     init(recipe: Recipe, path: Binding<NavigationPath>) {
-        _viewModel = State(initialValue: PeerConnectionViewModel(recipe: recipe))
+        let cookName = UserDefaults.standard.string(forKey: "cookName")
+        _viewModel = State(initialValue: PeerConnectionViewModel(
+            recipe: recipe,
+            peerSync: PeerSyncService(displayName: (cookName?.isEmpty ?? true) ? "Cook" : cookName!)
+        ))
         _path = path
     }
 
@@ -33,13 +42,16 @@ struct PeerConnectionView: View {
             }
         }
         .onChange(of: viewModel.didHandshake) { _, didHandshake in
-            guard didHandshake, let role = viewModel.role else { return }
+            guard didHandshake, let stepAssignee = viewModel.resolvedStepAssignee else { return }
             let session = CookingSessionViewModel(
                 recipe: viewModel.recipe,
-                role: role.stepAssignee,
+                role: stepAssignee,
                 peerSync: viewModel.peerSync
             )
             sessionStore.setActive(session)
+            // Replace this connect screen in the stack rather than pushing on top of it, so
+            // stepping back from the step screen later lands on the recipe overview, not here.
+            path.removeLast()
             path.append(Route.steps(session))
         }
         .onDisappear {
@@ -53,8 +65,19 @@ struct PeerConnectionView: View {
     private var content: some View {
         switch viewModel.connectionState {
         case .idle:
-            VStack(spacing: 16) {
-                Button("Host a two-person session") { viewModel.host() }
+            VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("If you host, you'll be:")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Picker("Your role", selection: $chosenRole) {
+                        Text("Person A").tag(StepAssignee.personA)
+                        Text("Person B").tag(StepAssignee.personB)
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Button("Host a two-person session") { viewModel.host(as: chosenRole) }
                     .buttonStyle(.borderedProminent)
                 Button("Join a nearby session") { viewModel.join() }
                     .buttonStyle(.bordered)

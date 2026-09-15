@@ -26,6 +26,92 @@ struct CookingSessionViewModelTests {
         #expect(session.partnerProgressFraction == nil)
     }
 
+    @Test func partnerStepIsNilWithoutAPeer() {
+        let session = CookingSessionViewModel(recipe: SampleRecipes.pastaForTwo, role: .personA)
+        #expect(session.partnerStep == nil)
+    }
+
+    @Test func partnerStepIsNilForASoloSession() {
+        // No peer *and* no role — the common solo case — should behave the same as the
+        // no-peer-connected two-person case above, not crash on a nil `partnerRole`.
+        let session = CookingSessionViewModel(recipe: SampleRecipes.scrambledEggs)
+        #expect(session.partnerStep == nil)
+        #expect(session.partnerProgressFraction == nil)
+    }
+
+    @Test func partnerStepResolvesAgainstThePartnersOwnTrackNotMine() {
+        let recipe = SampleRecipes.pastaForTwo
+        let peerSync = PeerSyncService(displayName: "me")
+        // I'm Person A; my partner is Person B.
+        let session = CookingSessionViewModel(recipe: recipe, role: .personA, peerSync: peerSync)
+
+        let personBTrack = recipe.track(for: .personB)
+        peerSync.handleReceivedMessage(.progressUpdate(stepIndex: 2))
+
+        #expect(session.partnerStep?.id == personBTrack[2].id)
+        #expect(session.partnerStep?.assignee != .personA)
+    }
+
+    @Test func partnerConnectionStateIsIdleForASoloSessionWithNoPeerSync() {
+        let session = CookingSessionViewModel(recipe: SampleRecipes.scrambledEggs)
+        #expect(session.partnerConnectionState == .idle)
+    }
+
+    @Test func partnerNameIsNilUntilLearnedThenReflectsThePeerSyncService() {
+        let peerSync = PeerSyncService(displayName: "me")
+        let session = CookingSessionViewModel(recipe: SampleRecipes.pastaForTwo, role: .personA, peerSync: peerSync)
+        #expect(session.partnerName == nil)
+
+        peerSync.handleReceivedMessage(.introduce(name: "Sam"))
+
+        #expect(session.partnerName == "Sam")
+    }
+
+    @Test func partnerNameIsNilForASoloSessionWithNoPeerSync() {
+        let session = CookingSessionViewModel(recipe: SampleRecipes.scrambledEggs)
+        #expect(session.partnerName == nil)
+    }
+
+    @Test func partnerIsAwayReflectsPresenceUpdatesFromThePeerSyncService() {
+        let peerSync = PeerSyncService(displayName: "me")
+        let session = CookingSessionViewModel(recipe: SampleRecipes.pastaForTwo, role: .personA, peerSync: peerSync)
+        #expect(!session.partnerIsAway)
+
+        peerSync.handleReceivedMessage(.presenceUpdate(isAway: true))
+        #expect(session.partnerIsAway)
+
+        peerSync.handleReceivedMessage(.presenceUpdate(isAway: false))
+        #expect(!session.partnerIsAway)
+    }
+
+    @Test func partnerIsAwayIsFalseForASoloSessionWithNoPeerSync() {
+        let session = CookingSessionViewModel(recipe: SampleRecipes.scrambledEggs)
+        #expect(!session.partnerIsAway)
+    }
+
+    @Test func initWiresOnConnectedForReconnectResync() {
+        // `announceProgressAndTimers()` itself can't be observed end-to-end here — `send()` is a
+        // no-op without a real connected MCSession peer (the same limitation every other outgoing
+        // send in this suite has) — but we *can* confirm the hook that triggers it is actually
+        // wired up, which is what makes a real reconnect (in the running app) re-announce
+        // progress instead of leaving the partner's view stale.
+        let peerSync = PeerSyncService(displayName: "me")
+        _ = CookingSessionViewModel(recipe: SampleRecipes.pastaForTwo, role: .personA, peerSync: peerSync)
+
+        #expect(peerSync.onConnected != nil)
+    }
+
+    @Test func partnerConnectionStateReflectsThePeerSyncServiceOnceConnected() {
+        let peer = MCPeerID(displayName: "partner-device")
+        let peerSync = PeerSyncService(displayName: "me")
+        peerSync.startBrowsing() // role must be set before .connected is legitimate
+        let session = CookingSessionViewModel(recipe: SampleRecipes.pastaForTwo, role: .personA, peerSync: peerSync)
+
+        peerSync.handleSessionStateChange(.connected, peerID: peer)
+
+        #expect(session.partnerConnectionState == .connected)
+    }
+
     @Test func partnerProgressFractionReflectsPartnersOwnTrackLength() {
         let recipe = SampleRecipes.pastaForTwo
         let peerSync = PeerSyncService(displayName: "me")
@@ -166,6 +252,73 @@ struct CookingSessionViewModelTests {
         session.advance()
 
         #expect(session.currentIndex == startIndex + 1)
+    }
+
+    @Test func announcePresenceDoesNotCrashForATwoPersonSessionOrASoloOne() {
+        // Same "can't observe the actual send" limitation as the reconnect-resync test above —
+        // this just confirms the call is safe/harmless in both configurations.
+        let twoPerson = CookingSessionViewModel(
+            recipe: SampleRecipes.pastaForTwo,
+            role: .personA,
+            peerSync: PeerSyncService(displayName: "me")
+        )
+        twoPerson.announcePresence(isAway: true)
+        twoPerson.announcePresence(isAway: false)
+
+        let solo = CookingSessionViewModel(recipe: SampleRecipes.scrambledEggs)
+        solo.announcePresence(isAway: true) // peerSync is nil — must be a no-op, not a crash
+    }
+
+    // MARK: - Finishing cancels any still-running timer
+
+    @Test func advancingPastTheLastStepCancelsEveryRunningTimerAndUnschedulesItsNotification() {
+        let recipe = SampleRecipes.searedSteak
+        let session = CookingSessionViewModel(recipe: recipe)
+        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 180 }!
+        session.startTimer(for: timedStep)
+        #expect(session.activeTimers.count == 1)
+
+        var unscheduledSteps: [RecipeStep] = []
+        session.onTimerUnscheduled = { unscheduledSteps.append($0) }
+
+        for _ in 0..<session.track.count {
+            session.advance()
+        }
+
+        #expect(session.isComplete)
+        #expect(session.activeTimers.isEmpty)
+        #expect(unscheduledSteps.map(\.id) == [timedStep.id])
+    }
+
+    @Test func advancingPastTheLastStepWithMultipleRunningTimersCancelsAllOfThem() {
+        let recipe = SampleRecipes.grilledCheese
+        let session = CookingSessionViewModel(recipe: recipe)
+        let timedSteps = session.track.filter { $0.timerSeconds != nil }
+        #expect(timedSteps.count >= 2, "test needs a track with at least two timed steps")
+        for step in timedSteps {
+            session.startTimer(for: step)
+        }
+        #expect(session.activeTimers.count == timedSteps.count)
+
+        for _ in 0..<session.track.count {
+            session.advance()
+        }
+
+        #expect(session.isComplete)
+        #expect(session.activeTimers.isEmpty)
+    }
+
+    @Test func advancingWithoutReachingTheEndLeavesRunningTimersAlone() {
+        let recipe = SampleRecipes.searedSteak
+        let session = CookingSessionViewModel(recipe: recipe)
+        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 1800 }! // the very first step
+        session.startTimer(for: timedStep)
+
+        session.advance() // one step forward, nowhere near complete
+
+        #expect(!session.isComplete)
+        #expect(session.activeTimers.count == 1)
+        session.cancelTimer(for: timedStep) // avoid leaking a live Timer past the end of the test
     }
 
     // MARK: - ActiveSessionStore

@@ -65,6 +65,9 @@ public final class CookingSessionViewModel {
         peerSync?.onPartnerLeft = { [weak self] in
             self?.partnerDidLeave = true
         }
+        peerSync?.onConnected = { [weak self] in
+            self?.announceProgressAndTimers()
+        }
     }
 
     deinit {
@@ -102,6 +105,14 @@ public final class CookingSessionViewModel {
         guard currentIndex < track.count else { return }
         currentIndex += 1
         peerSync?.sendProgress(stepIndex: currentIndex)
+        if isComplete {
+            // Finishing the recipe (including via hold-to-finish) shouldn't leave a timer
+            // ticking in the background — reuses cancelTimer's existing teardown so the pending
+            // local notification is unscheduled too, not just the in-memory countdown.
+            for timer in activeTimers {
+                cancelTimer(for: timer.step)
+            }
+        }
     }
 
     public func goBack() {
@@ -142,12 +153,46 @@ public final class CookingSessionViewModel {
         peerSync?.connectionState ?? .idle
     }
 
+    /// The partner's chosen display name, once learned — `nil` until the name exchange completes.
+    public var partnerName: String? {
+        peerSync?.partnerName
+    }
+
+    /// True while the partner is still connected but has stepped away from the step screen (e.g.
+    /// backed out to the recipe overview) — distinct from `partnerConnectionState == .disconnected`,
+    /// which means the connection itself dropped.
+    public var partnerIsAway: Bool {
+        peerSync?.partnerIsAway ?? false
+    }
+
+    /// Tells the partner whether I'm currently looking at the step screen — sent when navigating
+    /// away to the recipe overview and when coming back (including via "Resume Cooking"). Purely
+    /// informational: it doesn't affect the connection itself, which stays up either way.
+    public func announcePresence(isAway: Bool) {
+        peerSync?.sendPresenceUpdate(isAway: isAway)
+    }
+
     /// Sends a deliberate end-of-session signal to the partner (if connected) and tears down
     /// the local peer connection with no auto-reconnect attempt. Local step navigation keeps
     /// working afterwards — ending the shared session doesn't stop you from finishing the
     /// recipe on your own.
     public func endSharedSession() {
         peerSync?.leaveSession()
+    }
+
+    /// Re-announces my current step and every timer I have running — called whenever the
+    /// connection (re)reaches `.connected`. A reconnect otherwise carries no information about
+    /// where either side actually is: only `advance()`/`goBack()`/`startTimer()` send anything on
+    /// their own, and a reconnect triggers none of those, so without this the partner would look
+    /// frozen at whatever they were doing right before the drop.
+    private func announceProgressAndTimers() {
+        peerSync?.sendProgress(stepIndex: currentIndex)
+        for timer in activeTimers {
+            guard let index = track.firstIndex(where: { $0.id == timer.step.id }) else { continue }
+            // Resend the *remaining* time, not the total — the partner's mirrored countdown
+            // should reflect reality, not restart from the full duration.
+            peerSync?.sendTimerStarted(stepIndex: index, durationSeconds: timer.remainingSeconds)
+        }
     }
 
     // MARK: - Timers

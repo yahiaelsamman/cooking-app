@@ -47,11 +47,8 @@ struct RecipeDetailView: View {
 
     private var header: some View {
         VStack(spacing: 12) {
-            Image(systemName: recipe.iconSystemName)
-                .font(.system(size: 56))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 120, height: 120)
-                .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 20))
+            RecipeHeroImageView(recipe: recipe)
+                .frame(width: 260, height: 160)
                 .frame(maxWidth: .infinity)
 
             Text(recipe.title)

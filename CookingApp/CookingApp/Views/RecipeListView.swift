@@ -6,6 +6,8 @@ struct RecipeListView: View {
     @Environment(ActiveSessionStore.self) private var sessionStore
     @Query(sort: \Recipe.title) private var recipes: [Recipe]
     @State private var path = NavigationPath()
+    @AppStorage("cookName") private var cookName: String = ""
+    @State private var showWelcomeName = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -33,6 +35,9 @@ struct RecipeListView: View {
                 // Requested once, right at app start — not the first time you happen to start a
                 // timer — so the permission prompt doesn't ambush you mid-cook.
                 NotificationScheduler.requestAuthorizationIfNeeded()
+                if cookName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    showWelcomeName = true
+                }
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
@@ -43,6 +48,12 @@ struct RecipeListView: View {
                 case .steps(let session):
                     StepView(session: session, path: $path)
                 }
+            }
+            .sheet(isPresented: $showWelcomeName) {
+                WelcomeNameView(name: $cookName) {
+                    showWelcomeName = false
+                }
+                .interactiveDismissDisabled()
             }
         }
     }
@@ -73,11 +84,7 @@ private struct RecipeRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
-            Image(systemName: recipe.iconSystemName)
-                .font(.system(size: 30))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 52, height: 52)
-                .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+            RecipeThumbnailView(recipe: recipe)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(recipe.title)
@@ -115,6 +122,33 @@ private struct RecipeRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+/// The small square photo in a recipe row. Deliberately *not* the gradient `PlaceholderPhotoView`
+/// card treatment used at full hero size — that doesn't read well this small (see
+/// `PlaceholderPhotoView`'s doc comment) — so a recipe without a real photo yet keeps the plain
+/// SF-Symbol tile look it's always had, and only recipes with an approved `heroImageName` upgrade
+/// to a real cropped photo.
+private struct RecipeThumbnailView: View {
+    let recipe: Recipe
+
+    var body: some View {
+        Group {
+            if let heroImageName = recipe.heroImageName {
+                Image(heroImageName)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Image(systemName: recipe.iconSystemName)
+                    .font(.system(size: 30))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.accentColor.opacity(0.12))
+            }
+        }
+        .frame(width: 52, height: 52)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

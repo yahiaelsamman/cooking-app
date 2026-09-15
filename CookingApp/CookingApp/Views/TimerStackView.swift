@@ -28,9 +28,11 @@ struct TimerStackView: View {
                 .monospacedDigit()
         }
         .font(.caption.weight(.medium))
-        .foregroundStyle(info.isMine ? .orange : .blue)
+        // Matches DualProgressSliderView's marker colors: mine = accentColor, partner = orange —
+        // so "the partner's color" means the same thing everywhere it shows up.
+        .foregroundStyle(info.isMine ? Color.accentColor : .orange)
         .padding(8)
-        .background((info.isMine ? Color.orange : Color.blue).opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+        .background((info.isMine ? Color.accentColor : .orange).opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
         .onTapGesture {} // absorb — don't advance the current step when tapping a timer chip
     }

@@ -97,6 +97,11 @@ public final class Recipe {
     public var twoPersonSteps: [RecipeStep]?
     /// SF Symbol shown as this recipe's "photo" on the list/overview screens.
     public var iconSystemName: String
+    /// Name of a bundled hero photo in the app's asset catalog, if one has been sourced for this
+    /// recipe yet — `nil` (the default for every recipe so far) means fall back to the
+    /// `iconSystemName`-based placeholder card. Deliberately per-recipe, not all-or-nothing: real
+    /// photos can land one recipe at a time as they're sourced/approved.
+    public var heroImageName: String?
     /// 1...3, rendered as filled-out-of-3 stars.
     public var difficulty: Int
     /// 0...3, rendered as filled-out-of-3 flames. 0 means not spicy at all.
@@ -115,6 +120,7 @@ public final class Recipe {
         soloSteps: [RecipeStep],
         twoPersonSteps: [RecipeStep]? = nil,
         iconSystemName: String,
+        heroImageName: String? = nil,
         difficulty: Int,
         spiceLevel: Int = 0,
         soloCookTimeMinutes: Int,
@@ -129,6 +135,7 @@ public final class Recipe {
         self.soloSteps = soloSteps
         self.twoPersonSteps = twoPersonSteps
         self.iconSystemName = iconSystemName
+        self.heroImageName = heroImageName
         self.difficulty = difficulty
         self.spiceLevel = spiceLevel
         self.soloCookTimeMinutes = soloCookTimeMinutes

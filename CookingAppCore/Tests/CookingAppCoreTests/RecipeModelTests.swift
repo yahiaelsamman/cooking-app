@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import CookingAppCore
 
@@ -126,6 +127,22 @@ struct RecipeModelTests {
         #expect(track.map(\.id) == recipe.soloSteps.sorted { $0.order < $1.order }.map(\.id))
     }
 
+    @Test func trackForRoleFallsBackToSoloStepsForPersonBToo() {
+        // Same fallback, other role — regression guard against a fix that only handled personA.
+        let recipe = SampleRecipes.scrambledEggs
+        let track = recipe.track(for: .personB)
+        #expect(track.map(\.id) == recipe.soloSteps.sorted { $0.order < $1.order }.map(\.id))
+    }
+
+    @Test func trackForNilRoleAlwaysReturnsSoloStepsEvenWhenTwoPersonStepsExist() {
+        // `role: nil` means solo mode — must never accidentally read from `twoPersonSteps`, even
+        // for a recipe that has a two-person split.
+        let recipe = SampleRecipes.pastaForTwo
+        let track = recipe.track(for: nil)
+        #expect(track.map(\.id) == recipe.soloSteps.sorted { $0.order < $1.order }.map(\.id))
+        #expect(track.allSatisfy { $0.assignee == .solo })
+    }
+
     // MARK: - Cook time by mode
 
     @Test func cookTimeForSoloModeIsAlwaysTheSoloValue() {
@@ -207,6 +224,31 @@ struct RecipeModelTests {
         session.goBack()
         #expect(session.currentIndex == 1)
         #expect(session.currentStep?.order == 1)
+    }
+
+    @Test func singleStepRecipeIsLastStepImmediatelyAndCompletesOnOneAdvance() {
+        // Edge case for the "divide by track.count" math in progressFraction/isLastStep: a
+        // one-step track means step 0 is simultaneously the first AND last step.
+        let recipe = Recipe(
+            title: "One-Step Recipe",
+            summary: "Just microwave it.",
+            soloSteps: [RecipeStep(order: 0, instruction: "Microwave for 1 minute.", assignee: .solo, imageSystemName: "timer")],
+            iconSystemName: "timer",
+            difficulty: 1,
+            soloCookTimeMinutes: 1,
+            ingredients: [Ingredient(name: "Leftovers", amount: "1 portion")]
+        )
+        let session = CookingSessionViewModel(recipe: recipe)
+
+        #expect(session.isLastStep)
+        #expect(session.progressFraction == 0)
+        #expect(!session.isComplete)
+
+        session.advance()
+
+        #expect(session.isComplete)
+        #expect(session.progressFraction == 1.0)
+        #expect(session.currentStep == nil)
     }
 
     @Test func progressTextReflectsFilteredTrackLength() {
@@ -304,6 +346,34 @@ struct RecipeModelTests {
 
     // MARK: - Recipe metadata regression guards
 
+    @Test func allSampleRecipeIDsAreUnique() {
+        // Fixed UUID literals, not random `UUID()` (see instructions.md's pitfalls) — a copy/paste
+        // duplicate here would silently break the host/joiner recipeID handshake for whichever
+        // two recipes collided.
+        let ids = SampleRecipes.all.map(\.id)
+        #expect(Set(ids).count == ids.count, "duplicate recipe id found among SampleRecipes.all")
+    }
+
+    @Test func allStepIDsAreUniqueWithinEachRecipesStepList() {
+        for recipe in SampleRecipes.all {
+            let soloIDs = recipe.soloSteps.map(\.id)
+            #expect(Set(soloIDs).count == soloIDs.count, "\(recipe.title) has duplicate solo step ids")
+
+            if let twoPersonSteps = recipe.twoPersonSteps {
+                let twoPersonIDs = twoPersonSteps.map(\.id)
+                #expect(Set(twoPersonIDs).count == twoPersonIDs.count, "\(recipe.title) has duplicate two-person step ids")
+            }
+        }
+    }
+
+    @Test func twoPersonCookTimeIsNilExactlyWhenTwoPersonStepsAreNil() {
+        // Regression guard on the invariant `cookTimeMinutes(forTwoPerson:)`'s fallback relies on:
+        // the two fields should never disagree about whether this recipe supports two-person mode.
+        for recipe in SampleRecipes.all {
+            #expect((recipe.twoPersonCookTimeMinutes != nil) == (recipe.twoPersonSteps != nil), "\(recipe.title) has mismatched twoPersonCookTimeMinutes/twoPersonSteps nil-ness")
+        }
+    }
+
     @Test func allSampleRecipesHaveValidMetadata() {
         for recipe in SampleRecipes.all {
             #expect((1...3).contains(recipe.difficulty), "\(recipe.title) has an out-of-range difficulty")
@@ -317,6 +387,16 @@ struct RecipeModelTests {
         }
     }
 
+    @Test func heroImageNameWhenPresentIsNonEmpty() {
+        // heroImageName is nil-by-default (no placeholder empty-string convention) — this only
+        // guards against an accidentally-empty string once recipes start getting real photos.
+        for recipe in SampleRecipes.all {
+            if let heroImageName = recipe.heroImageName {
+                #expect(!heroImageName.isEmpty, "\(recipe.title) has an empty heroImageName")
+            }
+        }
+    }
+
     @Test func allStepsHaveAnImage() {
         for recipe in SampleRecipes.all {
             for step in recipe.soloSteps {
@@ -325,6 +405,45 @@ struct RecipeModelTests {
             for step in recipe.twoPersonSteps ?? [] {
                 #expect(!step.imageSystemName.isEmpty, "\(recipe.title) two-person step \(step.order) has no image")
             }
+        }
+    }
+
+    // MARK: - Codable round-trips (RecipeStep/Ingredient aren't SwiftData relationships — see
+    // Recipe.swift's doc comment — so their own Codable conformance is what actually persists them)
+
+    @Test func recipeStepRoundTripsThroughJSONIncludingANilTimer() throws {
+        let step = RecipeStep(order: 2, instruction: "Whisk it.", assignee: .shared, timerSeconds: nil, imageSystemName: "sparkles")
+
+        let data = try JSONEncoder().encode(step)
+        let decoded = try JSONDecoder().decode(RecipeStep.self, from: data)
+
+        #expect(decoded == step)
+        #expect(decoded.timerSeconds == nil)
+    }
+
+    @Test func recipeStepRoundTripsThroughJSONWithATimer() throws {
+        let step = RecipeStep(order: 4, instruction: "Sear it.", assignee: .personA, timerSeconds: 180, imageSystemName: "timer")
+
+        let data = try JSONEncoder().encode(step)
+        let decoded = try JSONDecoder().decode(RecipeStep.self, from: data)
+
+        #expect(decoded == step)
+        #expect(decoded.timerSeconds == 180)
+    }
+
+    @Test func ingredientRoundTripsThroughJSON() throws {
+        let ingredient = Ingredient(name: "Salt", amount: "A pinch")
+
+        let data = try JSONEncoder().encode(ingredient)
+        let decoded = try JSONDecoder().decode(Ingredient.self, from: data)
+
+        #expect(decoded == ingredient)
+    }
+
+    @Test func allDietaryTagsHaveANonEmptyLabelAndSystemImage() {
+        for tag in DietaryTag.allCases {
+            #expect(!tag.label.isEmpty)
+            #expect(!tag.systemImage.isEmpty)
         }
     }
 }

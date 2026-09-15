@@ -22,6 +22,7 @@ public enum SampleRecipes {
             RecipeStep(order: 6, instruction: "Remove from heat while still slightly glossy — they'll finish cooking off the heat. Serve.", assignee: .solo, imageSystemName: "fork.knife")
         ],
         iconSystemName: "frying.pan.fill",
+        heroImageName: "recipe-photo-scrambled-eggs",
         difficulty: 1,
         soloCookTimeMinutes: 5,
         dietaryTags: [.vegetarian, .glutenFree],
@@ -50,6 +51,7 @@ public enum SampleRecipes {
             RecipeStep(order: 8, instruction: "Slice against the grain and serve with the pan butter spooned over top.", assignee: .solo, imageSystemName: "fork.knife")
         ],
         iconSystemName: "flame.fill",
+        heroImageName: "recipe-photo-seared-steak",
         difficulty: 2,
         soloCookTimeMinutes: 25,
         dietaryTags: [.glutenFree],
@@ -98,6 +100,7 @@ public enum SampleRecipes {
             RecipeStep(order: 10, instruction: "Both: drain the pasta, toss it with the sauce, and plate together.", assignee: .shared, imageSystemName: "fork.knife")
         ],
         iconSystemName: "fork.knife.circle.fill",
+        heroImageName: "recipe-photo-weeknight-pasta",
         difficulty: 2,
         soloCookTimeMinutes: 45,
         twoPersonCookTimeMinutes: 35,
@@ -132,6 +135,7 @@ public enum SampleRecipes {
             RecipeStep(order: 8, instruction: "Serve immediately.", assignee: .solo, imageSystemName: "fork.knife")
         ],
         iconSystemName: "leaf.fill",
+        heroImageName: "recipe-photo-avocado-toast",
         difficulty: 1,
         soloCookTimeMinutes: 10,
         dietaryTags: [.vegetarian],
@@ -163,6 +167,7 @@ public enum SampleRecipes {
             RecipeStep(order: 8, instruction: "Slice in half and serve.", assignee: .solo, imageSystemName: "fork.knife")
         ],
         iconSystemName: "rectangle.stack.fill",
+        heroImageName: "recipe-photo-grilled-cheese",
         difficulty: 1,
         soloCookTimeMinutes: 10,
         dietaryTags: [.vegetarian],
@@ -192,6 +197,7 @@ public enum SampleRecipes {
             RecipeStep(order: 10, instruction: "Ladle into bowls and top with torn basil.", assignee: .solo, imageSystemName: "fork.knife")
         ],
         iconSystemName: "cup.and.saucer.fill",
+        heroImageName: "recipe-photo-tomato-soup",
         difficulty: 1,
         soloCookTimeMinutes: 30,
         dietaryTags: [.vegetarian, .glutenFree],
@@ -241,6 +247,7 @@ public enum SampleRecipes {
             RecipeStep(order: 10, instruction: "Both: slide onto a board, scatter the basil, slice, and serve.", assignee: .shared, imageSystemName: "fork.knife")
         ],
         iconSystemName: "flame.fill",
+        heroImageName: "recipe-photo-homemade-pizza",
         difficulty: 3,
         soloCookTimeMinutes: 65,
         twoPersonCookTimeMinutes: 50,
@@ -288,6 +295,7 @@ public enum SampleRecipes {
             RecipeStep(order: 8, instruction: "Both: build your tacos and dig in.", assignee: .shared, imageSystemName: "fork.knife")
         ],
         iconSystemName: "takeoutbag.and.cup.and.straw.fill",
+        heroImageName: "recipe-photo-taco-night",
         difficulty: 2,
         spiceLevel: 2,
         soloCookTimeMinutes: 40,

@@ -21,6 +21,17 @@ public final class PeerSyncService: NSObject {
     public private(set) var partnerRecipeID: UUID?
     public private(set) var discoveredPeers: [MCPeerID] = []
     public private(set) var connectedPeerName: String?
+    /// The partner's chosen display name, learned via `recipeSync` (host → joiner) or `introduce`
+    /// (joiner → host) — `nil` until that round-trip completes.
+    public private(set) var partnerName: String?
+    /// My own cooking role once resolved: for the host, whatever they picked in `startHosting`;
+    /// for the joiner, the opposite of the host's `recipeSync.hostRole`. `nil` until then.
+    public private(set) var resolvedStepAssignee: StepAssignee?
+    /// True once the partner has sent a `presenceUpdate(isAway: true)` — they're still connected,
+    /// just not currently looking at the step screen (e.g. they backed out to the recipe
+    /// overview). Distinct from `connectionState == .disconnected`, which means the underlying
+    /// connection actually dropped.
+    public private(set) var partnerIsAway = false
 
     public var onRecipeSync: ((UUID) -> Void)?
     /// `(stepIndex in partner's own track, total duration in seconds)`.
@@ -30,12 +41,22 @@ public final class PeerSyncService: NSObject {
     /// Fired when the partner explicitly ends the session (as opposed to just dropping out of
     /// range, which triggers auto-reconnect instead — see `handleSessionStateChange`).
     public var onPartnerLeft: (() -> Void)?
+    /// Fired every time `connectionState` reaches `.connected` — on the very first handshake AND
+    /// on every later reconnect. `CookingSessionViewModel` uses this to re-announce its current
+    /// step/timers, since a reconnect otherwise carries no information about where either side
+    /// actually is (only `advance()`/`goBack()`/`startTimer()` send anything, and a reconnect
+    /// triggers none of those on its own).
+    public var onConnected: (() -> Void)?
 
     private let myPeerID: MCPeerID
+    private let myDisplayName: String
     private let session: MCSession
     private var advertiser: MCNearbyServiceAdvertiser?
     private var browser: MCNearbyServiceBrowser?
     private var role: PeerRole?
+    /// Set only by the host, via `startHosting(hostRole:)` — what to send as `hostRole` on the
+    /// next `recipeSync`.
+    private var hostChosenRole: StepAssignee?
 
     /// Set the first time this session reaches `.connected`. Once true, a later drop attempts
     /// automatic reconnection instead of leaving the user stranded on the step-through screen —
@@ -49,15 +70,21 @@ public final class PeerSyncService: NSObject {
 
     public init(displayName: String = ProcessInfo.processInfo.hostName) {
         self.myPeerID = MCPeerID(displayName: displayName)
+        self.myDisplayName = displayName
         self.session = MCSession(peer: myPeerID, securityIdentity: nil, encryptionPreference: .none)
         super.init()
         session.delegate = self
     }
 
-    // MARK: - Hosting (Person A)
+    // MARK: - Hosting
 
-    public func startHosting(recipeID: UUID) {
+    /// - Parameter hostRole: the cooking role the host picked for themselves (via the host-side
+    ///   toggle) — sent to the joiner in `recipeSync` so they can resolve their own role as the
+    ///   opposite, rather than a role being hardcoded to "host."
+    public func startHosting(recipeID: UUID, hostRole: StepAssignee) {
         role = .host
+        hostChosenRole = hostRole
+        resolvedStepAssignee = hostRole
         partnerRecipeID = recipeID
         let advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: nil, serviceType: serviceType)
         advertiser.delegate = self
@@ -66,7 +93,7 @@ public final class PeerSyncService: NSObject {
         connectionState = .advertising
     }
 
-    // MARK: - Joining (Person B)
+    // MARK: - Joining
 
     public func startBrowsing() {
         role = .joiner
@@ -97,8 +124,14 @@ public final class PeerSyncService: NSObject {
         send(.timerCancelled(stepIndex: stepIndex))
     }
 
-    private func sendRecipeSync(recipeID: UUID) {
-        send(.recipeSync(recipeID: recipeID))
+    /// "Stepped away" (backed out to the recipe overview, still connected) vs. "returned" — a
+    /// softer signal than an actual drop, purely for the partner's status display.
+    public func sendPresenceUpdate(isAway: Bool) {
+        send(.presenceUpdate(isAway: isAway))
+    }
+
+    private func sendRecipeSync(recipeID: UUID, hostRole: StepAssignee) {
+        send(.recipeSync(recipeID: recipeID, hostRole: hostRole, senderName: myDisplayName))
     }
 
     private func send(_ message: SyncMessage) {
@@ -136,6 +169,10 @@ public final class PeerSyncService: NSObject {
         hasConnectedBefore = false
         autoReconnecting = false
         role = nil
+        hostChosenRole = nil
+        resolvedStepAssignee = nil
+        partnerName = nil
+        partnerIsAway = false
         partnerStepIndex = nil
         partnerRecipeID = nil
     }
@@ -168,15 +205,24 @@ public final class PeerSyncService: NSObject {
     func handleSessionStateChange(_ state: MCSessionState, peerID: MCPeerID) {
         switch state {
         case .connected:
+            guard role != nil else {
+                // A stray/late `.connected` callback arriving after a deliberate `stop()` (role
+                // is only non-nil between start*/stop) — refuse it rather than resurrecting
+                // connected state, so an ended session can't be silently rejoined.
+                session.disconnect()
+                return
+            }
             connectionState = .connected
             connectedPeerName = peerID.displayName
             hasConnectedBefore = true
             autoReconnecting = false
+            partnerIsAway = false
             // Resync current progress immediately so a reconnect self-heals both sides
             // without needing to track/replay any messages that were missed while apart.
-            if role == .host, let recipeID = partnerRecipeID {
-                sendRecipeSync(recipeID: recipeID)
+            if role == .host, let recipeID = partnerRecipeID, let hostChosenRole {
+                sendRecipeSync(recipeID: recipeID, hostRole: hostChosenRole)
             }
+            onConnected?()
         case .connecting:
             connectionState = .connecting
         case .notConnected:
@@ -197,6 +243,19 @@ public final class PeerSyncService: NSObject {
                 partnerRecipeID = recipeID
                 onRecipeSync?(recipeID)
             }
+            if let hostRole = message.hostRole, role != .host {
+                resolvedStepAssignee = (hostRole == .personA) ? .personB : .personA
+            }
+            if let name = message.senderName {
+                partnerName = name
+            }
+            // Tell the host our own name in return — recipeSync only carries the host's name,
+            // since it's the one message the host doesn't have to wait on.
+            send(.introduce(name: myDisplayName))
+        case .introduce:
+            if let name = message.senderName {
+                partnerName = name
+            }
         case .progressUpdate:
             partnerStepIndex = message.stepIndex
         case .timerStarted:
@@ -206,6 +265,10 @@ public final class PeerSyncService: NSObject {
         case .timerCancelled:
             if let stepIndex = message.stepIndex {
                 onPartnerTimerCancelled?(stepIndex)
+            }
+        case .presenceUpdate:
+            if let isAway = message.isAway {
+                partnerIsAway = isAway
             }
         case .leaveSession:
             onPartnerLeft?()

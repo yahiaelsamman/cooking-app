@@ -1,10 +1,9 @@
 {
   "images" : [
     {
-      "filename" : "icon-1024.png",
+      "filename" : "recipe-photo-avocado-toast.jpg",
       "idiom" : "universal",
-      "platform" : "ios",
-      "size" : "1024x1024"
+      "scale" : "3x"
     }
   ],
   "info" : {

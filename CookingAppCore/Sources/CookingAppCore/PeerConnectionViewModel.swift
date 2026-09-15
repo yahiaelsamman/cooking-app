@@ -22,10 +22,19 @@ public final class PeerConnectionViewModel {
 
     public var connectionState: ConnectionState { peerSync.connectionState }
     public var discoveredPeers: [MCPeerID] { peerSync.discoveredPeers }
+    /// My resolved cooking role: for the host, whatever they picked in `host(as:)`; for the
+    /// joiner, the opposite of the host's choice, learned once `recipeSync` arrives. `nil` until
+    /// then — `didHandshake` only flips true once this is already resolved (for the joiner, both
+    /// happen off the same incoming `recipeSync` message; for the host, `resolvedStepAssignee` is
+    /// set synchronously in `host(as:)`, before hosting even starts).
+    public var resolvedStepAssignee: StepAssignee? { peerSync.resolvedStepAssignee }
+    public var partnerName: String? { peerSync.partnerName }
 
-    public func host() {
-        role = .host
-        peerSync.startHosting(recipeID: recipe.id)
+    /// - Parameter role: which cooking role the host wants to be — chosen via a toggle on the
+    ///   connect screen before hosting. The joiner is assigned the opposite once connected.
+    public func host(as role: StepAssignee) {
+        self.role = .host
+        peerSync.startHosting(recipeID: recipe.id, hostRole: role)
     }
 
     public func join() {
