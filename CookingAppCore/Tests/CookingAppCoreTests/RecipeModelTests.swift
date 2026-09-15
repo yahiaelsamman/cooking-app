@@ -397,6 +397,32 @@ struct RecipeModelTests {
         }
     }
 
+    @Test func everyBundledRecipeStartsWithNoUserData() {
+        // User data (favorite/rating/notes/cook history/manual order) belongs entirely to the
+        // person using the app — a regression guard against ever accidentally hardcoding fake
+        // user data into the bundled content itself. RecipeSeeder relies on every bundled
+        // recipe's sortOrder starting at its init default (0) too, since it overwrites sortOrder
+        // itself at seed time based on array position — see RecipeSeederTests.
+        for recipe in SampleRecipes.all {
+            #expect(!recipe.isFavorite, "\(recipe.title) is hardcoded as a favorite")
+            #expect(recipe.personalRating == nil, "\(recipe.title) has a hardcoded personal rating")
+            #expect(recipe.personalNotes.isEmpty, "\(recipe.title) has hardcoded personal notes")
+            #expect(recipe.timesCooked == 0, "\(recipe.title) has a hardcoded cook count")
+            #expect(recipe.lastCookedDate == nil, "\(recipe.title) has a hardcoded last-cooked date")
+        }
+    }
+
+    @Test func allSampleRecipeTitlesAreUnique() {
+        // Titles aren't used for identity anywhere load-bearing (ids are), but a duplicate title
+        // would be confusing in the recipe list and is almost certainly a copy/paste mistake.
+        let titles = SampleRecipes.all.map(\.title)
+        #expect(Set(titles).count == titles.count, "duplicate recipe title found among SampleRecipes.all")
+    }
+
+    @Test func atLeastTwentySampleRecipesExist() {
+        #expect(SampleRecipes.all.count >= 20)
+    }
+
     @Test func allStepsHaveAnImage() {
         for recipe in SampleRecipes.all {
             for step in recipe.soloSteps {

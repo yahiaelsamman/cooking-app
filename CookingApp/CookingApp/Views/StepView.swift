@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import UIKit
 import CookingAppCore
 
@@ -14,6 +15,7 @@ struct StepView: View {
     let session: CookingSessionViewModel
     @Binding var path: NavigationPath
     @Environment(ActiveSessionStore.self) private var sessionStore
+    @Environment(\.modelContext) private var modelContext
 
     @State private var timerFinishedBanners: [TimerFinishedBanner] = []
     @State private var showEndSessionConfirm = false
@@ -94,6 +96,17 @@ struct StepView: View {
             guard finished else { return }
             session.endSharedSession()
             sessionStore.clear()
+        }
+        .onChange(of: session.isComplete) { _, isComplete in
+            // My own track reached its end — counts as "I cooked this" regardless of mode, so
+            // this fires once whether solo or two-person, independent of `bothFinished` above
+            // (which only handles tearing down the shared connection). Going back from the
+            // completion screen and finishing again is a genuine re-completion, so it's allowed
+            // to fire again rather than being suppressed after the first time.
+            guard isComplete else { return }
+            session.recipe.timesCooked += 1
+            session.recipe.lastCookedDate = Date()
+            try? modelContext.save()
         }
         .alert(
             session.isComplete ? "You Both Finished!" : "Partner Ended the Session",

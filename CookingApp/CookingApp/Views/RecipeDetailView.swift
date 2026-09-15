@@ -10,9 +10,10 @@ private enum CookingMode: String, CaseIterable {
 /// every step) so you can decide whether to actually cook it before committing to "Start
 /// Cooking" and losing the wall-of-text view in favor of the one-step-at-a-time screen.
 struct RecipeDetailView: View {
-    let recipe: Recipe
+    @Bindable var recipe: Recipe
     @Binding var path: NavigationPath
     @Environment(ActiveSessionStore.self) private var sessionStore
+    @Environment(\.modelContext) private var modelContext
 
     @State private var mode: CookingMode = .solo
 
@@ -36,6 +37,8 @@ struct RecipeDetailView: View {
 
                 startCookingButton
 
+                myNotesSection
+
                 ingredientsSection
 
                 stepsOverviewSection
@@ -43,6 +46,18 @@ struct RecipeDetailView: View {
             .padding()
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    recipe.isFavorite.toggle()
+                    try? modelContext.save()
+                } label: {
+                    Image(systemName: recipe.isFavorite ? "heart.fill" : "heart")
+                        .foregroundStyle(.pink)
+                }
+                .accessibilityLabel(recipe.isFavorite ? "Remove from favorites" : "Add to favorites")
+            }
+        }
     }
 
     private var header: some View {
@@ -135,6 +150,58 @@ struct RecipeDetailView: View {
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
+    }
+
+    private var myNotesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("My Notes").font(.title3.bold())
+
+            HStack {
+                Text("Rating").font(.subheadline).foregroundStyle(.secondary)
+                Spacer()
+                StarRatingView(rating: recipe.personalRating) { newValue in
+                    recipe.personalRating = newValue
+                    try? modelContext.save()
+                }
+            }
+
+            HStack {
+                Text("Cooked").font(.subheadline).foregroundStyle(.secondary)
+                Spacer()
+                Text(cookedSummary)
+                    .font(.subheadline.weight(.medium))
+            }
+
+            TextEditor(text: Binding(
+                get: { recipe.personalNotes },
+                set: { recipe.personalNotes = $0 }
+            ))
+            .frame(minHeight: 80)
+            .overlay(alignment: .topLeading) {
+                if recipe.personalNotes.isEmpty {
+                    Text("What did you change? How did it turn out?")
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 8)
+                        .padding(.leading, 5)
+                        .allowsHitTesting(false)
+                }
+            }
+            .padding(6)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+            .onChange(of: recipe.personalNotes) { _, _ in
+                try? modelContext.save()
+            }
+        }
+    }
+
+    private var cookedSummary: String {
+        guard recipe.timesCooked > 0 else { return "Not yet" }
+        let times = recipe.timesCooked == 1 ? "1 time" : "\(recipe.timesCooked) times"
+        if let lastCookedDate = recipe.lastCookedDate {
+            return "\(times), last on \(lastCookedDate.formatted(date: .abbreviated, time: .omitted))"
+        }
+        return times
     }
 
     private var ingredientsSection: some View {

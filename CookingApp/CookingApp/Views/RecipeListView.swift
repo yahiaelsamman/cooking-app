@@ -2,24 +2,59 @@ import SwiftUI
 import SwiftData
 import CookingAppCore
 
+/// The three ways `RecipeListView` can order its rows. `.myOrder` is the only one that supports
+/// drag-to-reorder (it's the only one backed by a field the user actually controls — the other
+/// two are always freshly derived, so "reordering" them wouldn't mean anything durable).
+private enum RecipeSortMode: String, CaseIterable, Identifiable {
+    case myOrder = "My Order"
+    case alphabetical = "A–Z"
+    case topRated = "Top Rated"
+
+    var id: String { rawValue }
+}
+
 struct RecipeListView: View {
     @Environment(ActiveSessionStore.self) private var sessionStore
-    @Query(sort: \Recipe.title) private var recipes: [Recipe]
+    @Environment(\.modelContext) private var modelContext
+    @Query private var recipes: [Recipe]
     @State private var path = NavigationPath()
     @AppStorage("cookName") private var cookName: String = ""
     @State private var showWelcomeName = false
+    @State private var sortMode: RecipeSortMode = .myOrder
+    @State private var showFavoritesOnly = false
+
+    private var displayedRecipes: [Recipe] {
+        let base = showFavoritesOnly ? recipes.filter(\.isFavorite) : recipes
+        switch sortMode {
+        case .myOrder:
+            return base.sorted { $0.sortOrder < $1.sortOrder }
+        case .alphabetical:
+            return base.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        case .topRated:
+            return base.sorted { (lhs, rhs) in
+                let l = lhs.personalRating ?? -1
+                let r = rhs.personalRating ?? -1
+                return l == r ? lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending : l > r
+            }
+        }
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
             ZStack(alignment: .bottomTrailing) {
-                List(recipes) { recipe in
-                    Button {
-                        path.append(Route.detail(recipe))
-                    } label: {
-                        RecipeRow(recipe: recipe)
+                List {
+                    if sortMode == .myOrder {
+                        ForEach(displayedRecipes) { recipe in
+                            recipeRow(for: recipe)
+                        }
+                        .onMove(perform: moveRecipes)
+                    } else {
+                        ForEach(displayedRecipes) { recipe in
+                            recipeRow(for: recipe)
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
+                .environment(\.editMode, .constant(sortMode == .myOrder ? .active : .inactive))
 
                 if sessionStore.hasActiveSession {
                     ResumeSessionButton {
@@ -31,6 +66,31 @@ struct RecipeListView: View {
                 }
             }
             .navigationTitle("Recipes")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showFavoritesOnly.toggle()
+                        if showFavoritesOnly && sortMode == .myOrder {
+                            // Dragging within a filtered subset would silently scramble the full
+                            // sortOrder sequence for hidden recipes — simplest to just leave
+                            // reorder mode while the filter narrows what's on screen.
+                            sortMode = .alphabetical
+                        }
+                    } label: {
+                        Image(systemName: showFavoritesOnly ? "heart.fill" : "heart")
+                            .foregroundStyle(.pink)
+                    }
+                    .accessibilityLabel(showFavoritesOnly ? "Show all recipes" : "Show favorites only")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Picker("Sort", selection: $sortMode) {
+                        ForEach(RecipeSortMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+            }
             .onAppear {
                 // Requested once, right at app start — not the first time you happen to start a
                 // timer — so the permission prompt doesn't ambush you mid-cook.
@@ -56,6 +116,37 @@ struct RecipeListView: View {
                 .interactiveDismissDisabled()
             }
         }
+    }
+
+    @ViewBuilder
+    private func recipeRow(for recipe: Recipe) -> some View {
+        Button {
+            path.append(Route.detail(recipe))
+        } label: {
+            RecipeRow(recipe: recipe)
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .leading) {
+            Button {
+                recipe.isFavorite.toggle()
+                try? modelContext.save()
+            } label: {
+                Label(recipe.isFavorite ? "Unfavorite" : "Favorite", systemImage: recipe.isFavorite ? "heart.slash" : "heart")
+            }
+            .tint(.pink)
+        }
+    }
+
+    /// Only reachable in `.myOrder` mode (see body) with the favorites filter off, so
+    /// `displayedRecipes` here is exactly `recipes` sorted by `sortOrder` — safe to rewrite every
+    /// recipe's `sortOrder` to match the new full ordering.
+    private func moveRecipes(from source: IndexSet, to destination: Int) {
+        var ordered = displayedRecipes
+        ordered.move(fromOffsets: source, toOffset: destination)
+        for (index, recipe) in ordered.enumerated() {
+            recipe.sortOrder = index
+        }
+        try? modelContext.save()
     }
 }
 
@@ -87,12 +178,33 @@ private struct RecipeRow: View {
             RecipeThumbnailView(recipe: recipe)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(recipe.title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+                HStack(spacing: 6) {
+                    Text(recipe.title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    if recipe.isFavorite {
+                        Image(systemName: "heart.fill")
+                            .font(.caption)
+                            .foregroundStyle(.pink)
+                    }
+                }
                 Text(recipe.summary)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+
+                if recipe.personalRating != nil || recipe.timesCooked > 0 {
+                    HStack(spacing: 8) {
+                        if recipe.personalRating != nil {
+                            StarRatingView(rating: recipe.personalRating, interactive: false)
+                        }
+                        if recipe.timesCooked > 0 {
+                            Label("Cooked \(recipe.timesCooked)×", systemImage: "checkmark.circle.fill")
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.top, 1)
+                }
 
                 HStack(spacing: 10) {
                     DifficultyStarsView(difficulty: recipe.difficulty)

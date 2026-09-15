@@ -19,6 +19,7 @@
 		5FA5EA276C629FAE7A5C0279 /* PeerConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40DF8B9A7F761D592E0A3C74 /* PeerConnectionView.swift */; };
 		65AAC2A6A92D9359736A7096 /* PartnerStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8240C363AF44973B72F87E00 /* PartnerStatusView.swift */; };
 		689F5100E9AFFACE1941209C /* NotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E4454DC0BB4FDFEA2DFDE4 /* NotificationScheduler.swift */; };
+		73A3754D54888B4F6DCD4285 /* StarRatingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408EDD803379F0BD1AE89C05 /* StarRatingView.swift */; };
 		7C3DFE6D8F2F194B3EBBB9DF /* CookingAppCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5BE69C3E90BECDA78A54164F /* CookingAppCore */; };
 		811183032AB7E933175C828D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DE42026A708D5E1A24DCC2C8 /* Assets.xcassets */; };
 		83A45A22422E532DB08488BF /* RecipeListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C5DCABA51CBF434711F5600 /* RecipeListView.swift */; };
@@ -34,9 +35,10 @@
 		15269B6C8DB0BC12BE2E031F /* StepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepView.swift; sourceTree = "<group>"; };
 		2F302626E0E7A54321241F02 /* TimerStackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerStackView.swift; sourceTree = "<group>"; };
 		3EE50CE27846BC5D33F6763B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		408EDD803379F0BD1AE89C05 /* StarRatingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarRatingView.swift; sourceTree = "<group>"; };
 		40DF8B9A7F761D592E0A3C74 /* PeerConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerConnectionView.swift; sourceTree = "<group>"; };
 		65964C22CF33B65D56FF3D60 /* ProgressIndicatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressIndicatorView.swift; sourceTree = "<group>"; };
-		6B9C1345C29B06EECE42B12F /* CookingApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CookingApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6B9C1345C29B06EECE42B12F /* CookingApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CookingApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6C5DCABA51CBF434711F5600 /* RecipeListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeListView.swift; sourceTree = "<group>"; };
 		6D0CF09CFC045EE522BF01A7 /* CookingAppCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CookingAppCore; path = ../CookingAppCore; sourceTree = SOURCE_ROOT; };
 		77EFAA155D72E4A52788EE1D /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
@@ -125,6 +127,7 @@
 				99765317138B0B5A5B087DE8 /* RecipeHeroImageView.swift */,
 				6C5DCABA51CBF434711F5600 /* RecipeListView.swift */,
 				FC447B5C21877ABDBC55F91E /* Route.swift */,
+				408EDD803379F0BD1AE89C05 /* StarRatingView.swift */,
 				C3FBA522835082EB7A8BD936 /* StepTimerControl.swift */,
 				15269B6C8DB0BC12BE2E031F /* StepView.swift */,
 				026E933AEE860E9A9F85765F /* SwipeBackDisabler.swift */,
@@ -230,6 +233,7 @@
 				3D41AF99C02CF4E3AFACAADA /* RecipeHeroImageView.swift in Sources */,
 				83A45A22422E532DB08488BF /* RecipeListView.swift in Sources */,
 				FE8CEB93DA44904D24C49040 /* Route.swift in Sources */,
+				73A3754D54888B4F6DCD4285 /* StarRatingView.swift in Sources */,
 				5535DD2F851B1E806B8D4AA3 /* StepTimerControl.swift in Sources */,
 				58F03BD1C47691F5A3A589A7 /* StepView.swift in Sources */,
 				D4C740D370DB039CFB00985D /* SwipeBackDisabler.swift in Sources */,
@@ -311,7 +315,6 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 664DHLD96H;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CookingApp/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -390,7 +393,6 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 664DHLD96H;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CookingApp/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

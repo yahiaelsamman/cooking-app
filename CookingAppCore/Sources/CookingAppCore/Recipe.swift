@@ -112,6 +112,36 @@ public final class Recipe {
     public var dietaryTags: [DietaryTag]
     public var ingredients: [Ingredient]
 
+    // MARK: - User data
+    //
+    // Everything below is set by the person using the app, never by the bundled recipe content
+    // itself — `RecipeSeeder` never overwrites any of these on an already-seeded recipe (see its
+    // doc comment). Every new field here is given an inline default (rather than relying solely on
+    // the initializer's default) specifically so SwiftData's automatic lightweight migration can
+    // backfill it on rows persisted before the field existed, without a manual migration plan.
+
+    /// Starred/pinned by the user — surfaced via a "Favorites only" filter and a swipe action on
+    /// the recipe list, independent of cooking mode or sort order.
+    public var isFavorite: Bool = false
+    /// 1...5, or `nil` if never rated. Set via `StarRatingView` on the recipe detail screen;
+    /// tapping the currently-set top star again clears it back to `nil` rather than getting stuck.
+    public var personalRating: Int?
+    /// Free-text notes the user writes about this recipe (what they changed, how it turned out,
+    /// what to try next time) — separate from `summary`, which is fixed recipe content.
+    public var personalNotes: String = ""
+    /// Incremented once per completed cooking session (solo or two-person), the moment
+    /// `CookingSessionViewModel.isComplete` first becomes true — see `StepView`'s completion
+    /// tracking. Not decremented by "Go Back" from the completion screen; a genuine re-completion
+    /// after going back counts again.
+    public var timesCooked: Int = 0
+    /// Set alongside `timesCooked`; `nil` until the first completion.
+    public var lastCookedDate: Date?
+    /// This recipe's position in the user's own manual ordering ("My Order" in `RecipeListView`).
+    /// Assigned sequentially at seed time in bundle order; a user drag-reorder rewrites every
+    /// recipe's value to match the new order. Independent of alphabetical/rating sort modes, which
+    /// don't read this field at all.
+    public var sortOrder: Int = 0
+
     public init(
         id: UUID = UUID(),
         title: String,
@@ -126,7 +156,13 @@ public final class Recipe {
         soloCookTimeMinutes: Int,
         twoPersonCookTimeMinutes: Int? = nil,
         dietaryTags: [DietaryTag] = [],
-        ingredients: [Ingredient]
+        ingredients: [Ingredient],
+        isFavorite: Bool = false,
+        personalRating: Int? = nil,
+        personalNotes: String = "",
+        timesCooked: Int = 0,
+        lastCookedDate: Date? = nil,
+        sortOrder: Int = 0
     ) {
         self.id = id
         self.title = title
@@ -142,6 +178,12 @@ public final class Recipe {
         self.twoPersonCookTimeMinutes = twoPersonCookTimeMinutes
         self.dietaryTags = dietaryTags
         self.ingredients = ingredients
+        self.isFavorite = isFavorite
+        self.personalRating = personalRating
+        self.personalNotes = personalNotes
+        self.timesCooked = timesCooked
+        self.lastCookedDate = lastCookedDate
+        self.sortOrder = sortOrder
     }
 
     /// Whether two-person mode should be offered for this recipe at all.

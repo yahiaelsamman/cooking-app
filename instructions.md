@@ -493,6 +493,90 @@ What shipped this pass:
   the same treatment, or a fresh install, to see this pass's photos). After that, the recipe list
   showed real, correctly-cropped food photography for every recipe instead of the SF-Symbol tiles.
 
+### Pass 9 — real-device photo bug fix, favorites/rating/notes/cook-history, and 12 more recipes
+
+Triggered by three things reported together: hero photos worked in the Simulator but not on a
+real iPhone 17; a request for 20+ recipes; a request for a way to save/order/rate/note recipes.
+
+**The real-device photo bug** turned out to be exactly the stale-store caveat called out at the
+end of pass 8 — that device already had the app installed from before photos existed, and
+`RecipeSeeder`'s old "only seed a completely empty store" guard meant it would *never* pick up a
+`heroImageName` added to an already-seeded recipe, no matter how many times the app was rebuilt,
+short of a full uninstall. That's a real bug, not just a documented caveat to live with — especially
+now that this pass also adds 12 more bundled recipes, which have the exact same problem: they'd
+never reach an existing install either. Fixed by rewriting `RecipeSeeder` to be **additive by id**:
+it now inserts whichever bundled recipes the store doesn't already have (matched by their fixed
+id), and leaves every already-present recipe — including all its user data — completely alone. A
+recipe already in the store is skipped, not refreshed, so this fixes *new* recipes/fields reaching
+old installs going forward, but doesn't retroactively add `heroImageName` to the original 8 on a
+device that already has them seeded without photos — that part still needs the uninstall/reinstall
+from pass 8's note (or, going forward, will simply resolve itself as those rows pick up whatever's
+added next by id, same as any other addition). See `RecipeSeeder.swift`'s doc comment for the full
+reasoning, including the one tradeoff this creates (a future delete feature will need a tombstone —
+not a concern yet, since there's still no way to delete a recipe at all).
+
+**Favorites, rating, notes, and cook history** — new user-data fields directly on `Recipe`
+(`isFavorite: Bool`, `personalRating: Int?` 1...5, `personalNotes: String`, `timesCooked: Int`,
+`lastCookedDate: Date?`, `sortOrder: Int`), each with an inline default so SwiftData's automatic
+lightweight migration can backfill existing rows. `RecipeSeeder` never touches any of these on an
+already-present recipe — see above.
+
+- **`RecipeDetailView.swift`**: a heart-toggle in the toolbar (favorite), a new "My Notes" section
+  with a `StarRatingView` (new, `CookingApp/Views/StarRatingView.swift` — tapping the already-set
+  top star clears the rating), a "Cooked N times, last on <date>" readout, and a `TextEditor` bound
+  to `personalNotes`. `recipe` changed from `let` to `@Bindable var` to support this. Every mutation
+  saves immediately via `@Environment(\.modelContext)`.
+- **`StepView.swift`**: `.onChange(of: session.isComplete)` increments `recipe.timesCooked` and
+  sets `lastCookedDate` the moment my own track finishes (solo or two-person alike — independent of
+  `bothFinished`, which only handles tearing down the shared connection). Going back from the
+  completion screen and finishing again counts again; this isn't suppressed.
+- **`RecipeListView.swift`**: a sort-mode menu (My Order / A–Z / Top Rated) and a favorites-only
+  filter toggle in the toolbar. "My Order" is the only mode backed by `sortOrder` and the only one
+  offering drag-to-reorder (`.onMove`, with the list in permanent edit mode while that sort is
+  active) — the other two are always freshly derived, so dragging wouldn't mean anything durable in
+  them. Turning on the favorites filter while reordering switches out of "My Order" automatically,
+  since reordering a filtered subset would scramble the full sequence for whatever's hidden. Every
+  row also gets a leading swipe action to toggle favorite without opening the recipe. `RecipeRow`
+  now shows a small favorite heart, a compact read-only `StarRatingView`, and a "Cooked N×" badge
+  when either applies.
+- Sourcing note for photos on the 12 new recipes: none have a `heroImageName` yet — no Pexels key
+  was available this pass, so they use the placeholder card, same as any recipe before pass 8.
+
+**12 more recipes**, bringing the bundled total from 8 to 20 (fixed UUIDs `...0009` through
+`...0020`, continuing the existing convention): Chicken Stir-Fry, Beef Chili, Caprese Salad, Banana
+Pancakes, Shrimp Scampi, Vegetable Fried Rice, Chicken Caesar Salad, Baked Salmon with Asparagus,
+French Onion Soup, Beef and Broccoli, Chicken Quesadillas, and Chocolate Chip Cookies (the first
+dessert). 6 of the 12 got a curated two-person split, bringing the two-person-capable total to 9/20.
+
+**Testing**: `RecipeSeederTests.swift` was rewritten around the new additive contract — see its own
+doc comment for a real hazard hit while writing it: `SampleRecipes.all` are process-wide singleton
+`@Model` instances, and once one is inserted and saved into a SwiftData container, inserting that
+*same instance* into a second, different container silently fails to persist there at all (not just
+a parallelism race — reproduced this doing it strictly sequentially too). So this file now runs
+everything through exactly one test, one context, as a single continuous narrative, rather than
+splitting scenarios across separate `@Test` functions the way most other test files here do.
+`RecipeModelTests.swift` gained guards for "no bundled recipe hardcodes fake user data," title
+uniqueness, and a `>= 20` count floor. 126/126 tests passing (up from 124), rerun twice back-to-back
+to confirm no flakiness. `xcodebuild build` for the full `CookingApp` scheme — **BUILD SUCCEEDED**.
+
+Visually verified on the iPhone 17 Simulator (fresh install, same stale-store lesson from pass 8
+applied again): the favorites-filter and sort-mode controls render in the toolbar, "My Order" mode
+shows drag handles on every row, and — using the same temporary, fully-reverted debug auto-nav
+technique pass 7 established (there's still no XCUITest target or accessibility automation in this
+sandbox) — `RecipeDetailView`'s new "My Notes" section renders correctly: favorite heart, star
+rating, "Cooked: Not yet," and the notes editor with its placeholder, no crash or layout issue.
+Could **not** visually verify the swipe-to-favorite gesture or actually dragging to reorder — both
+need real touch input, which this sandbox has never had a way to inject.
+
+Also hit and worked around, unrelated to the app itself: this project lives under `~/Desktop`,
+which iCloud Desktop & Documents sync actively watches — partway through this pass, SwiftPM's test
+bundle started failing to codesign with "resource fork, Finder information, or similar detritus not
+allowed," caused by `com.apple.FinderInfo`/`com.apple.fileprovider.fpfs#P` extended attributes
+iCloud was tagging onto freshly-written `.build` output *while* the build was still running —
+`xattr -cr` on the bundle didn't stick since the tag reappeared immediately. Fixed by building with
+`swift test --scratch-path /tmp/...` instead of the default `.build/` inside the synced folder.
+Worth knowing if `swift build`/`swift test` starts failing the same way again in this repo.
+
 ## 4. Known pitfalls
 
 - **A "mirror mode" was tried and then removed.** An earlier pass let two-person mode work on
@@ -539,11 +623,22 @@ What shipped this pass:
   `PlaceholderPhotoView`'s gradient-plus-SF-Symbol card, not real photography — only recipe-level
   hero photos got real images, in pass 8. Both exist to make the *shape* of "a real icon"/"a real
   photo" visible where nothing real exists yet, not to be final assets everywhere.
-- **A stale on-device SwiftData store won't pick up new `heroImageName`s** *(pass 8)* —
-  `RecipeSeeder` only seeds an *empty* store, so a device/simulator that already ran an earlier
-  build keeps its old (no-photo) recipe rows until the app is uninstalled or the store is
-  otherwise reset. Expected the same as any other `SampleRecipes.swift` edit under the existing
-  persistence design (see §1's `RecipeSeeder` note) — not a bug specific to photos.
+- **A device that already had the original 8 recipes won't retroactively get their photos**
+  *(pass 8, fixed differently in pass 9)* — pass 9's additive `RecipeSeeder` means a *new* bundled
+  recipe (or one this device never had before) now reaches an existing install fine, but a recipe
+  already present is still never refreshed — by design, since refreshing it would also wipe any
+  favorite/rating/notes/cook-count the user had already set on it. A device that seeded the
+  original 8 before photos existed still needs an uninstall/reinstall to see photos on *those*
+  specific 8 rows; every recipe added from pass 9 onward arrives automatically.
+- **Reordering ("My Order") always operates on the full recipe list, not the filtered one** —
+  turning on the favorites-only filter while sorted by "My Order" switches you to "A–Z" instead of
+  letting you drag within the filtered subset, since that would scramble the full ordering for
+  whatever's hidden. Switch favorites off to reorder the complete list.
+- **Swipe-to-favorite and drag-to-reorder were never verified with a real touch** *(pass 9)* — both
+  compiled and the surrounding UI (toolbar controls, drag handles, row content) was confirmed to
+  render via screenshot, but neither gesture itself could be exercised without accessibility
+  automation or an XCUITest target, neither of which exists in this sandbox. Worth a deliberate
+  check on a real device.
 - **No automated UI testing exists** *(all passes)* — verification for anything that can't be
   driven from `CookingAppCoreTests` (a full app build, screen-by-screen rendering) has relied each
   pass on either hand-review or a temporary, fully-reverted debug hack in `RecipeListView` to
@@ -553,10 +648,15 @@ What shipped this pass:
 
 ## 5. Next steps (explicitly deferred)
 
-1. **More recipes**, now that they land in a real store rather than needing new Swift code per
-   recipe — explicitly next, per the direction in §6.
-2. **In-app recipe creation/editing UI** — the persistence layer (§1) supports it; there's no UI
-   for it yet, since this pass only seeded seed data, it didn't add a way to add/edit from the app.
+1. **~~More recipes~~ — done (pass 9), 8 → 20.** Still nothing stopping more being added the same
+   way; still no in-app authoring UI (see next item), so any further additions are still a code
+   change, not something done from the app itself.
+2. **In-app recipe creation/editing/deletion UI** — the persistence layer (§1) supports it; there's
+   still no UI for it. Whichever pass adds *deletion* specifically needs to also give
+   `RecipeSeeder` a tombstone (e.g. a stored set of deleted bundled ids) — pass 9 made seeding
+   additive-by-id specifically so new bundled recipes reach existing installs, but that same
+   change means a deleted bundled recipe would silently come back on the next launch without a
+   tombstone to check against. Harmless today only because deletion doesn't exist yet.
 3. **AI-assisted recipe-to-two-person conversion** — flagged as a good idea for once there's
    budget for it; explicitly skipped for now since it costs money (see §6).
 4. **Per-step photos** — recipe-level hero photos are done (pass 8), but every step still shows
@@ -583,6 +683,17 @@ What shipped this pass:
 12. **Editable cook name / role after first launch** *(pass 7)* — the name is set once at first
     launch with no settings screen to change it later, and the host's Person A/B choice is made
     fresh each time you host rather than remembered from last time.
+13. **Hero photos for the 12 recipes added in pass 9** — same `fetch_recipe_photos.py` /
+    `install_recipe_photo.py` pipeline from pass 8, just not run yet for the new recipes (no
+    Pexels key available this pass). They show the placeholder card in the meantime, same as
+    every recipe did before pass 8.
+14. **Verify swipe-to-favorite and drag-to-reorder on a real device** *(pass 9)* — both are
+    unverified beyond "the surrounding UI renders and compiles" (see the pitfalls list) — this
+    sandbox has no way to inject a real touch/drag gesture.
+15. **A settings/about screen for personal notes and ratings at a glance** — right now
+    "My Notes" only exists per-recipe on the detail screen; there's no cross-recipe view like "all
+    my 5-star recipes" beyond the Top Rated sort mode, and no way to see/edit notes without
+    opening each recipe individually.
 
 ## 6. UX/product iteration ideas & direction
 
@@ -640,6 +751,22 @@ rather than a paid AI image API or self-shooting. Confirmed up front via two que
 building anything (scope, then source). The pipeline was built, then actually run the same pass:
 you fetched candidates with your own Pexels key, hand-picked one winner per recipe, and all 8 are
 now wired in and visually verified — see pass 8's write-up in §3 for the full detail.
+
+### Current direction (pass 9)
+
+Three things raised together: pass 8's photos not showing up on a real iPhone, a request for
+20+ recipes, and a request for a way to save/order/rate/note recipes — then asked to work
+autonomously and thoroughly for an extended stretch rather than checking in after each piece.
+Treated as one pass covering all three, in dependency order: diagnosed and fixed the real-device
+bug first (it turned out to be the exact stale-store caveat pass 8 had already flagged, but a
+device having *ever* run an earlier build is a real scenario, not a hypothetical, so it needed an
+actual fix — see the seeder rewrite above — not just a documented workaround), then built the
+favorites/rating/notes/cook-history feature (a genuine product decision on data shape and UI that
+needed real design, not just following an existing pattern), then added the 12 new recipes last,
+since they were the most mechanical of the three and benefited from the seeder fix already being
+in place. See pass 9's write-up in §3 for the full detail, including a real SwiftData
+cross-container hazard hit while testing the seeder change, and an unrelated iCloud-sync build
+issue hit and worked around along the way.
 
 ## 7. Git / repo
 
