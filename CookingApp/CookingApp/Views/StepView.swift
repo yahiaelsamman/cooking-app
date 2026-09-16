@@ -19,6 +19,14 @@ struct StepView: View {
 
     @State private var timerFinishedBanners: [TimerFinishedBanner] = []
     @State private var showEndSessionConfirm = false
+    @State private var showIngredientChecklist = false
+    @State private var checkedIngredientIDs: Set<Ingredient.ID> = []
+    @AppStorage("cookExpertise") private var cookExpertiseRaw: String = CookExpertise.intermediate.rawValue
+    @AppStorage("hasSeenStepCoachMarks") private var hasSeenStepCoachMarks = false
+
+    private var cookExpertise: CookExpertise {
+        CookExpertise(rawValue: cookExpertiseRaw) ?? .intermediate
+    }
 
     /// True once both people have actually finished the recipe — my own last step, and the
     /// partner's, both reached. Detected purely from progress already exchanged (`advance()`
@@ -38,10 +46,27 @@ struct StepView: View {
             }
 
             timerFinishedBannerStack
+
+            if !session.isComplete && !hasSeenStepCoachMarks {
+                StepCoachMarkOverlay(expertise: cookExpertise) {
+                    hasSeenStepCoachMarks = true
+                }
+            }
         }
         .navigationBarBackButtonHidden(true)
         .disablesInteractiveSwipeBack()
         .toolbar {
+            if !session.isComplete {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showIngredientChecklist = true
+                    } label: {
+                        Image(systemName: "checklist")
+                    }
+                    .accessibilityLabel("Ingredients")
+                    .accessibilityIdentifier("ingredientChecklistButton")
+                }
+            }
             if session.role != nil && !session.isComplete && session.partnerConnectionState != .idle {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("End Session", role: .destructive) {
@@ -50,6 +75,9 @@ struct StepView: View {
                     .font(.caption)
                 }
             }
+        }
+        .sheet(isPresented: $showIngredientChecklist) {
+            IngredientChecklistView(ingredients: session.recipe.ingredients, checkedIDs: $checkedIngredientIDs)
         }
         .confirmationDialog(
             "End the shared session?",
@@ -203,6 +231,9 @@ struct StepView: View {
                         guard !session.isLastStep else { return }
                         session.advance()
                     }
+
+                    DonenessHintView(checkHint: step.checkHint, expertise: cookExpertise)
+                        .id(step.id)
 
                     StepTimerControl(step: step, session: session)
                 }

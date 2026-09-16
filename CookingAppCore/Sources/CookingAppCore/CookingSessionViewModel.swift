@@ -44,6 +44,13 @@ public final class CookingSessionViewModel {
 
     private var ticker: Timer?
 
+    /// Fires whenever `currentIndex` or `activeTimers` changes — the app layer (`ActiveSessionStore`)
+    /// uses this to keep an on-disk snapshot of solo sessions up to date, so a force-quit mid-recipe
+    /// doesn't lose all progress. Not fired for `partnerActiveTimers` changes — nothing about the
+    /// partner's state is ever persisted (see `ActiveSessionStore`'s doc comment on why two-person
+    /// sessions aren't snapshotted at all).
+    public var onMutated: (() -> Void)?
+
     // MARK: - Partner session lifecycle
 
     /// True once the partner has explicitly ended the session (as opposed to just dropping out
@@ -113,12 +120,26 @@ public final class CookingSessionViewModel {
                 cancelTimer(for: timer.step)
             }
         }
+        onMutated?()
     }
 
     public func goBack() {
         guard currentIndex > 0 else { return }
         currentIndex -= 1
         peerSync?.sendProgress(stepIndex: currentIndex)
+        onMutated?()
+    }
+
+    /// Reconstructs local step/timer state after a relaunch — see `ActiveSessionStore.restoreIfNeeded`,
+    /// the only caller. `timers` should already have expired ones (a past `endDate`) filtered out;
+    /// this doesn't fire `onTimerFinished` for any of them, since whatever finished while the app was
+    /// dead already surfaced its own local notification instead.
+    func restoreState(currentIndex: Int, timers: [ActiveTimer]) {
+        self.currentIndex = min(max(currentIndex, 0), track.count)
+        self.activeTimers = timers
+        if !timers.isEmpty {
+            ensureTicking()
+        }
     }
 
     /// `nil` for a solo session; otherwise the opposite of `role`.
@@ -213,6 +234,7 @@ public final class CookingSessionViewModel {
             peerSync?.sendTimerStarted(stepIndex: index, durationSeconds: duration)
         }
         onTimerScheduled?(step, duration)
+        onMutated?()
     }
 
     public func cancelTimer(for step: RecipeStep) {
@@ -223,6 +245,7 @@ public final class CookingSessionViewModel {
         }
         stopTickingIfIdle()
         onTimerUnscheduled?(step)
+        onMutated?()
     }
 
     private func handlePartnerTimerStarted(stepIndex: Int, duration: Int) {
@@ -283,6 +306,9 @@ public final class CookingSessionViewModel {
         }
         for step in finished {
             onTimerFinished?(step)
+        }
+        if !finished.isEmpty {
+            onMutated?()
         }
         stopTickingIfIdle()
     }

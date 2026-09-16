@@ -321,6 +321,75 @@ struct CookingSessionViewModelTests {
         session.cancelTimer(for: timedStep) // avoid leaking a live Timer past the end of the test
     }
 
+    // MARK: - onMutated (drives ActiveSessionStore's on-disk snapshot — see SessionPersistenceTests)
+
+    @Test func onMutatedFiresOnAdvanceAndGoBack() {
+        let session = CookingSessionViewModel(recipe: SampleRecipes.scrambledEggs)
+        var mutationCount = 0
+        session.onMutated = { mutationCount += 1 }
+
+        session.advance()
+        session.goBack()
+
+        #expect(mutationCount == 2)
+    }
+
+    @Test func onMutatedFiresOnStartAndCancelTimer() {
+        let recipe = SampleRecipes.searedSteak
+        let session = CookingSessionViewModel(recipe: recipe)
+        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 180 }!
+        var mutationCount = 0
+        session.onMutated = { mutationCount += 1 }
+
+        session.startTimer(for: timedStep)
+        session.cancelTimer(for: timedStep)
+
+        #expect(mutationCount == 2)
+    }
+
+    @Test func onMutatedDoesNotFireForAPartnerTimerUpdate() {
+        // Nothing about the partner's state is ever persisted (two-person sessions aren't
+        // snapshotted at all — see `ActiveSessionStore`) — a mirrored partner timer shouldn't
+        // trigger a save any more than it already wouldn't be included in one.
+        let recipe = SampleRecipes.pastaForTwo
+        let peerSync = PeerSyncService(displayName: "me")
+        let session = CookingSessionViewModel(recipe: recipe, role: .personA, peerSync: peerSync)
+        var mutationCount = 0
+        session.onMutated = { mutationCount += 1 }
+
+        let personBTrack = recipe.track(for: .personB)
+        let partnerTimedIndex = personBTrack.firstIndex { $0.timerSeconds != nil }!
+        peerSync.handleReceivedMessage(.timerStarted(stepIndex: partnerTimedIndex, durationSeconds: 600))
+
+        #expect(mutationCount == 0)
+    }
+
+    // MARK: - restoreState (used by ActiveSessionStore.restoreIfNeeded — see SessionPersistenceTests
+    // for full end-to-end coverage; this just guards the view model's own state-setting contract)
+
+    @Test func restoreStateSetsCurrentIndexAndTimersDirectlyWithoutSendingProgress() {
+        let recipe = SampleRecipes.searedSteak
+        let session = CookingSessionViewModel(recipe: recipe)
+        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 180 }!
+        let restoredTimer = ActiveTimer(step: timedStep, totalSeconds: 180, remainingSeconds: 90)
+
+        session.restoreState(currentIndex: 3, timers: [restoredTimer])
+
+        #expect(session.currentIndex == 3)
+        #expect(session.activeTimers.count == 1)
+        #expect(session.activeTimer(for: timedStep)?.remainingSeconds == 90)
+        session.cancelTimer(for: timedStep) // avoid leaking a live Timer
+    }
+
+    @Test func restoreStateClampsAnOutOfRangeIndexToTheTrackBounds() {
+        let session = CookingSessionViewModel(recipe: SampleRecipes.scrambledEggs)
+
+        session.restoreState(currentIndex: 999, timers: [])
+
+        #expect(session.currentIndex == session.track.count)
+        #expect(session.isComplete)
+    }
+
     // MARK: - ActiveSessionStore
 
     @Test func activeSessionStoreStartsEmpty() {

@@ -28,6 +28,7 @@ struct CookingAppApp: App {
             fatalError("Could not create the recipe store: \(error)")
         }
         RecipeSeeder.seedIfNeeded(context: modelContainer.mainContext)
+        sessionStore.restoreIfNeeded(modelContext: modelContainer.mainContext)
     }
 
     var body: some Scene {

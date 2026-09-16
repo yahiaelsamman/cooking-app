@@ -1,14 +1,25 @@
 import SwiftUI
+import CookingAppCore
 
-/// Shown once, the first time the app is ever opened — asks what to call you so a partner in a
-/// two-person session sees your actual name instead of a device hostname or "Person A/B." Stored
-/// in `@AppStorage("cookName")` and reused for every future two-person session.
+/// Shown once, the first time the app is ever opened — asks what to call you (so a partner in a
+/// two-person session sees your actual name instead of a device hostname or "Person A/B") and how
+/// comfortable you are in the kitchen. Stored in `@AppStorage("cookName")`/`@AppStorage("cookExpertise")`;
+/// also reused as a standalone "change your experience level" sheet from `RecipeListView`, which
+/// is why `name`/`onContinue` still work even when this view is shown a second time.
 struct WelcomeNameView: View {
     @Binding var name: String
+    @Binding var expertise: CookExpertise
     let onContinue: () -> Void
 
     @State private var draft = ""
+    @State private var draftExpertise: CookExpertise = .intermediate
     @FocusState private var fieldFocused: Bool
+
+    /// Reused later as a "change your experience level" sheet (see `RecipeListView`) rather than
+    /// only ever showing once — a name already being set is what tells the two forms apart.
+    private var isEditingExisting: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     private var trimmedDraft: String {
         draft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -23,7 +34,7 @@ struct WelcomeNameView: View {
                 .foregroundStyle(Color.accentColor)
 
             VStack(spacing: 8) {
-                Text("Welcome!")
+                Text(isEditingExisting ? "Your Profile" : "Welcome!")
                     .font(.title.bold())
                 Text("What should we call you?")
                     .font(.body)
@@ -46,6 +57,26 @@ struct WelcomeNameView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
+            VStack(alignment: .leading, spacing: 6) {
+                Text("How comfortable are you in the kitchen?")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Picker("Cooking experience", selection: $draftExpertise) {
+                    ForEach(CookExpertise.allCases, id: \.self) { level in
+                        Text(level.label).tag(level)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("cookExpertisePicker")
+            }
+            .padding(.horizontal, 40)
+
+            Text("Changes how much hand-holding cooking steps give you — you can change this anytime.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
             Button("Continue") { save() }
                 .buttonStyle(.borderedProminent)
                 .disabled(trimmedDraft.isEmpty)
@@ -54,12 +85,17 @@ struct WelcomeNameView: View {
             Spacer()
         }
         .padding()
-        .onAppear { fieldFocused = true }
+        .onAppear {
+            draft = name
+            draftExpertise = expertise
+            fieldFocused = true
+        }
     }
 
     private func save() {
         guard !trimmedDraft.isEmpty else { return }
         name = trimmedDraft
+        expertise = draftExpertise
         onContinue()
     }
 }

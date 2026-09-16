@@ -19,6 +19,7 @@ struct RecipeListView: View {
     @Query private var recipes: [Recipe]
     @State private var path = NavigationPath()
     @AppStorage("cookName") private var cookName: String = ""
+    @AppStorage("cookExpertise") private var cookExpertiseRaw: String = CookExpertise.intermediate.rawValue
     @State private var showWelcomeName = false
     @State private var sortMode: RecipeSortMode = .alphabetical
     @State private var showFavoritesOnly = false
@@ -33,6 +34,13 @@ struct RecipeListView: View {
     /// the specific places each piece of filter state changes) so it stays correct no matter which
     /// control — the favorites button, the sort Picker, search, or a dietary chip — is what brings
     /// any of these conditions true at once.
+    private var cookExpertiseBinding: Binding<CookExpertise> {
+        Binding(
+            get: { CookExpertise(rawValue: cookExpertiseRaw) ?? .intermediate },
+            set: { cookExpertiseRaw = $0.rawValue }
+        )
+    }
+
     private var canReorder: Bool {
         sortMode == .myOrder && !showFavoritesOnly && searchText.isEmpty && selectedDietaryTags.isEmpty
     }
@@ -106,6 +114,15 @@ struct RecipeListView: View {
                     .accessibilityLabel("Shopping List")
                     .accessibilityIdentifier("shoppingListButton")
                 }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showWelcomeName = true
+                    } label: {
+                        Image(systemName: "person.crop.circle")
+                    }
+                    .accessibilityLabel("Cooking Profile")
+                    .accessibilityIdentifier("cookingProfileButton")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Picker("Sort", selection: $sortMode) {
                         ForEach(RecipeSortMode.allCases) { mode in
@@ -148,10 +165,13 @@ struct RecipeListView: View {
                 }
             }
             .sheet(isPresented: $showWelcomeName) {
-                WelcomeNameView(name: $cookName) {
+                WelcomeNameView(name: $cookName, expertise: cookExpertiseBinding) {
                     showWelcomeName = false
                 }
-                .interactiveDismissDisabled()
+                // Only blocks dismissal on first run, when a name hasn't been set yet — reopened
+                // later purely to change the experience level, it should dismiss like any other
+                // sheet.
+                .interactiveDismissDisabled(cookName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .sheet(isPresented: $showAddRecipe) {
                 RecipeEditorView()

@@ -21,14 +21,23 @@ public struct RecipeStep: Identifiable, Codable, Hashable, Sendable {
     public var timerSeconds: Int?
     /// SF Symbol name shown as this step's illustration.
     public var imageSystemName: String
+    /// A plain-language way to tell this step is actually done, shown behind a "How do I check?"
+    /// disclosure in `StepView` — nil means this step has no ambiguous doneness call to make.
+    /// Deliberately separate from `instruction`: a doneness temperature buried in the middle of a
+    /// sentence ("...until cooked through (165°F internal temperature)") reads fine to an
+    /// experienced cook but doesn't tell a beginner *how* to check it (do they own a thermometer?
+    /// where do they put it?) — this field is where that practical guidance lives instead of being
+    /// squeezed into the instruction text itself.
+    public var checkHint: String?
 
-    public init(id: UUID = UUID(), order: Int, instruction: String, assignee: StepAssignee, timerSeconds: Int? = nil, imageSystemName: String) {
+    public init(id: UUID = UUID(), order: Int, instruction: String, assignee: StepAssignee, timerSeconds: Int? = nil, imageSystemName: String, checkHint: String? = nil) {
         self.id = id
         self.order = order
         self.instruction = instruction
         self.assignee = assignee
         self.timerSeconds = timerSeconds
         self.imageSystemName = imageSystemName
+        self.checkHint = checkHint
     }
 }
 

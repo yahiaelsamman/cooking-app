@@ -7,11 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		022A269FD1F8C44CAB9C683B /* IngredientChecklistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE2EA36CFE2CD28832A3B1AB /* IngredientChecklistView.swift */; };
 		1FC948E317237C2CDAB63AE6 /* ProgressIndicatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65964C22CF33B65D56FF3D60 /* ProgressIndicatorView.swift */; };
 		21E83B9EDC145E0793AE156B /* HoldToFinishButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84258AC035B366A85050DD04 /* HoldToFinishButton.swift */; };
 		294F44AC71AEFAB387D1382D /* DualProgressSliderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E734B1A92691038CB0B3D88 /* DualProgressSliderView.swift */; };
 		36E905D5386D0188746AAE0C /* CookingAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FB5013BDA30E016170360A /* CookingAppApp.swift */; };
 		3D41AF99C02CF4E3AFACAADA /* RecipeHeroImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99765317138B0B5A5B087DE8 /* RecipeHeroImageView.swift */; };
+		4156D6D7D3FCB008410246FE /* DonenessHintView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10CFFBC5D27AEF7FF68DF2E /* DonenessHintView.swift */; };
 		4CFF0C6B115C75BABA093AE3 /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77EFAA155D72E4A52788EE1D /* NotificationDelegate.swift */; };
 		5535DD2F851B1E806B8D4AA3 /* StepTimerControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3FBA522835082EB7A8BD936 /* StepTimerControl.swift */; };
 		5779F3991B7A5464F3027081 /* PlaceholderPhotoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94975B8B83C5E9BC918DE2C9 /* PlaceholderPhotoView.swift */; };
@@ -25,6 +27,7 @@
 		7C3DFE6D8F2F194B3EBBB9DF /* CookingAppCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5BE69C3E90BECDA78A54164F /* CookingAppCore */; };
 		811183032AB7E933175C828D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DE42026A708D5E1A24DCC2C8 /* Assets.xcassets */; };
 		83A45A22422E532DB08488BF /* RecipeListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C5DCABA51CBF434711F5600 /* RecipeListView.swift */; };
+		A5D987A2686549B5B71D542F /* StepCoachMarkOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 811C98072BDC14C41C4F0F05 /* StepCoachMarkOverlay.swift */; };
 		C1FAFBDF97BC3D0B45118FCE /* TimerStackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F302626E0E7A54321241F02 /* TimerStackView.swift */; };
 		D238F347F209B9E592B4EA08 /* RecipeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5CE3AAE0769F97B36AE2AC1 /* RecipeDetailView.swift */; };
 		D4C740D370DB039CFB00985D /* SwipeBackDisabler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 026E933AEE860E9A9F85765F /* SwipeBackDisabler.swift */; };
@@ -56,15 +59,18 @@
 		6D0CF09CFC045EE522BF01A7 /* CookingAppCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CookingAppCore; path = ../CookingAppCore; sourceTree = SOURCE_ROOT; };
 		77EFAA155D72E4A52788EE1D /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
 		7E734B1A92691038CB0B3D88 /* DualProgressSliderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualProgressSliderView.swift; sourceTree = "<group>"; };
+		811C98072BDC14C41C4F0F05 /* StepCoachMarkOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepCoachMarkOverlay.swift; sourceTree = "<group>"; };
 		8240C363AF44973B72F87E00 /* PartnerStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartnerStatusView.swift; sourceTree = "<group>"; };
 		84258AC035B366A85050DD04 /* HoldToFinishButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldToFinishButton.swift; sourceTree = "<group>"; };
 		94975B8B83C5E9BC918DE2C9 /* PlaceholderPhotoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderPhotoView.swift; sourceTree = "<group>"; };
 		99765317138B0B5A5B087DE8 /* RecipeHeroImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeHeroImageView.swift; sourceTree = "<group>"; };
+		B10CFFBC5D27AEF7FF68DF2E /* DonenessHintView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DonenessHintView.swift; sourceTree = "<group>"; };
 		B87FD145C4C65B185CEFDEEF /* CookingAppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CookingAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB9F5A880E4FEC0EB01711B6 /* RecipeEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeEditorView.swift; sourceTree = "<group>"; };
 		C3FBA522835082EB7A8BD936 /* StepTimerControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepTimerControl.swift; sourceTree = "<group>"; };
 		C5CE3AAE0769F97B36AE2AC1 /* RecipeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeDetailView.swift; sourceTree = "<group>"; };
 		C9FB5013BDA30E016170360A /* CookingAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CookingAppApp.swift; sourceTree = "<group>"; };
+		DE2EA36CFE2CD28832A3B1AB /* IngredientChecklistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IngredientChecklistView.swift; sourceTree = "<group>"; };
 		DE42026A708D5E1A24DCC2C8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E584C7F89A61FA389A92D8EB /* ShoppingListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingListView.swift; sourceTree = "<group>"; };
 		E9E4454DC0BB4FDFEA2DFDE4 /* NotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationScheduler.swift; sourceTree = "<group>"; };
@@ -144,8 +150,10 @@
 		C645524A79FAE8C246198C50 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				B10CFFBC5D27AEF7FF68DF2E /* DonenessHintView.swift */,
 				7E734B1A92691038CB0B3D88 /* DualProgressSliderView.swift */,
 				84258AC035B366A85050DD04 /* HoldToFinishButton.swift */,
+				DE2EA36CFE2CD28832A3B1AB /* IngredientChecklistView.swift */,
 				8240C363AF44973B72F87E00 /* PartnerStatusView.swift */,
 				40DF8B9A7F761D592E0A3C74 /* PeerConnectionView.swift */,
 				94975B8B83C5E9BC918DE2C9 /* PlaceholderPhotoView.swift */,
@@ -157,6 +165,7 @@
 				FC447B5C21877ABDBC55F91E /* Route.swift */,
 				E584C7F89A61FA389A92D8EB /* ShoppingListView.swift */,
 				408EDD803379F0BD1AE89C05 /* StarRatingView.swift */,
+				811C98072BDC14C41C4F0F05 /* StepCoachMarkOverlay.swift */,
 				C3FBA522835082EB7A8BD936 /* StepTimerControl.swift */,
 				15269B6C8DB0BC12BE2E031F /* StepView.swift */,
 				026E933AEE860E9A9F85765F /* SwipeBackDisabler.swift */,
@@ -281,8 +290,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				36E905D5386D0188746AAE0C /* CookingAppApp.swift in Sources */,
+				4156D6D7D3FCB008410246FE /* DonenessHintView.swift in Sources */,
 				294F44AC71AEFAB387D1382D /* DualProgressSliderView.swift in Sources */,
 				21E83B9EDC145E0793AE156B /* HoldToFinishButton.swift in Sources */,
+				022A269FD1F8C44CAB9C683B /* IngredientChecklistView.swift in Sources */,
 				4CFF0C6B115C75BABA093AE3 /* NotificationDelegate.swift in Sources */,
 				689F5100E9AFFACE1941209C /* NotificationScheduler.swift in Sources */,
 				65AAC2A6A92D9359736A7096 /* PartnerStatusView.swift in Sources */,
@@ -296,6 +307,7 @@
 				FE8CEB93DA44904D24C49040 /* Route.swift in Sources */,
 				63B946DE4BB643E14116803C /* ShoppingListView.swift in Sources */,
 				73A3754D54888B4F6DCD4285 /* StarRatingView.swift in Sources */,
+				A5D987A2686549B5B71D542F /* StepCoachMarkOverlay.swift in Sources */,
 				5535DD2F851B1E806B8D4AA3 /* StepTimerControl.swift in Sources */,
 				58F03BD1C47691F5A3A589A7 /* StepView.swift in Sources */,
 				D4C740D370DB039CFB00985D /* SwipeBackDisabler.swift in Sources */,

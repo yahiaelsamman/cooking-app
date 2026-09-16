@@ -525,6 +525,50 @@ struct RecipeModelTests {
         #expect(decoded.timerSeconds == 180)
     }
 
+    @Test func recipeStepRoundTripsThroughJSONWithACheckHint() throws {
+        let step = RecipeStep(order: 4, instruction: "Sear it.", assignee: .solo, timerSeconds: 180, imageSystemName: "timer", checkHint: "No thermometer? Cut in and check.")
+
+        let data = try JSONEncoder().encode(step)
+        let decoded = try JSONDecoder().decode(RecipeStep.self, from: data)
+
+        #expect(decoded == step)
+        #expect(decoded.checkHint == step.checkHint)
+    }
+
+    @Test func recipeStepDecodesJSONMissingCheckHintAsNil() throws {
+        // `checkHint` was added after this app already had recipes persisted as SwiftData
+        // attributes (this struct's own JSON encoding, embedded on `Recipe`) — a step written by
+        // an older build has no such key in its stored blob at all, and must decode as `nil`
+        // rather than fail.
+        let json = """
+        {
+            "id": "9E1F0A10-0000-4B7A-9C1A-000000000001",
+            "order": 0,
+            "instruction": "Whisk it.",
+            "assignee": "solo",
+            "imageSystemName": "sparkles"
+        }
+        """
+        let decoded = try JSONDecoder().decode(RecipeStep.self, from: Data(json.utf8))
+        #expect(decoded.checkHint == nil)
+        #expect(decoded.instruction == "Whisk it.")
+    }
+
+    @Test func donenessStepsCitingATemperatureHaveACheckHint() {
+        // A temperature buried in the instruction text doesn't itself tell a beginner *how* to
+        // check it without a thermometer — see `RecipeStep.checkHint`'s doc comment. Regression
+        // guard so a future doneness step added the same way (copy an existing step, tweak the
+        // temperature) doesn't silently drop the practical hint the moment nobody's specifically
+        // checking for it.
+        for recipe in SampleRecipes.all {
+            let allSteps = recipe.soloSteps + (recipe.twoPersonSteps ?? [])
+            for step in allSteps {
+                guard step.instruction.contains("°F") else { continue }
+                #expect(step.checkHint != nil, "\(recipe.title) step \(step.order) cites a temperature but has no checkHint: \"\(step.instruction)\"")
+            }
+        }
+    }
+
     @Test func ingredientRoundTripsThroughJSON() throws {
         let ingredient = Ingredient(name: "Salt", amount: "A pinch")
 
@@ -539,6 +583,20 @@ struct RecipeModelTests {
             #expect(!tag.label.isEmpty)
             #expect(!tag.systemImage.isEmpty)
         }
+    }
+
+    // MARK: - CookExpertise
+
+    @Test func allCookExpertiseLevelsHaveANonEmptyLabel() {
+        for level in CookExpertise.allCases {
+            #expect(!level.label.isEmpty)
+        }
+    }
+
+    @Test func onlyBeginnerPrefersVerboseGuidance() {
+        #expect(CookExpertise.beginner.prefersVerboseGuidance)
+        #expect(!CookExpertise.intermediate.prefersVerboseGuidance)
+        #expect(!CookExpertise.experienced.prefersVerboseGuidance)
     }
 
     // MARK: - Recipe.matchesSearch(_:) (backs RecipeListView's search field)
