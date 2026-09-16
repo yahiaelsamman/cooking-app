@@ -44,7 +44,7 @@ public enum SampleRecipes {
             RecipeStep(order: 1, instruction: "Pat the steak dry and season generously with salt and pepper on both sides.", assignee: .solo, imageSystemName: "sparkles"),
             RecipeStep(order: 2, instruction: "Heat a heavy skillet over high heat until it's smoking hot.", assignee: .solo, imageSystemName: "flame.fill"),
             RecipeStep(order: 3, instruction: "Add a high-smoke-point oil and lay the steak away from you.", assignee: .solo, imageSystemName: "drop.fill"),
-            RecipeStep(order: 4, instruction: "Sear undisturbed, 3 minutes per side.", assignee: .solo, timerSeconds: 180, imageSystemName: "timer"),
+            RecipeStep(order: 4, instruction: "Sear undisturbed, 3 minutes per side, checking with a meat thermometer for your desired doneness (about 130°F for medium-rare, 145°F for medium).", assignee: .solo, timerSeconds: 180, imageSystemName: "timer"),
             RecipeStep(order: 5, instruction: "Add butter, garlic, and thyme to the pan.", assignee: .solo, imageSystemName: "basket.fill"),
             RecipeStep(order: 6, instruction: "Tilt the pan and continuously spoon the butter over the steak for 1 minute.", assignee: .solo, timerSeconds: 60, imageSystemName: "timer"),
             RecipeStep(order: 7, instruction: "Remove from the pan and let it rest.", assignee: .solo, timerSeconds: 300, imageSystemName: "clock.fill"),
@@ -325,7 +325,7 @@ public enum SampleRecipes {
             RecipeStep(order: 1, instruction: "Whisk soy sauce, garlic, ginger, and cornstarch into a stir-fry sauce.", assignee: .solo, imageSystemName: "drop.fill"),
             RecipeStep(order: 2, instruction: "Slice the bell pepper, broccoli, and carrot into thin pieces.", assignee: .solo, imageSystemName: "scissors"),
             RecipeStep(order: 3, instruction: "Heat oil in a wok or large skillet over high heat.", assignee: .solo, imageSystemName: "flame.fill"),
-            RecipeStep(order: 4, instruction: "Stir-fry the chicken until browned and cooked through.", assignee: .solo, timerSeconds: 300, imageSystemName: "timer"),
+            RecipeStep(order: 4, instruction: "Stir-fry the chicken until browned and cooked through (165°F internal temperature).", assignee: .solo, timerSeconds: 300, imageSystemName: "timer"),
             RecipeStep(order: 5, instruction: "Add the vegetables and stir-fry until crisp-tender.", assignee: .solo, timerSeconds: 240, imageSystemName: "timer"),
             RecipeStep(order: 6, instruction: "Pour in the sauce and toss until everything's glossy and coated.", assignee: .solo, imageSystemName: "drop.fill"),
             RecipeStep(order: 7, instruction: "Serve over rice.", assignee: .solo, imageSystemName: "fork.knife")
@@ -337,7 +337,7 @@ public enum SampleRecipes {
             RecipeStep(order: 2, instruction: "Slice the bell pepper, broccoli, and carrot into thin pieces.", assignee: .personA, imageSystemName: "scissors"),
 
             RecipeStep(order: 3, instruction: "Cut the chicken breast into bite-sized pieces.", assignee: .personB, imageSystemName: "scissors"),
-            RecipeStep(order: 4, instruction: "Heat oil in a wok and stir-fry the chicken until browned.", assignee: .personB, timerSeconds: 300, imageSystemName: "timer"),
+            RecipeStep(order: 4, instruction: "Heat oil in a wok and stir-fry the chicken until browned and cooked through (165°F internal temperature).", assignee: .personB, timerSeconds: 300, imageSystemName: "timer"),
 
             RecipeStep(order: 5, instruction: "Both: add the vegetables and sauce to the wok and toss until glossy and coated.", assignee: .shared, timerSeconds: 180, imageSystemName: "timer"),
             RecipeStep(order: 6, instruction: "Both: serve over rice.", assignee: .shared, imageSystemName: "fork.knife")
@@ -572,7 +572,7 @@ public enum SampleRecipes {
         soloSteps: [
             RecipeStep(order: 0, instruction: "Season the chicken breast with salt and pepper.", assignee: .solo, imageSystemName: "sparkles"),
             RecipeStep(order: 1, instruction: "Heat olive oil in a skillet over medium-high heat.", assignee: .solo, imageSystemName: "flame.fill"),
-            RecipeStep(order: 2, instruction: "Sear the chicken until cooked through, about 6 minutes per side.", assignee: .solo, timerSeconds: 720, imageSystemName: "timer"),
+            RecipeStep(order: 2, instruction: "Sear the chicken until cooked through (165°F internal temperature), about 6 minutes per side.", assignee: .solo, timerSeconds: 720, imageSystemName: "timer"),
             RecipeStep(order: 3, instruction: "Let the chicken rest, then slice it.", assignee: .solo, timerSeconds: 300, imageSystemName: "clock.fill"),
             RecipeStep(order: 4, instruction: "Chop the romaine lettuce into bite-sized pieces.", assignee: .solo, imageSystemName: "scissors"),
             RecipeStep(order: 5, instruction: "Toast bread cubes in a dry pan until golden for croutons.", assignee: .solo, timerSeconds: 240, imageSystemName: "timer"),
@@ -583,7 +583,7 @@ public enum SampleRecipes {
             RecipeStep(order: 0, instruction: "Both: gather ingredients.", assignee: .shared, imageSystemName: "basket.fill"),
 
             RecipeStep(order: 1, instruction: "Season the chicken breast with salt and pepper.", assignee: .personA, imageSystemName: "sparkles"),
-            RecipeStep(order: 2, instruction: "Heat olive oil in a skillet and sear the chicken until cooked through, about 6 minutes per side.", assignee: .personA, timerSeconds: 720, imageSystemName: "timer"),
+            RecipeStep(order: 2, instruction: "Heat olive oil in a skillet and sear the chicken until cooked through (165°F internal temperature), about 6 minutes per side.", assignee: .personA, timerSeconds: 720, imageSystemName: "timer"),
             RecipeStep(order: 3, instruction: "Let the chicken rest, then slice it.", assignee: .personA, timerSeconds: 300, imageSystemName: "clock.fill"),
 
             RecipeStep(order: 4, instruction: "Chop the romaine lettuce into bite-sized pieces.", assignee: .personB, imageSystemName: "scissors"),
@@ -748,7 +748,7 @@ public enum SampleRecipes {
         servings: 2,
         soloSteps: [
             RecipeStep(order: 0, instruction: "Season the chicken with cumin, chili powder, and salt.", assignee: .solo, imageSystemName: "sparkles"),
-            RecipeStep(order: 1, instruction: "Heat oil in a skillet and cook the chicken until done.", assignee: .solo, timerSeconds: 480, imageSystemName: "timer"),
+            RecipeStep(order: 1, instruction: "Heat oil in a skillet and cook the chicken until done (165°F internal temperature).", assignee: .solo, timerSeconds: 480, imageSystemName: "timer"),
             RecipeStep(order: 2, instruction: "Let the chicken rest briefly, then dice or shred it.", assignee: .solo, imageSystemName: "clock.fill"),
             RecipeStep(order: 3, instruction: "Lay a tortilla in the skillet and sprinkle cheese over half.", assignee: .solo, imageSystemName: "basket.fill"),
             RecipeStep(order: 4, instruction: "Add the chicken, bell pepper, and more cheese, then fold the tortilla over.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath"),
@@ -759,7 +759,7 @@ public enum SampleRecipes {
             RecipeStep(order: 0, instruction: "Both: gather ingredients.", assignee: .shared, imageSystemName: "basket.fill"),
 
             RecipeStep(order: 1, instruction: "Season the chicken with cumin, chili powder, and salt.", assignee: .personA, imageSystemName: "sparkles"),
-            RecipeStep(order: 2, instruction: "Heat oil in a skillet and cook the chicken until done.", assignee: .personA, timerSeconds: 480, imageSystemName: "timer"),
+            RecipeStep(order: 2, instruction: "Heat oil in a skillet and cook the chicken until done (165°F internal temperature).", assignee: .personA, timerSeconds: 480, imageSystemName: "timer"),
             RecipeStep(order: 3, instruction: "Let the chicken rest briefly, then dice or shred it.", assignee: .personA, imageSystemName: "clock.fill"),
 
             RecipeStep(order: 4, instruction: "Dice the bell pepper and have extra cheese ready.", assignee: .personB, imageSystemName: "scissors"),

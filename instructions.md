@@ -1016,6 +1016,51 @@ list, change its servings first and confirm the added amounts reflect the new sc
 items off, use "Clear Checked" and confirm only those disappear, and confirm re-adding the same
 recipe at the same servings doesn't create duplicate rows while re-adding after clearing does.
 
+### Pass 19 — food-safety content pass: citing safe internal temperatures for chicken
+
+Sixth iteration of the overnight autonomous run, and the first to edit recipe *content* rather than
+app code — directly acting on "look into recipes and cooking blogs to follow best practices" rather
+than UX conventions this time. A web search confirmed current USDA safe minimum internal
+temperatures (chicken/poultry 165°F, ground beef 160°F, whole-muscle beef/pork/lamb 145°F + a
+3-minute rest, fish 145°F or "flakes easily/opaque"), then every bundled recipe's doneness wording
+was checked against them.
+
+**What was actually wrong**: every chicken-containing recipe (Chicken Stir-Fry — both its solo step
+and its two-person Person B step, Chicken Caesar Salad — solo and Person A, Chicken Quesadillas —
+solo and Person A) described doneness only as "cooked through," "until done," or "until browned,"
+with no temperature at all. This isn't a style nitpick — color and texture are specifically *not*
+reliable indicators for poultry doneness (unlike, say, a steak, where a thermometer is more about
+hitting a preference than a hard safety line); USDA's own guidance is to always verify chicken with
+a thermometer regardless of how it looks. Added "(165°F internal temperature)" (or equivalent
+phrasing) to all 6 steps. Separately, `searedSteak`'s "Sear undisturbed, 3 minutes per side" got a
+thermometer-check clause too ("...checking with a meat thermometer for your desired doneness (about
+130°F for medium-rare, 145°F for medium)") — a fixed time alone doesn't account for steak thickness,
+and a thermometer is strictly more reliable; this one cites a doneness-preference range rather than
+a single safety minimum, since (unlike poultry) a seared whole-muscle steak has a legitimate
+less-well-done range people actually want, and the recipe's own title/style (a quick garlic-butter
+sear) targets exactly that. **Not touched**: `bakedSalmon`'s "roast until the salmon flakes easily"
+— that's already the correct, standard USDA-endorsed alternative to a thermometer for fish, not a
+gap.
+
+**Testing**: added `chickenDonenessStepsCiteTheSafeInternalTemperature` to `RecipeModelTests.swift`
+— scans every bundled recipe's solo and two-person steps for chicken + a doneness phrase
+("cooked through"/"until done"/"until browned") and asserts "165" appears in that same instruction.
+This is a real regression guard, not a one-off check: a future recipe added by copying an existing
+step's phrasing (the way this app's content has always grown) will fail this test immediately if it
+drops the temperature, rather than silently shipping a food-safety gap. 166 → **167/167
+CookingAppCoreTests passing**. `xcodebuild build` for the full `CookingApp` scheme — **SUCCEEDED**
+(content-only change; no view code touched, so `build-for-testing` wasn't re-run this pass).
+
+One flaky, non-reproducing `swift test` run happened mid-pass (reported "failures" with 0 tests
+executed and 0 actual failures shown) — matches the iCloud-sync build flakiness this repo hit before
+(pass 9's note on building with `--scratch-path` outside the iCloud-synced folder); a second run
+immediately after passed cleanly at 167/167. Worth knowing if a run ever reports a failure with no
+failing test named: rerun once before assuming a real regression.
+
+Sources consulted this pass:
+- [Cooking Meat: Is It Done Yet? — USDA](https://www.usda.gov/about-usda/news/blog/cooking-meat-it-done-yet)
+- [Safe Minimum Internal Temperature Chart — USDA Food Safety and Inspection Service](https://www.fsis.usda.gov/food-safety/safe-food-handling-and-preparation/food-safety-basics/safe-temperature-chart)
+
 ## 4. Known pitfalls
 
 - **A "mirror mode" was tried and then removed.** An earlier pass let two-person mode work on

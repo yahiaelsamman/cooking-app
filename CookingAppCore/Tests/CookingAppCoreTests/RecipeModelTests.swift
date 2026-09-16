@@ -413,6 +413,28 @@ struct RecipeModelTests {
         }
     }
 
+    @Test func chickenDonenessStepsCiteTheSafeInternalTemperature() {
+        // Real food-safety content check (added after a web-research pass flagged it, see
+        // instructions.md pass 19): "cooked through"/"until done"/"until browned" is not a
+        // reliable doneness signal for poultry the way it can be for other meats — chicken needs
+        // to reach 165°F (USDA's safe minimum) regardless of color or texture. This guards the
+        // convention every bundled chicken recipe's doneness step now follows, so a future recipe
+        // added the same way this app's others were (copy an existing step's phrasing) doesn't
+        // silently drop the temperature the moment nobody's specifically checking for it.
+        let donenessPhrases = ["cooked through", "until done", "until browned"]
+        for recipe in SampleRecipes.all {
+            let allSteps = recipe.soloSteps + (recipe.twoPersonSteps ?? [])
+            for step in allSteps {
+                let instruction = step.instruction.lowercased()
+                guard instruction.contains("chicken"), donenessPhrases.contains(where: instruction.contains) else { continue }
+                #expect(
+                    instruction.contains("165"),
+                    "\(recipe.title) step \(step.order) cooks chicken to doneness without citing the 165°F safe internal temperature: \"\(step.instruction)\""
+                )
+            }
+        }
+    }
+
     @Test func allSampleRecipeTitlesAreUnique() {
         // Titles aren't used for identity anywhere load-bearing (ids are), but a duplicate title
         // would be confusing in the recipe list and is almost certainly a copy/paste mistake.
