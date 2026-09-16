@@ -435,6 +435,23 @@ struct RecipeModelTests {
         }
     }
 
+    @Test func groundBeefDonenessStepsCiteTheSafeInternalTemperature() {
+        // Same reasoning as the chicken guard above (pass 19): ground meat mixes any surface
+        // bacteria throughout, so color ("browned"/"no longer pink") is a weaker signal than for
+        // a whole cut — USDA's guidance is 160°F for ground beef specifically.
+        for recipe in SampleRecipes.all {
+            let allSteps = recipe.soloSteps + (recipe.twoPersonSteps ?? [])
+            for step in allSteps {
+                let instruction = step.instruction.lowercased()
+                guard instruction.contains("ground beef"), instruction.contains("brown") else { continue }
+                #expect(
+                    instruction.contains("160"),
+                    "\(recipe.title) step \(step.order) browns ground beef without citing the 160°F safe internal temperature: \"\(step.instruction)\""
+                )
+            }
+        }
+    }
+
     @Test func allSampleRecipeTitlesAreUnique() {
         // Titles aren't used for identity anywhere load-bearing (ids are), but a duplicate title
         // would be confusing in the recipe list and is almost certainly a copy/paste mistake.

@@ -1057,6 +1057,18 @@ executed and 0 actual failures shown) — matches the iCloud-sync build flakines
 immediately after passed cleanly at 167/167. Worth knowing if a run ever reports a failure with no
 failing test named: rerun once before assuming a real regression.
 
+**Same-session follow-up**: swept the rest of the bundled recipes for the same gap and found two
+more — **Taco Night** and **Beef Chili**, both browning ground beef with no doneness cue at all
+("Brown the ground beef..."/"...brown the ground beef.", solo and Person A steps in both). Ground
+meat carries the same "color isn't reliable" caveat as poultry (any surface bacteria gets mixed
+throughout), so both now read "...until no longer pink (160°F internal temperature)." Added a
+parallel `groundBeefDonenessStepsCiteTheSafeInternalTemperature` regression guard alongside the
+chicken one. **Deliberately left alone**: `Beef and Broccoli`'s "sear the beef in batches until
+browned" — thin-sliced stir-fry strips cook through almost immediately at high heat the way a quick
+steak sear does, not the "looks done but isn't" risk ground meat and poultry specifically have, so
+this isn't the same category of gap. 167 → **168/168 CookingAppCoreTests passing**. `xcodebuild
+build` — **SUCCEEDED**.
+
 Sources consulted this pass:
 - [Cooking Meat: Is It Done Yet? — USDA](https://www.usda.gov/about-usda/news/blog/cooking-meat-it-done-yet)
 - [Safe Minimum Internal Temperature Chart — USDA Food Safety and Inspection Service](https://www.fsis.usda.gov/food-safety/safe-food-handling-and-preparation/food-safety-basics/safe-temperature-chart)

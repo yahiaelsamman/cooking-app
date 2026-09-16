@@ -271,7 +271,7 @@ public enum SampleRecipes {
         servings: 2,
         soloSteps: [
             RecipeStep(order: 0, instruction: "Gather all ingredients and warm a skillet for the tortillas.", assignee: .solo, imageSystemName: "flame.fill"),
-            RecipeStep(order: 1, instruction: "Brown the ground beef in a skillet over medium-high heat.", assignee: .solo, imageSystemName: "flame.fill"),
+            RecipeStep(order: 1, instruction: "Brown the ground beef in a skillet over medium-high heat until no longer pink (160°F internal temperature).", assignee: .solo, imageSystemName: "flame.fill"),
             RecipeStep(order: 2, instruction: "Drain excess fat and stir in the taco seasoning with a splash of water.", assignee: .solo, imageSystemName: "drop.fill"),
             RecipeStep(order: 3, instruction: "Simmer until thickened.", assignee: .solo, timerSeconds: 300, imageSystemName: "timer"),
             RecipeStep(order: 4, instruction: "Dice the tomatoes and red onion.", assignee: .solo, imageSystemName: "scissors"),
@@ -283,7 +283,7 @@ public enum SampleRecipes {
         twoPersonSteps: [
             RecipeStep(order: 0, instruction: "Both: gather all ingredients and warm a skillet for the tortillas.", assignee: .shared, imageSystemName: "flame.fill"),
 
-            RecipeStep(order: 1, instruction: "Brown the ground beef in a skillet over medium-high heat.", assignee: .personA, imageSystemName: "flame.fill"),
+            RecipeStep(order: 1, instruction: "Brown the ground beef in a skillet over medium-high heat until no longer pink (160°F internal temperature).", assignee: .personA, imageSystemName: "flame.fill"),
             RecipeStep(order: 2, instruction: "Drain excess fat and stir in the taco seasoning with a splash of water.", assignee: .personA, imageSystemName: "drop.fill"),
             RecipeStep(order: 3, instruction: "Simmer until thickened.", assignee: .personA, timerSeconds: 300, imageSystemName: "timer"),
 
@@ -368,7 +368,7 @@ public enum SampleRecipes {
         servings: 4,
         soloSteps: [
             RecipeStep(order: 0, instruction: "Dice the onion and bell pepper.", assignee: .solo, imageSystemName: "scissors"),
-            RecipeStep(order: 1, instruction: "Heat oil in a large pot and brown the ground beef.", assignee: .solo, timerSeconds: 480, imageSystemName: "timer"),
+            RecipeStep(order: 1, instruction: "Heat oil in a large pot and brown the ground beef until no longer pink (160°F internal temperature).", assignee: .solo, timerSeconds: 480, imageSystemName: "timer"),
             RecipeStep(order: 2, instruction: "Add the onion, bell pepper, and garlic, and cook until softened.", assignee: .solo, timerSeconds: 300, imageSystemName: "timer"),
             RecipeStep(order: 3, instruction: "Stir in chili powder, cumin, and paprika.", assignee: .solo, imageSystemName: "sparkles"),
             RecipeStep(order: 4, instruction: "Add crushed tomatoes, beans, and beef stock.", assignee: .solo, imageSystemName: "drop.fill"),
@@ -380,7 +380,7 @@ public enum SampleRecipes {
         twoPersonSteps: [
             RecipeStep(order: 0, instruction: "Both: gather ingredients and dice the onion and bell pepper together.", assignee: .shared, imageSystemName: "scissors"),
 
-            RecipeStep(order: 1, instruction: "Heat oil in a large pot and brown the ground beef.", assignee: .personA, timerSeconds: 480, imageSystemName: "timer"),
+            RecipeStep(order: 1, instruction: "Heat oil in a large pot and brown the ground beef until no longer pink (160°F internal temperature).", assignee: .personA, timerSeconds: 480, imageSystemName: "timer"),
             RecipeStep(order: 2, instruction: "Add the onion, bell pepper, and garlic, and cook until softened.", assignee: .personA, timerSeconds: 300, imageSystemName: "timer"),
             RecipeStep(order: 3, instruction: "Stir in the spices, then add crushed tomatoes, beans, and stock, and simmer.", assignee: .personA, timerSeconds: 1500, imageSystemName: "timer"),
 
