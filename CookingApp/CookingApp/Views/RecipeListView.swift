@@ -24,18 +24,22 @@ struct RecipeListView: View {
     @State private var showFavoritesOnly = false
     @State private var showAddRecipe = false
     @State private var searchText = ""
+    @State private var selectedDietaryTags: Set<DietaryTag> = []
 
-    /// Reordering must never run against a favorites- or search-filtered subset — that would
-    /// rewrite `sortOrder` 0..<k only across the visible rows, colliding with and corrupting the
-    /// `sortOrder`s of every hidden recipe. Computed reactively (rather than only checked at the
-    /// specific places `showFavoritesOnly`/`searchText` change) so it stays correct no matter
-    /// which control — the favorites button, the sort Picker, or typing into search — is what
-    /// brings any of these conditions true at once.
-    private var canReorder: Bool { sortMode == .myOrder && !showFavoritesOnly && searchText.isEmpty }
+    /// Reordering must never run against a favorites-, search-, or dietary-filtered subset — that
+    /// would rewrite `sortOrder` 0..<k only across the visible rows, colliding with and corrupting
+    /// the `sortOrder`s of every hidden recipe. Computed reactively (rather than only checked at
+    /// the specific places each piece of filter state changes) so it stays correct no matter which
+    /// control — the favorites button, the sort Picker, search, or a dietary chip — is what brings
+    /// any of these conditions true at once.
+    private var canReorder: Bool {
+        sortMode == .myOrder && !showFavoritesOnly && searchText.isEmpty && selectedDietaryTags.isEmpty
+    }
 
     private var displayedRecipes: [Recipe] {
         let favorited = showFavoritesOnly ? recipes.filter(\.isFavorite) : recipes
-        let base = searchText.isEmpty ? favorited : favorited.filter { $0.matchesSearch(searchText) }
+        let searched = searchText.isEmpty ? favorited : favorited.filter { $0.matchesSearch(searchText) }
+        let base = selectedDietaryTags.isEmpty ? searched : searched.filter { $0.matchesDietaryFilter(selectedDietaryTags) }
         switch sortMode {
         case .myOrder:
             return base.sorted { $0.sortOrder < $1.sortOrder }
@@ -66,6 +70,9 @@ struct RecipeListView: View {
                     }
                 }
                 .environment(\.editMode, .constant(canReorder ? .active : .inactive))
+                .safeAreaInset(edge: .top) {
+                    dietaryFilterChips
+                }
 
                 if sessionStore.hasActiveSession {
                     ResumeSessionButton {
@@ -142,6 +149,39 @@ struct RecipeListView: View {
         }
     }
 
+    /// AND-filter chips (see `Recipe.matchesDietaryFilter`) — every `DietaryTag` is always
+    /// offered regardless of the current result set, the same as any standard filter UI; it's
+    /// not narrowed to only tags some visible recipe currently has.
+    private var dietaryFilterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(DietaryTag.allCases, id: \.self) { tag in
+                    let isSelected = selectedDietaryTags.contains(tag)
+                    Button {
+                        if isSelected {
+                            selectedDietaryTags.remove(tag)
+                        } else {
+                            selectedDietaryTags.insert(tag)
+                        }
+                    } label: {
+                        Label(tag.label, systemImage: tag.systemImage)
+                            .font(.caption.weight(.medium))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(isSelected ? Color.green : Color.green.opacity(0.12), in: Capsule())
+                            .foregroundStyle(isSelected ? .white : .green)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+                    .accessibilityIdentifier("dietaryFilterChip_\(tag.rawValue)")
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+        }
+        .background(.bar)
+    }
+
     @ViewBuilder
     private func recipeRow(for recipe: Recipe) -> some View {
         Button {
@@ -163,9 +203,9 @@ struct RecipeListView: View {
         }
     }
 
-    /// Only wired to `.onMove` when `canReorder` is true (see body), which guarantees both the
-    /// favorites filter and search are off — so `displayedRecipes` here is exactly `recipes`
-    /// sorted by `sortOrder`, safe to rewrite in full to match the new ordering.
+    /// Only wired to `.onMove` when `canReorder` is true (see body), which guarantees the
+    /// favorites filter, search, and dietary filter are all off — so `displayedRecipes` here is
+    /// exactly `recipes` sorted by `sortOrder`, safe to rewrite in full to match the new ordering.
     private func moveRecipes(from source: IndexSet, to destination: Int) {
         var ordered = displayedRecipes
         ordered.move(fromOffsets: source, toOffset: destination)

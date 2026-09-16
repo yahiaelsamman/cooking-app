@@ -916,6 +916,45 @@ Sources consulted this pass:
 - [Best Features to Look for in Recipe Apps — OrganizEat](https://home.organizeat.com/blog/best-features-to-look-for-in-recipe-apps/)
 - [Case Study: Perfect Recipes App — UX Design for Cooking and Shopping (Tubik Studio)](https://blog.tubikstudio.com/case-study-recipes-app-ux-design/)
 
+### Pass 17 — dietary filter chips
+
+Fourth iteration of the overnight autonomous run. Continuing the same web research that drove pass
+16, "Advanced Filtering" was named directly — filtering by dietary preference, cooking time, or
+skill level as an expected discovery feature. This app already gained free-text search in pass 14
+(which does match dietary tag *labels*, e.g. typing "vegan" as a search term already worked), but a
+one-tap, no-typing-required filter chip is the more standard, more discoverable form of that
+specific check ("does this fit my restriction?") — search and chips solve different access
+patterns, not the same one twice.
+
+- **`Recipe.matchesDietaryFilter(_:)`** (`Recipe.swift`) — takes a `Set<DietaryTag>` and returns
+  whether the recipe has *every* tag in it (`requiredTags.isSubset(of: Set(dietaryTags))`).
+  Deliberately AND, not OR: someone filtering by both Vegan and Nut-Free has two real restrictions
+  to satisfy together, not a preference for either one — OR semantics would surface a vegan recipe
+  that isn't nut-free, which is exactly what this filter exists to prevent. An empty set matches
+  every recipe (no filter applied).
+- **`RecipeListView`** gained a horizontal row of toggleable chips (one per `DietaryTag`, always
+  all 5 regardless of the current result set — standard filter-UI behavior, not narrowed to only
+  tags something visible currently has), pinned above the list via `.safeAreaInset(edge: .top)` so
+  it stays visible while scrolling rather than taking up a list row. `displayedRecipes` now applies
+  this filter alongside favorites and search (favorites → search → dietary tags → sort, in that
+  order); `canReorder` was widened again to also require `selectedDietaryTags.isEmpty`, the same
+  "don't reorder against a filtered subset" guard as the favorites and search cases before it (see
+  pass 14) — all three now flow through the identical `canReorder`/`displayedRecipes` pattern
+  rather than each filter inventing its own variant of the same guard.
+
+**Testing**: `RecipeModelTests.swift` gained a `matchesDietaryFilter` section — empty filter,
+single-tag match/non-match, the AND-not-OR case (a recipe with only one of two required tags is
+correctly excluded), and a recipe with extra tags beyond what's required still matching (superset is
+fine). 153 → **158/158 CookingAppCoreTests passing**. Added
+`testDietaryFilterChipHidesRecipesMissingTheTag` to `CookingAppUITests.swift` (selecting the
+Vegetarian chip keeps Classic Scrambled Eggs, hides the non-vegetarian Pan-Seared Steak, and
+un-hides it again on a second tap) — built successfully, not run, same sandbox limitation as every
+UI test since pass 12. `xcodebuild build`/`build-for-testing` for the full `CookingApp` scheme —
+both **SUCCEEDED**.
+
+Sources consulted this pass (same search as pass 16 — see its write-up for the full list):
+- [User Experience Best Practices for Recipe Platforms](https://www.sidechef.com/business/recipe-platform/ux-best-practices-for-recipe-sites)
+
 ## 4. Known pitfalls
 
 - **A "mirror mode" was tried and then removed.** An earlier pass let two-person mode work on

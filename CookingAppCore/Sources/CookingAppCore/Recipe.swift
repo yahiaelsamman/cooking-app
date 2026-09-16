@@ -353,6 +353,15 @@ public final class Recipe {
         return false
     }
 
+    /// Whether this recipe satisfies every one of `requiredTags`, used by `RecipeListView`'s
+    /// dietary filter chips. Deliberately AND, not OR: someone filtering by both "Vegan" and
+    /// "Nut-Free" has two real restrictions to satisfy at once, not a preference for either one —
+    /// OR semantics would surface a vegan recipe with nuts in it, which is the one thing this
+    /// filter exists to prevent. An empty set matches every recipe (no filter applied).
+    public func matchesDietaryFilter(_ requiredTags: Set<DietaryTag>) -> Bool {
+        requiredTags.isSubset(of: Set(dietaryTags))
+    }
+
     /// The ordered list of steps visible to a given role.
     /// - `role: nil` — solo mode: `soloSteps`, in order.
     /// - `role: .personA` / `.personB` — that person's own steps plus every `.shared` step from

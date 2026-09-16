@@ -560,4 +560,47 @@ struct RecipeModelTests {
             ingredients: [Ingredient(name: "Shrimp", amount: "1 lb"), Ingredient(name: "Linguine", amount: "8 oz")]
         )
     }
+
+    // MARK: - Recipe.matchesDietaryFilter(_:) (backs RecipeListView's dietary filter chips)
+
+    @Test func emptyDietaryFilterMatchesEveryRecipe() {
+        let recipe = makeDietaryFilterTestRecipe(tags: [])
+        #expect(recipe.matchesDietaryFilter([]))
+    }
+
+    @Test func matchesWhenRecipeHasTheSingleRequiredTag() {
+        let recipe = makeDietaryFilterTestRecipe(tags: [.vegetarian])
+        #expect(recipe.matchesDietaryFilter([.vegetarian]))
+    }
+
+    @Test func doesNotMatchWhenRecipeIsMissingTheRequiredTag() {
+        let recipe = makeDietaryFilterTestRecipe(tags: [.vegetarian])
+        #expect(!recipe.matchesDietaryFilter([.vegan]))
+    }
+
+    @Test func requiresEveryFilterTagNotJustAny() {
+        // AND semantics: a recipe missing even one of several selected restrictions doesn't
+        // match — someone filtering for both Vegan and Nut-Free has two real restrictions, not a
+        // preference for either one (see the doc comment on `matchesDietaryFilter`).
+        let recipe = makeDietaryFilterTestRecipe(tags: [.vegetarian, .glutenFree])
+        #expect(!recipe.matchesDietaryFilter([.vegetarian, .nutFree]))
+    }
+
+    @Test func matchesWhenRecipeHasEveryRequiredTagPlusExtras() {
+        let recipe = makeDietaryFilterTestRecipe(tags: [.vegetarian, .vegan, .glutenFree, .nutFree])
+        #expect(recipe.matchesDietaryFilter([.vegetarian, .nutFree]))
+    }
+
+    private func makeDietaryFilterTestRecipe(tags: [DietaryTag]) -> Recipe {
+        Recipe(
+            title: "Test",
+            summary: "Test",
+            soloSteps: [RecipeStep(order: 0, instruction: "Do it.", assignee: .solo, imageSystemName: "star")],
+            iconSystemName: "star",
+            difficulty: 1,
+            soloCookTimeMinutes: 1,
+            dietaryTags: tags,
+            ingredients: [Ingredient(name: "Thing", amount: "1")]
+        )
+    }
 }

@@ -155,4 +155,19 @@ final class CookingAppUITests: XCTestCase {
         app.buttons["decreaseServingsButton"].tap()
         XCTAssertEqual(eggsAmount.label, "3")
     }
+
+    func testDietaryFilterChipHidesRecipesMissingTheTag() throws {
+        // Classic Scrambled Eggs is vegetarian; Pan-Seared Steak with Garlic Butter is not —
+        // selecting the Vegetarian chip should keep the former and hide the latter.
+        XCTAssertTrue(app.buttons["recipeRow_Pan-Seared Steak with Garlic Butter"].waitForExistence(timeout: 5))
+
+        app.buttons["dietaryFilterChip_vegetarian"].tap()
+
+        XCTAssertTrue(app.buttons["recipeRow_Classic Scrambled Eggs"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["recipeRow_Pan-Seared Steak with Garlic Butter"].exists, "a non-vegetarian recipe should be hidden while the Vegetarian filter is active")
+
+        // Tapping it again clears the filter.
+        app.buttons["dietaryFilterChip_vegetarian"].tap()
+        XCTAssertTrue(app.buttons["recipeRow_Pan-Seared Steak with Garlic Butter"].waitForExistence(timeout: 5))
+    }
 }
