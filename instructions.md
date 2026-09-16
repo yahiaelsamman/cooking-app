@@ -1114,6 +1114,41 @@ accidentally advance your own step, the original reason this tap absorbs at all)
 confirm the partner status row reads as one sentence and the color legend is reachable via the
 actions rotor, and that the progress slider announces both percentages.
 
+### End of the pass 14-20 overnight run
+
+The standing 8-hour autonomous window (see pass 14's intro) closes here. Summary of the full run,
+128 → **168/168 `CookingAppCoreTests` passing** (+40 tests), 8 commits, no regressions at any step
+(one flaky non-reproducing `swift test` report mid-pass-19, resolved by rerunning — see that pass's
+note):
+
+- **Pass 14**: recipe search + kept the screen awake during cooking.
+- **Pass 15**: servings-based ingredient scaling (`Ingredient.scaledAmount(by:)`).
+- **Pass 16**: VoiceOver accessibility for `StepView` and its subcomponents (previously zero).
+- **Pass 17**: dietary filter chips (AND semantics) on the recipe list.
+- **Pass 18**: an in-app shopping list, composing with pass 15's scaling.
+- **Pass 19**: cited USDA-safe internal temperatures for every chicken and ground-beef doneness
+  step, backed by regression tests against the exact wording convention.
+- **Pass 20**: a tap-to-explain connection-status legend + closed `PartnerStatusView`/
+  `DualProgressSliderView`'s accessibility gap.
+
+Every pass followed the same verification discipline: `swift test` (Core logic, run every pass) plus
+`xcodebuild build`/`build-for-testing` (compiles, never `xcodebuild test` — see pass 12/18's notes on
+why Simulator UI-automation and heavy simulator operations were deliberately avoided this run, since
+nobody was present to notice a stall or resource issue on the real host machine). New UI tests were
+added alongside every UI-facing change regardless (`CookingAppUITests.swift` gained 4 new tests this
+run) — written and build-verified, not run, consistent with every UI test since pass 12.
+
+**What's left open, worth picking up next**: the accessibility audit is still incomplete
+(`RecipeListView`, `RecipeDetailView` outside what passes 15/18 touched, `ShoppingListView`,
+`PeerConnectionView`, `WelcomeNameView`, `RecipeEditorView` — see §4's pitfalls entry); §5's
+longer-standing items (a two-person split editor, CloudKit sync, actually running `CookingAppUITests`
+on a normal interactive Mac) are all still untouched; and §6 still has the step-illustration-sizing
+and no-confirmation-before-cooking ideas unaddressed — the latter was considered this run and
+deliberately not built, since an extra confirmation tap on *every* "Start Cooking" press is real
+friction for repeat cooking of the same recipe, and there was no clear way to scope it to "only the
+first time" without a new persisted field that felt like more machinery than the idea's own value
+justified; worth another look with a more concrete design rather than defaulting to skipping it again.
+
 ## 4. Known pitfalls
 
 - **A "mirror mode" was tried and then removed.** An earlier pass let two-person mode work on
