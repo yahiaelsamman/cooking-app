@@ -41,5 +41,16 @@ struct HoldToFinishButton: View {
             isHolding = pressing
             holdProgress = pressing ? 1 : 0
         }
+        // A long-press gesture has no reliable VoiceOver equivalent — without this, the one
+        // control that finishes a solo cook-through would be effectively unreachable by a
+        // screen-reader user. `accessibilityAction` adds a real alternate path (a plain double
+        // tap) alongside the hold gesture; it doesn't remove the hold requirement for anyone not
+        // using VoiceOver, so the accidental-tap protection this button exists for is unaffected.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Finish Recipe")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction {
+            onFinish()
+        }
     }
 }

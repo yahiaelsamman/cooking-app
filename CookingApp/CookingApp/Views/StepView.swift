@@ -178,16 +178,31 @@ struct StepView: View {
 
             if let step = session.currentStep {
                 VStack(spacing: 20) {
-                    PlaceholderPhotoView(systemImage: step.imageSystemName, tint: stepTint(for: step))
-                        .frame(width: 220, height: 160)
+                    // Grouped into one VoiceOver element (rather than a separately-focusable
+                    // image and text) with an explicit "next step" action — the tap-to-advance
+                    // gesture below only fires on a real touch, which VoiceOver intercepts for
+                    // its own navigation, so without this a VoiceOver user would have no way to
+                    // move forward at all.
+                    Group {
+                        PlaceholderPhotoView(systemImage: step.imageSystemName, tint: stepTint(for: step))
+                            .frame(width: 220, height: 160)
 
-                    Text(step.instruction)
-                        .font(.system(size: 30, weight: .semibold))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                        // Legibility comes first: the illustration sits above, text is never
-                        // squeezed or overlapped by it.
-                        .fixedSize(horizontal: false, vertical: true)
+                        Text(step.instruction)
+                            .font(.system(size: 30, weight: .semibold))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                            // Legibility comes first: the illustration sits above, text is never
+                            // squeezed or overlapped by it.
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(session.progressText). \(step.instruction)")
+                    .accessibilityAddTraits(session.isLastStep ? [] : .isButton)
+                    .accessibilityHint(session.isLastStep ? "" : "Double tap to go to the next step")
+                    .accessibilityAction {
+                        guard !session.isLastStep else { return }
+                        session.advance()
+                    }
 
                     StepTimerControl(step: step, session: session)
                 }
@@ -260,6 +275,10 @@ struct StepView: View {
                     .foregroundStyle(.secondary)
             }
             .padding()
+            // An icon-only button synthesizes a poor default VoiceOver label ("chevron left
+            // circle fill") — this also doubles as the one VoiceOver-reachable way to go back a
+            // step, since the swipe-back gesture isn't reliably available while VoiceOver is on.
+            .accessibilityLabel(session.currentIndex == 0 ? "Back to recipe overview" : "Previous step")
 
             Spacer()
         }

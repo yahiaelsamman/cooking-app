@@ -19,6 +19,10 @@ struct StepTimerControl: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.orange)
+                // Without this, VoiceOver reads only the raw digits ("3 59, button") with no
+                // indication tapping cancels the timer.
+                .accessibilityLabel("Cancel timer")
+                .accessibilityValue("\(Self.formatted(running.remainingSeconds)) remaining")
             } else {
                 Button {
                     session.startTimer(for: step)

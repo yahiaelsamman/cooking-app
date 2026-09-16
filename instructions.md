@@ -848,6 +848,74 @@ passing**. Added `testServingsStepperScalesIngredientAmountsLive` to `CookingApp
 `xcodebuild build-for-testing`, not run, same sandbox limitation as every UI test since pass 12.
 `xcodebuild build`/`build-for-testing` for the full `CookingApp` scheme — both **SUCCEEDED**.
 
+### Pass 16 — a VoiceOver accessibility pass over the step screen
+
+Third iteration of the overnight autonomous run. This one was prompted directly by outside
+research rather than the project's own backlog: a web search on current recipe-app UX conventions
+(see this pass's sources) called out "screen readers must interpret ingredients, instructions, and
+image descriptions — accessibility shouldn't be an afterthought" as a named best practice, which
+prompted actually auditing this app against it rather than assuming the existing
+`accessibilityIdentifier`s (added for XCUITest addressing, a different concern) meant VoiceOver
+support existed too. It didn't: `StepView` — the screen this entire app is built around — had zero
+`accessibilityLabel`/`accessibilityAction` usage before this pass, and several of its subcomponents
+were no better.
+
+Concretely broken for a VoiceOver user, before this pass:
+- **No way to advance to the next step at all.** The tap-to-advance gesture is a real
+  `.onTapGesture`, which VoiceOver intercepts for its own navigation rather than passing through —
+  there was no accessible action standing in for it.
+- **The back button** (an icon-only `chevron.left.circle.fill`) had no label, so VoiceOver would
+  synthesize something like "chevron left circle fill" instead of saying what it does.
+- **`HoldToFinishButton`** — the *only* way to finish a solo recipe — had no label or accessible
+  action at all, and a long-press gesture has no dependable VoiceOver equivalent to begin with.
+- **`StarRatingView`'s 5 rating buttons**, **`DifficultyStarsView`**, and **`SpiceLevelView`** all
+  read as indistinguishable repeated "star"/"flame" fragments with no indication of what they
+  represented or which one you'd just focused.
+- **`TimerStackView`'s timer chips** and the running-timer cancel button in `StepTimerControl` read
+  as disconnected fragments (an untitled icon, then instruction text, then bare digits) rather than
+  one clear "Partner's timer: Sear the steak, 3:59 remaining."
+
+Fixed all of these:
+- The step-content area (illustration + instruction text, `StepView.swift`) is now one combined
+  accessibility element labeled `"<progress>. <instruction>"` with an `.isButton` trait and a
+  default `accessibilityAction` that advances — deliberately scoped to exclude `StepTimerControl`
+  (kept as its own separately-focusable button) rather than combining the whole step, which would
+  have swallowed it.
+- The back button now labels itself "Back to recipe overview" or "Previous step" depending on
+  which it actually does at the current index — matching, not just narrating, its real behavior.
+- `HoldToFinishButton` gained a label ("Finish Recipe") and an `accessibilityAction` that calls
+  `onFinish()` directly — a real alternate path around the hold gesture, added *alongside* it
+  rather than replacing it, so the accidental-tap protection this button exists for (see its own
+  doc comment) is unaffected for anyone not using VoiceOver.
+- `StarRatingView` labels each interactive star ("3 stars") and, in its non-interactive readout
+  mode (the recipe list row), combines all 5 into one "Rating: 4 out of 5 stars" — via a small
+  `NonInteractiveSummary` `ViewModifier` rather than a conditional accessibility call, since the
+  interactive mode's 5 buttons must stay individually focusable and the non-interactive mode's 5
+  images must not. `DifficultyStarsView`/`SpiceLevelView` got the same combined-summary treatment
+  unconditionally (they're always decorative, never individually interactive).
+- `TimerStackView` chips and `StepTimerControl`'s cancel button now carry real
+  `accessibilityLabel`/`accessibilityValue` text describing whose timer it is, what it's timing,
+  and how much time is left (or that tapping cancels it).
+
+**Testing**: this is view-layer-only, like every other SwiftUI-specific behavior in this app (§3) —
+no `CookingAppCoreTests` coverage applies, and it can't be verified by `xcodebuild build` beyond
+"compiles." No automated VoiceOver testing exists in this sandbox any more than XCUITest's own
+touch automation does (see pass 12) — added to the manual verification checklist below instead.
+135 → still 153/153 `CookingAppCoreTests` passing (no Core changes this pass); `xcodebuild build`
+and `build-for-testing` for the full `CookingApp` scheme both **SUCCEEDED**.
+
+**Added to the manual verification checklist** (§3): with VoiceOver on, confirm you can read
+through and complete an entire solo recipe using only VoiceOver gestures — swipe to focus each
+element, double-tap the step content to advance, double-tap the back button to go back a step or
+leave, and use the Finish Recipe action (via the actions rotor) on the last step instead of the
+hold gesture; separately confirm the star/difficulty/spice/timer-chip readouts announce a complete,
+sensible sentence rather than a string of bare "star"/"flame"/digit fragments.
+
+Sources consulted this pass:
+- [User Experience Best Practices for Recipe Platforms](https://www.sidechef.com/business/recipe-platform/ux-best-practices-for-recipe-sites)
+- [Best Features to Look for in Recipe Apps — OrganizEat](https://home.organizeat.com/blog/best-features-to-look-for-in-recipe-apps/)
+- [Case Study: Perfect Recipes App — UX Design for Cooking and Shopping (Tubik Studio)](https://blog.tubikstudio.com/case-study-recipes-app-ux-design/)
+
 ## 4. Known pitfalls
 
 - **A "mirror mode" was tried and then removed.** An earlier pass let two-person mode work on
@@ -933,6 +1001,14 @@ passing**. Added `testServingsStepperScalesIngredientAmountsLive` to `CookingApp
   fully-reverted debug hack in `RecipeListView` to auto-navigate to a screen for a screenshot (see
   pass 7's note in §3) — there was no accessibility automation (`osascript`/System Events) or
   XCUITest target in this sandbox at all until pass 12 (see above for its current status).
+- **VoiceOver support was never actually audited before pass 15/16** — this sandbox's own lack of
+  accessibility automation (see above) meant the existing `accessibilityIdentifier`s (added starting
+  pass 12, for XCUITest *element addressing*) could be mistaken for real screen-reader support, but
+  they're a different concern entirely: an `accessibilityIdentifier` is invisible to VoiceOver users,
+  only to test code. Pass 16 audited and fixed `StepView` and its subcomponents specifically (see its
+  write-up in §3) — other screens (`RecipeListView`, `RecipeDetailView` outside the servings
+  stepper/ingredients row, `PeerConnectionView`, `WelcomeNameView`, `RecipeEditorView`) haven't had
+  the same audit yet and may have similar gaps.
 
 ## 5. Next steps (explicitly deferred)
 

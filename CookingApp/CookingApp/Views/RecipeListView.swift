@@ -300,6 +300,10 @@ struct DifficultyStarsView: View {
                 Image(systemName: position <= difficulty ? "star.fill" : "star")
             }
         }
+        // Otherwise VoiceOver reads 3 indistinguishable "star"/"star fill" images with no
+        // indication of what they're rating.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Difficulty: \(difficulty) out of 3")
     }
 }
 
@@ -316,5 +320,7 @@ struct SpiceLevelView: View {
             }
         }
         .foregroundStyle(.red)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Spice level: \(spiceLevel) out of 3")
     }
 }

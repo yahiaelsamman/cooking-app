@@ -20,6 +20,9 @@ struct StarRatingView: View {
                         Image(systemName: filled ? "star.fill" : "star")
                     }
                     .buttonStyle(.plain)
+                    // Otherwise every one of the 5 buttons reads as an indistinguishable
+                    // "star, button" / "star fill, button" to VoiceOver.
+                    .accessibilityLabel("\(value) star\(value == 1 ? "" : "s")")
                 } else {
                     Image(systemName: filled ? "star.fill" : "star")
                 }
@@ -27,5 +30,31 @@ struct StarRatingView: View {
         }
         .font(interactive ? .title2 : .caption2)
         .foregroundStyle(.yellow)
+        .modifier(NonInteractiveSummary(isApplied: !interactive, summary: ratingSummary))
+    }
+
+    private var ratingSummary: String {
+        guard let rating else { return "Not rated" }
+        return "Rating: \(rating) out of 5 stars"
+    }
+}
+
+/// Applied only to the non-interactive display mode — the recipe list row's 5 star images have
+/// nothing to individually focus, so they're combined into one clear summary ("Rating: 4 out of 5
+/// stars") instead of VoiceOver reading 5 fragmented, indistinguishable "star" images. Left as a
+/// no-op for the interactive mode, whose 5 buttons need to stay separately focusable/tappable —
+/// combining them would make individual stars unreachable.
+private struct NonInteractiveSummary: ViewModifier {
+    let isApplied: Bool
+    let summary: String
+
+    func body(content: Content) -> some View {
+        if isApplied {
+            content
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(summary)
+        } else {
+            content
+        }
     }
 }

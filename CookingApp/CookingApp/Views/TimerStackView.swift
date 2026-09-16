@@ -35,6 +35,10 @@ struct TimerStackView: View {
         .background((info.isMine ? Color.accentColor : .orange).opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
         .onTapGesture {} // absorb — don't advance the current step when tapping a timer chip
+        // Otherwise reads as three disconnected fragments ("timer" image, instruction, digits) —
+        // one label makes it clear whose timer it is and how much time is left.
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(info.isMine ? "Your timer" : "Partner's timer"): \(info.step.instruction), \(StepTimerControl.formatted(info.remainingSeconds)) remaining")
     }
 }
 
