@@ -23,6 +23,7 @@ struct RecipeListView: View {
     @State private var sortMode: RecipeSortMode = .alphabetical
     @State private var showFavoritesOnly = false
     @State private var showAddRecipe = false
+    @State private var showShoppingList = false
     @State private var searchText = ""
     @State private var selectedDietaryTags: Set<DietaryTag> = []
 
@@ -96,6 +97,15 @@ struct RecipeListView: View {
                     .accessibilityLabel(showFavoritesOnly ? "Show all recipes" : "Show favorites only")
                     .accessibilityIdentifier("favoritesFilterButton")
                 }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showShoppingList = true
+                    } label: {
+                        Image(systemName: "cart")
+                    }
+                    .accessibilityLabel("Shopping List")
+                    .accessibilityIdentifier("shoppingListButton")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Picker("Sort", selection: $sortMode) {
                         ForEach(RecipeSortMode.allCases) { mode in
@@ -145,6 +155,9 @@ struct RecipeListView: View {
             }
             .sheet(isPresented: $showAddRecipe) {
                 RecipeEditorView()
+            }
+            .sheet(isPresented: $showShoppingList) {
+                ShoppingListView()
             }
         }
     }

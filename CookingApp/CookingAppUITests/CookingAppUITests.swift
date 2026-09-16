@@ -170,4 +170,21 @@ final class CookingAppUITests: XCTestCase {
         app.buttons["dietaryFilterChip_vegetarian"].tap()
         XCTAssertTrue(app.buttons["recipeRow_Pan-Seared Steak with Garlic Butter"].waitForExistence(timeout: 5))
     }
+
+    func testAddToShoppingListAddsIngredientsAndClearingChecksThemOff() throws {
+        let row = app.buttons["recipeRow_Classic Scrambled Eggs"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+
+        app.buttons["addToShoppingListButton"].tap()
+        app.navigationBars.buttons["Recipes"].tap()
+
+        app.buttons["shoppingListButton"].tap()
+        let eggsItem = app.buttons["shoppingListItem_Large eggs"]
+        XCTAssertTrue(eggsItem.waitForExistence(timeout: 5), "the recipe's ingredients should have been added to the shopping list")
+
+        eggsItem.tap()
+        app.buttons["clearCheckedItemsButton"].tap()
+        XCTAssertFalse(eggsItem.exists, "clearing checked items should remove them from the list")
+    }
 }

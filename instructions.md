@@ -955,6 +955,67 @@ both **SUCCEEDED**.
 Sources consulted this pass (same search as pass 16 — see its write-up for the full list):
 - [User Experience Best Practices for Recipe Platforms](https://www.sidechef.com/business/recipe-platform/ux-best-practices-for-recipe-sites)
 
+### Pass 18 — an in-app shopping list
+
+Fifth iteration of the overnight autonomous run, and the biggest single feature of it. The same web
+research behind passes 16-17 named this directly: "automated grocery list generation is the feature
+users consistently describe as the most practically useful" in a recipe app. Scoped down from
+"automated" in the sense that research implies (parsing/merging quantities across units) to what
+this app's ingredient data model can do honestly — see below — but the core value (don't retype your
+ingredients onto a separate paper list) is the same.
+
+- **`ShoppingListItem.swift`** (new, `CookingAppCore`) — a second `@Model` type alongside `Recipe`.
+  Deliberately *not* a relationship back to the recipe it came from: a shopping list item is a
+  snapshot of "I need to buy this," unaffected if the source recipe is later edited or deleted, so
+  `sourceRecipeTitle` is plain display text, not a reference. `ShoppingListItem.itemsToAdd(for:
+  scaleFactor:existingItems:)` is the actual logic: scales each ingredient by the recipe's current
+  servings selection (reusing `Ingredient.scaledAmount(by:)` from pass 15 — the two features compose
+  directly, so the list reflects what you'll actually buy for however many people you're cooking
+  for) and skips any ingredient that already has an *unchecked* item on the list with the same name
+  (case-insensitive) and amount, so re-tapping "Add to Shopping List" is idempotent rather than
+  piling up duplicate rows. A checked-off item doesn't block a future re-add — once it's bought and
+  checked, cooking the recipe again should let it back onto the list for next time. Deliberately
+  does **not** attempt to merge different amounts of the same ingredient across recipes ("2 tbsp"
+  from one recipe and "1/4 cup" from another stay two separate lines) — `Ingredient.amount` is free
+  text (see its own doc comment, pass 15), and silently guessing a combined total would be dishonest
+  in a way two separate correct lines aren't.
+- **`ShoppingListView.swift`** (new) — a `@Query`-backed list, sectioned "To Buy" / "Checked Off",
+  tapping a row toggles checked (strikethrough + secondary color), swipe-to-delete either section, a
+  "Clear Checked" toolbar button. Presented as a sheet from a new cart toolbar button on
+  `RecipeListView`, the same pattern `RecipeEditorView`/`WelcomeNameView` already use for a screen
+  outside the core recipe-browsing/cooking navigation stack — not a `Route` case, since it doesn't
+  need the `path` at all.
+- **`RecipeDetailView.swift`** gained an "Add to Shopping List" toolbar button (cart-plus icon,
+  briefly swaps to a checkmark for 1.5s as the only feedback that the tap did anything — the
+  shopping list itself lives in a separate sheet, so without this there'd be no visible confirmation
+  at all) that calls `ShoppingListItem.itemsToAdd` with the current `servingsScaleFactor`.
+- **`CookingAppApp.swift`**: `ModelContainer` now also declares `ShoppingListItem.self` — needed for
+  both the real on-device store and the `-UITesting` in-memory one.
+- **A real environment gotcha hit and fixed this pass**: adding `ShoppingListView.swift` under
+  `CookingApp/CookingApp/Views/` isn't enough by itself — this is an XcodeGen-generated project (see
+  §2), so the new file didn't compile into the target until `xcodegen generate` was re-run from
+  `CookingApp/`, exactly as §2's own instructions already say. Regenerating reset
+  `project.pbxproj`'s `DEVELOPMENT_TEAM` signing setting (a locally-configured value, not tracked by
+  `project.yml`) back to unset — caught by diffing the regenerated file against git before
+  committing, and manually restored to its prior value. Worth remembering for next time: **any**
+  `xcodegen generate` run in this repo will silently drop that local setting again, since
+  `project.yml` doesn't declare it.
+
+**Testing**: new `ShoppingListItemTests.swift` — empty-list add, scaling integration, same-recipe
+re-add producing no duplicates, case-insensitive name dedup, a checked-off item not blocking re-add,
+a different scale factor correctly *not* being treated as a duplicate, and the cross-recipe cases
+(identical name+amount from two different recipes dedupes; different amounts of the same ingredient
+from two different recipes do not merge or drop either one). 158 → **166/166 CookingAppCoreTests
+passing**. Added `testAddToShoppingListAddsIngredientsAndClearingChecksThemOff` to
+`CookingAppUITests.swift` — built successfully, not run, same sandbox limitation as every UI test
+since pass 12. `xcodebuild build`/`build-for-testing` for the full `CookingApp` scheme — both
+**SUCCEEDED**.
+
+**Added to the manual verification checklist** (§3): add a recipe's ingredients to the shopping
+list, change its servings first and confirm the added amounts reflect the new scale, check a few
+items off, use "Clear Checked" and confirm only those disappear, and confirm re-adding the same
+recipe at the same servings doesn't create duplicate rows while re-adding after clearing does.
+
 ## 4. Known pitfalls
 
 - **A "mirror mode" was tried and then removed.** An earlier pass let two-person mode work on
@@ -1048,6 +1109,13 @@ Sources consulted this pass (same search as pass 16 — see its write-up for the
   write-up in §3) — other screens (`RecipeListView`, `RecipeDetailView` outside the servings
   stepper/ingredients row, `PeerConnectionView`, `WelcomeNameView`, `RecipeEditorView`) haven't had
   the same audit yet and may have similar gaps.
+- **`xcodegen generate` silently resets the local `DEVELOPMENT_TEAM` signing setting** *(hit in
+  pass 18)* — it's a value someone sets locally in Xcode (see §2 step 2), not declared anywhere in
+  `project.yml`, so every regeneration drops it back to unset. Necessary any time a new source file
+  is added under `CookingApp/CookingApp/` (§2's own instructions already say this) or `project.yml`
+  changes — after running it, check `git diff` on `project.pbxproj` for a removed `DEVELOPMENT_TEAM`
+  line before committing, and re-add it (or just re-select your team in Xcode's Signing &
+  Capabilities) if it's gone.
 
 ## 5. Next steps (explicitly deferred)
 

@@ -25,6 +25,10 @@ struct RecipeDetailView: View {
     /// "how many people am I cooking for right now," not a durable preference about the recipe
     /// itself.
     @State private var targetServings: Int
+    /// Briefly swaps the "Add to Shopping List" toolbar icon to a checkmark after tapping it —
+    /// the action itself has no other visible effect on this screen (the list it updates is a
+    /// separate sheet), so without this there'd be no confirmation the tap did anything at all.
+    @State private var justAddedToShoppingList = false
 
     init(recipe: Recipe, path: Binding<NavigationPath>) {
         self.recipe = recipe
@@ -78,6 +82,16 @@ struct RecipeDetailView: View {
                 }
                 .accessibilityLabel(recipe.isFavorite ? "Remove from favorites" : "Add to favorites")
                 .accessibilityIdentifier("detailFavoriteButton")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    addIngredientsToShoppingList()
+                } label: {
+                    Image(systemName: justAddedToShoppingList ? "checkmark.circle.fill" : "cart.badge.plus")
+                        .foregroundStyle(justAddedToShoppingList ? .green : Color.accentColor)
+                }
+                .accessibilityLabel("Add to Shopping List")
+                .accessibilityIdentifier("addToShoppingListButton")
             }
         }
         .sheet(isPresented: $showEditRecipe) {
@@ -343,5 +357,22 @@ struct RecipeDetailView: View {
         path = NavigationPath()
         modelContext.delete(recipe)
         try? modelContext.save()
+    }
+
+    /// Adds this recipe's ingredients — at whatever serving count the stepper is currently set
+    /// to, see `servingsScaleFactor` — to the shared shopping list. `ShoppingListItem.itemsToAdd`
+    /// does the actual dedup-against-what's-already-there logic; this just fetches the current
+    /// list to hand it and persists whatever comes back.
+    private func addIngredientsToShoppingList() {
+        let existingItems = (try? modelContext.fetch(FetchDescriptor<ShoppingListItem>())) ?? []
+        let newItems = ShoppingListItem.itemsToAdd(for: recipe, scaleFactor: servingsScaleFactor, existingItems: existingItems)
+        for item in newItems { modelContext.insert(item) }
+        try? modelContext.save()
+
+        justAddedToShoppingList = true
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            justAddedToShoppingList = false
+        }
     }
 }
