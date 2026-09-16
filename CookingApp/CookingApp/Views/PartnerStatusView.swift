@@ -7,6 +7,11 @@ import CookingAppCore
 /// "advance" gesture underneath and accidentally skip the local user's own step.
 struct PartnerStatusView: View {
     let session: CookingSessionViewModel
+    /// The tap gesture on this whole card used to be a pure no-op, purely to absorb taps so they
+    /// don't fall through to `StepView`'s full-screen "advance" gesture underneath. Now that
+    /// there's something worth showing on tap, it still absorbs the tap either way — nothing
+    /// about that original purpose changes.
+    @State private var showStatusExplanation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -39,6 +44,16 @@ struct PartnerStatusView: View {
                         .frame(width: 28, height: 28)
                 }
             }
+            // Otherwise VoiceOver reads the dot (nothing), name, status text, and preview icon as
+            // separate fragments — one label says the same thing a glance already does, and the
+            // color explanation below is reachable without sight at all via the same action a
+            // sighted tap triggers.
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(partnerLabel). \(statusText)")
+            .accessibilityHint("Double tap to learn what the connection status colors mean")
+            .accessibilityAction {
+                showStatusExplanation = true
+            }
 
             if session.partnerConnectionState == .connected, let partnerFraction = session.partnerProgressFraction {
                 DualProgressSliderView(myFraction: session.progressFraction, partnerFraction: partnerFraction)
@@ -47,7 +62,14 @@ struct PartnerStatusView: View {
         .padding(10)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
         .contentShape(Rectangle())
-        .onTapGesture {}
+        .onTapGesture {
+            showStatusExplanation = true
+        }
+        .alert("Connection Status Colors", isPresented: $showStatusExplanation) {
+            Button("OK") {}
+        } message: {
+            Text("Green: connected and active. Blue: connected, but they've stepped away. Yellow: connecting. Red: disconnected — you can keep cooking on your own.")
+        }
     }
 
     private var partnerLabel: String {

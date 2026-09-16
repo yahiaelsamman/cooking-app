@@ -28,6 +28,17 @@ struct DualProgressSliderView: View {
             }
         }
         .frame(height: markerSize)
+        // Purely graphical otherwise — two colored dots on a bar convey nothing to VoiceOver
+        // without an explicit label.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(progressSummary)
+    }
+
+    private var progressSummary: String {
+        let mine = Int((myFraction * 100).rounded())
+        guard let partnerFraction else { return "Your progress: \(mine)%" }
+        let partner = Int((partnerFraction * 100).rounded())
+        return "Your progress: \(mine)%. Partner's progress: \(partner)%."
     }
 
     private func marker(color: Color, systemImage: String) -> some View {

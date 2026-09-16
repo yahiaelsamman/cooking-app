@@ -1073,6 +1073,47 @@ Sources consulted this pass:
 - [Cooking Meat: Is It Done Yet? — USDA](https://www.usda.gov/about-usda/news/blog/cooking-meat-it-done-yet)
 - [Safe Minimum Internal Temperature Chart — USDA Food Safety and Inspection Service](https://www.fsis.usda.gov/food-safety/safe-food-handling-and-preparation/food-safety-basics/safe-temperature-chart)
 
+### Pass 20 — partner status: a tap-to-explain legend, and closing an accessibility gap
+
+Eighth iteration of the overnight autonomous run. Two things converged on the same file: §6's own
+"the partner's connection-state dot (green/yellow/red) has no explanation on tap" idea, and the
+accessibility-audit gap flagged in §4 after pass 16 ("other screens haven't had the same audit yet")
+— `PartnerStatusView` and `DualProgressSliderView` both turned out to have zero accessibility
+support, the same starting point `StepView` had before pass 16.
+
+- **`PartnerStatusView.swift`**: the card's tap gesture used to be a pure no-op that existed only
+  to absorb taps (so they wouldn't fall through to `StepView`'s full-screen "advance" gesture
+  underneath) — it now shows an alert explaining what each status color means ("Green: connected
+  and active. Blue: connected, but they've stepped away. Yellow: connecting. Red: disconnected —
+  you can keep cooking on your own."), while still absorbing the tap exactly as before either way.
+  The name/status/preview-icon row is now one combined VoiceOver element (`"<partner>. <status>"`)
+  with the same explanation reachable as an `accessibilityAction`, rather than three or four
+  separately-focused fragments and no color meaning conveyed to a screen-reader user at all (color
+  alone never was, for VoiceOver — this pass is what actually fixes that, not just the sighted-tap
+  convenience).
+- **`DualProgressSliderView.swift`** — was purely graphical (two colored dots on a bar), completely
+  silent to VoiceOver. Now reports `"Your progress: 60%. Partner's progress: 40%."` as one combined
+  label instead of nothing.
+
+Scoped narrowly to these two files rather than continuing the full remaining-screens audit
+(`RecipeListView`, `WelcomeNameView`, `RecipeEditorView`, `PeerConnectionView` still haven't had one
+— see §4) — a systematic sweep for icon-only `Button`s with `Image(systemName:)` and no
+`accessibilityLabel` across every view found no further un-labeled icon buttons outside what passes
+16/20 already fixed (`RecipeEditorView`/`PeerConnectionView` only use `Image(systemName:)` inside
+`Label`s, which already carry accessible text), but the full pattern audit pass 16 did for `StepView`
+specifically (combined-element treatment, custom actions) hasn't been repeated for those remaining
+screens yet.
+
+**Testing**: view-layer only, same as passes 16 (StepView) and 18 (ShoppingListView) — no
+`CookingAppCoreTests` coverage applies. 168/168 tests still passing (no Core changes this pass);
+`xcodebuild build`/`build-for-testing` for the full `CookingApp` scheme — both **SUCCEEDED**.
+
+**Added to the manual verification checklist** (§3): during a two-person session, tap the partner
+status card and confirm the color-legend alert appears (and that a genuine tap still doesn't
+accidentally advance your own step, the original reason this tap absorbs at all); with VoiceOver on,
+confirm the partner status row reads as one sentence and the color legend is reachable via the
+actions rotor, and that the progress slider announces both percentages.
+
 ## 4. Known pitfalls
 
 - **A "mirror mode" was tried and then removed.** An earlier pass let two-person mode work on
@@ -1163,9 +1204,13 @@ Sources consulted this pass:
   pass 12, for XCUITest *element addressing*) could be mistaken for real screen-reader support, but
   they're a different concern entirely: an `accessibilityIdentifier` is invisible to VoiceOver users,
   only to test code. Pass 16 audited and fixed `StepView` and its subcomponents specifically (see its
-  write-up in §3) — other screens (`RecipeListView`, `RecipeDetailView` outside the servings
-  stepper/ingredients row, `PeerConnectionView`, `WelcomeNameView`, `RecipeEditorView`) haven't had
-  the same audit yet and may have similar gaps.
+  write-up in §3); pass 20 did the same for `PartnerStatusView`/`DualProgressSliderView`. Still not
+  audited (`RecipeListView`, `RecipeDetailView` outside the servings stepper/ingredients row,
+  `ShoppingListView`, `PeerConnectionView`, `WelcomeNameView`, `RecipeEditorView`) and may have
+  similar gaps — a quick check across every view for icon-only `Button`s missing
+  `accessibilityLabel` (pass 20) found none outside what's already fixed, but that's a narrower
+  check than the full combined-element/custom-action treatment `StepView` and `PartnerStatusView`
+  got.
 - **`xcodegen generate` silently resets the local `DEVELOPMENT_TEAM` signing setting** *(hit in
   pass 18)* — it's a value someone sets locally in Xcode (see §2 step 2), not declared anywhere in
   `project.yml`, so every regeneration drops it back to unset. Necessary any time a new source file
@@ -1241,7 +1286,8 @@ Sources consulted this pass:
   need to see" needs; the layout doesn't distinguish them.
 - ~~**Nothing scales ingredient quantities to a different serving count**~~ — done (pass 15): a
   servings stepper on the detail screen scales each ingredient's leading numeric quantity live.
-- **The partner's connection-state dot (green/yellow/red) has no explanation on tap.**
+- ~~**The partner's connection-state dot (green/yellow/red) has no explanation on tap.**~~ — done
+  (pass 20): tapping the partner status card shows a plain-language legend.
 - **No confirmation before "Start Cooking" leaves the overview screen** — for an unfamiliar
   recipe, a brief "you won't see the full ingredient list again until you finish" nudge might help.
 - **Difficulty and spice level are my own back-of-envelope calls**, not calibrated against
