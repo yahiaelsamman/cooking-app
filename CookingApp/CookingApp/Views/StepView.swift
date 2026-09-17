@@ -22,10 +22,70 @@ struct StepView: View {
     @State private var showIngredientChecklist = false
     @State private var checkedIngredientIDs: Set<Ingredient.ID> = []
     @AppStorage("cookExpertise") private var cookExpertiseRaw: String = CookExpertise.intermediate.rawValue
-    @AppStorage("hasSeenStepCoachMarks") private var hasSeenStepCoachMarks = false
+    @AppStorage("hasSeenStepTour") private var hasSeenStepTour = false
+    @AppStorage("hasSeenTimerTourTip") private var hasSeenTimerTourTip = false
+    @AppStorage("hasSeenFinishTourTip") private var hasSeenFinishTourTip = false
+    @State private var tour = AppTour()
+    /// Which "have I seen this" flag to flip once `tour` finishes — the step screen runs three
+    /// independent one-time walkthroughs (the front-loaded gesture tour, plus two dynamic tips
+    /// that only make sense once you actually reach a timed step / the last step), all through
+    /// this one `AppTour` instance, so something has to remember which is currently running.
+    @State private var activeTourKind: StepTourKind?
 
     private var cookExpertise: CookExpertise {
         CookExpertise(rawValue: cookExpertiseRaw) ?? .intermediate
+    }
+
+    private enum StepTourKind {
+        case gestures, timer, finish
+    }
+
+    private var gestureTourSteps: [TourStep] {
+        [
+            TourStep(
+                target: "stepAdvance",
+                title: "Move Through the Recipe",
+                message: "Tap anywhere, or swipe left, to move to the next step."
+            ),
+            TourStep(
+                target: "ingredientChecklistButton",
+                title: "Ingredient Checklist",
+                message: "Tap here anytime to check off ingredients as you use them."
+            ),
+            TourStep(
+                id: "stepBack",
+                title: "Going Back",
+                message: "Use the arrow in the bottom-left corner anytime you need to go back a step."
+            )
+        ]
+    }
+
+    /// Called on appear and every time the current step (or the tour) changes — picks whichever
+    /// one-time tip is now due, but never interrupts one that's already showing.
+    private func beginNextTourIfNeeded() {
+        guard !tour.isActive else { return }
+        if !hasSeenStepTour {
+            activeTourKind = .gestures
+            tour.begin(gestureTourSteps)
+        } else if let step = session.currentStep, step.timerSeconds != nil, !hasSeenTimerTourTip {
+            activeTourKind = .timer
+            tour.begin([
+                TourStep(
+                    target: "stepTimerButton",
+                    title: "Timers",
+                    message: "Tap here to start a timer for this step — it keeps counting down even if you move to another step."
+                )
+            ])
+        } else if session.isLastStep, !hasSeenFinishTourTip {
+            activeTourKind = .finish
+            tour.begin([
+                TourStep(
+                    target: "holdToFinishButton",
+                    title: "Finishing Up",
+                    message: "Press and hold the checkmark for a second to finish cooking."
+                )
+            ])
+        }
     }
 
     /// True once both people have actually finished the recipe — my own last step, and the
@@ -46,12 +106,6 @@ struct StepView: View {
             }
 
             timerFinishedBannerStack
-
-            if !session.isComplete && !hasSeenStepCoachMarks {
-                StepCoachMarkOverlay(expertise: cookExpertise) {
-                    hasSeenStepCoachMarks = true
-                }
-            }
         }
         .navigationBarBackButtonHidden(true)
         .disablesInteractiveSwipeBack()
@@ -60,11 +114,13 @@ struct StepView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         showIngredientChecklist = true
+                        tour.notify("ingredientChecklistButton")
                     } label: {
                         Image(systemName: "checklist")
                     }
                     .accessibilityLabel("Ingredients")
                     .accessibilityIdentifier("ingredientChecklistButton")
+                    .tourAnchor("ingredientChecklistButton")
                 }
             }
             if session.role != nil && !session.isComplete && session.partnerConnectionState != .idle {
@@ -75,6 +131,25 @@ struct StepView: View {
                     .font(.caption)
                 }
             }
+        }
+        .overlayPreferenceValue(TourAnchorPreferenceKey.self) { anchors in
+            if !session.isComplete {
+                TourSpotlight(tour: tour, anchors: anchors)
+            }
+        }
+        .onChange(of: tour.isActive) { wasActive, isActive in
+            guard wasActive && !isActive else { return }
+            switch activeTourKind {
+            case .gestures: hasSeenStepTour = true
+            case .timer: hasSeenTimerTourTip = true
+            case .finish: hasSeenFinishTourTip = true
+            case nil: break
+            }
+            activeTourKind = nil
+            beginNextTourIfNeeded()
+        }
+        .onChange(of: session.currentStep?.id) { _, _ in
+            beginNextTourIfNeeded()
         }
         .sheet(isPresented: $showIngredientChecklist) {
             IngredientChecklistView(ingredients: session.recipe.ingredients, checkedIDs: $checkedIngredientIDs)
@@ -118,6 +193,9 @@ struct StepView: View {
             // screen mid-step is a real interruption, not a minor one. Every mainstream recipe
             // app disables the idle timer for exactly this reason while a step is on screen.
             UIApplication.shared.isIdleTimerDisabled = true
+            if !session.isComplete {
+                beginNextTourIfNeeded()
+            }
         }
         .onDisappear {
             if session.role != nil {
@@ -211,7 +289,10 @@ struct StepView: View {
                     // gesture below only fires on a real touch, which VoiceOver intercepts for
                     // its own navigation, so without this a VoiceOver user would have no way to
                     // move forward at all.
-                    Group {
+                    // A real container, not `Group` — `Group` has no frame of its own, so
+                    // `.tourAnchor` below would only ever capture whichever child SwiftUI
+                    // happens to report last, not the photo+text pair together.
+                    VStack(spacing: 20) {
                         PlaceholderPhotoView(systemImage: step.imageSystemName, tint: stepTint(for: step))
                             .frame(width: 220, height: 160)
 
@@ -230,20 +311,28 @@ struct StepView: View {
                     .accessibilityAction {
                         guard !session.isLastStep else { return }
                         session.advance()
+                        tour.notify("stepAdvance")
                     }
+                    .tourAnchor("stepAdvance")
 
                     DonenessHintView(checkHint: step.checkHint, expertise: cookExpertise)
                         .id(step.id)
 
-                    StepTimerControl(step: step, session: session)
+                    StepTimerControl(step: step, session: session) {
+                        tour.notify("stepTimerButton")
+                    }
                 }
             }
 
             Spacer()
 
             if session.isLastStep {
-                HoldToFinishButton { session.advance() }
-                    .padding(.bottom, 12)
+                HoldToFinishButton {
+                    session.advance()
+                    tour.notify("holdToFinishButton")
+                }
+                .tourAnchor("holdToFinishButton")
+                .padding(.bottom, 12)
             }
 
             // Always available, even on the last step — the hold-to-finish control above adds
@@ -259,6 +348,7 @@ struct StepView: View {
         .onTapGesture {
             guard !session.isLastStep else { return }
             session.advance()
+            tour.notify("stepAdvance")
         }
         .gesture(stepSwipeGesture)
     }
@@ -272,6 +362,7 @@ struct StepView: View {
                 if horizontal < 0 {
                     guard !session.isLastStep else { return }
                     session.advance()
+                    tour.notify("stepAdvance")
                 } else {
                     session.goBack()
                 }
@@ -340,6 +431,9 @@ struct StepView: View {
                 .buttonStyle(.bordered)
             }
         }
+        // The enclosing ZStack aligns to .top, so without this the card hugs the top of the
+        // screen instead of sitting where your eye actually lands after finishing a recipe.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Styling

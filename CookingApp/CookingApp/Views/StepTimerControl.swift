@@ -7,12 +7,17 @@ import CookingAppCore
 struct StepTimerControl: View {
     let step: RecipeStep
     let session: CookingSessionViewModel
+    /// Notified after a real tap on either button — lets `StepView`'s one-time "here's how
+    /// timers work" walkthrough tip advance when this control is actually used, without this
+    /// leaf view needing to know anything about `AppTour` itself.
+    var onInteract: (() -> Void)? = nil
 
     var body: some View {
         if let seconds = step.timerSeconds {
             if let running = session.activeTimer(for: step) {
                 Button {
                     session.cancelTimer(for: step)
+                    onInteract?()
                 } label: {
                     Label(Self.formatted(running.remainingSeconds), systemImage: "timer")
                         .font(.title3.monospacedDigit().weight(.semibold))
@@ -23,14 +28,17 @@ struct StepTimerControl: View {
                 // indication tapping cancels the timer.
                 .accessibilityLabel("Cancel timer")
                 .accessibilityValue("\(Self.formatted(running.remainingSeconds)) remaining")
+                .tourAnchor("stepTimerButton")
             } else {
                 Button {
                     session.startTimer(for: step)
+                    onInteract?()
                 } label: {
                     Label("Start \(Self.formatted(seconds)) timer", systemImage: "timer")
                         .font(.title3)
                 }
                 .buttonStyle(.bordered)
+                .tourAnchor("stepTimerButton")
             }
         }
     }

@@ -21,6 +21,8 @@ struct RecipeListView: View {
     @AppStorage("cookName") private var cookName: String = ""
     @AppStorage("cookExpertise") private var cookExpertiseRaw: String = CookExpertise.intermediate.rawValue
     @State private var showWelcomeName = false
+    @AppStorage("hasSeenRecipeListTour") private var hasSeenRecipeListTour = false
+    @State private var tour = AppTour()
     @State private var sortMode: RecipeSortMode = .alphabetical
     @State private var showFavoritesOnly = false
     @State private var showAddRecipe = false
@@ -43,6 +45,54 @@ struct RecipeListView: View {
 
     private var canReorder: Bool {
         sortMode == .myOrder && !showFavoritesOnly && searchText.isEmpty && selectedDietaryTags.isEmpty
+    }
+
+    /// Built fresh each time the tour begins, since the last step needs to point at whichever
+    /// recipe is actually first on screen right now (alphabetical by default) — not a hardcoded
+    /// title that might not even be in `displayedRecipes` once filters or sort change.
+    private var recipeListTourSteps: [TourStep] {
+        var steps = [
+            TourStep(
+                id: "intro",
+                title: "Welcome to your recipes",
+                message: "This app walks you through cooking one step at a time, instead of one big page of text to keep track of."
+            ),
+            TourStep(
+                target: "favoritesFilterButton",
+                title: "Favorites",
+                message: "Tap the heart to show just the recipes you've favorited."
+            ),
+            TourStep(
+                target: "shoppingListButton",
+                title: "Shopping List",
+                message: "Tap the cart to see everything you've added to your shopping list."
+            ),
+            TourStep(
+                target: "cookingProfileButton",
+                title: "Your Profile",
+                message: "Tap here anytime to change your name or how comfortable you are in the kitchen."
+            ),
+            TourStep(
+                id: "search",
+                title: "Search",
+                message: "Type here to find a recipe or an ingredient by name."
+            ),
+            TourStep(
+                target: "addRecipeButton",
+                title: "Write Your Own",
+                message: "Tap + to add one of your own recipes."
+            )
+        ]
+        if let firstRecipe = displayedRecipes.first {
+            steps.append(
+                TourStep(
+                    target: "recipeRow_\(firstRecipe.title)",
+                    title: "Open a Recipe",
+                    message: "Tap any recipe to see what's in it and start cooking."
+                )
+            )
+        }
+        return steps
     }
 
     private var displayedRecipes: [Recipe] {
@@ -98,30 +148,36 @@ struct RecipeListView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         showFavoritesOnly.toggle()
+                        tour.notify("favoritesFilterButton")
                     } label: {
                         Image(systemName: showFavoritesOnly ? "heart.fill" : "heart")
                             .foregroundStyle(.pink)
                     }
                     .accessibilityLabel(showFavoritesOnly ? "Show all recipes" : "Show favorites only")
                     .accessibilityIdentifier("favoritesFilterButton")
+                    .tourAnchor("favoritesFilterButton")
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         showShoppingList = true
+                        tour.notify("shoppingListButton")
                     } label: {
                         Image(systemName: "cart")
                     }
                     .accessibilityLabel("Shopping List")
                     .accessibilityIdentifier("shoppingListButton")
+                    .tourAnchor("shoppingListButton")
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         showWelcomeName = true
+                        tour.notify("cookingProfileButton")
                     } label: {
                         Image(systemName: "person.crop.circle")
                     }
                     .accessibilityLabel("Cooking Profile")
                     .accessibilityIdentifier("cookingProfileButton")
+                    .tourAnchor("cookingProfileButton")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Picker("Sort", selection: $sortMode) {
@@ -134,11 +190,21 @@ struct RecipeListView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showAddRecipe = true
+                        tour.notify("addRecipeButton")
                     } label: {
                         Image(systemName: "plus")
                     }
                     .accessibilityLabel("Add Recipe")
                     .accessibilityIdentifier("addRecipeButton")
+                    .tourAnchor("addRecipeButton")
+                }
+            }
+            .overlayPreferenceValue(TourAnchorPreferenceKey.self) { anchors in
+                TourSpotlight(tour: tour, anchors: anchors)
+            }
+            .onChange(of: tour.isActive) { wasActive, isActive in
+                if wasActive && !isActive {
+                    hasSeenRecipeListTour = true
                 }
             }
             .onAppear {
@@ -152,6 +218,8 @@ struct RecipeListView: View {
                 }
                 if cookName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     showWelcomeName = true
+                } else if !hasSeenRecipeListTour {
+                    tour.begin(recipeListTourSteps)
                 }
             }
             .navigationDestination(for: Route.self) { route in
@@ -167,6 +235,9 @@ struct RecipeListView: View {
             .sheet(isPresented: $showWelcomeName) {
                 WelcomeNameView(name: $cookName, expertise: cookExpertiseBinding) {
                     showWelcomeName = false
+                    if !hasSeenRecipeListTour {
+                        tour.begin(recipeListTourSteps)
+                    }
                 }
                 // Only blocks dismissal on first run, when a name hasn't been set yet — reopened
                 // later purely to change the experience level, it should dismiss like any other
@@ -219,11 +290,13 @@ struct RecipeListView: View {
     private func recipeRow(for recipe: Recipe) -> some View {
         Button {
             path.append(Route.detail(recipe))
+            tour.notify("recipeRow_\(recipe.title)")
         } label: {
             RecipeRow(recipe: recipe)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("recipeRow_\(recipe.title)")
+        .tourAnchor("recipeRow_\(recipe.title)")
         .swipeActions(edge: .leading) {
             Button {
                 recipe.isFavorite.toggle()

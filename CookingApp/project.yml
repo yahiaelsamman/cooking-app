@@ -19,6 +19,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yahia.cookingapp
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 664DHLD96H
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.0"
@@ -48,6 +49,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yahia.cookingapp.uitests
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 664DHLD96H
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: true
         TEST_TARGET_NAME: CookingApp

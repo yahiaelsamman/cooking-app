@@ -26,9 +26,8 @@ struct WelcomeNameView: View {
     }
 
     var body: some View {
+        ScrollView {
         VStack(spacing: 24) {
-            Spacer()
-
             Image(systemName: "fork.knife.circle.fill")
                 .font(.system(size: 64))
                 .foregroundStyle(Color.accentColor)
@@ -81,15 +80,19 @@ struct WelcomeNameView: View {
             Button("Continue") { save() }
                 .buttonStyle(.borderedProminent)
                 .disabled(trimmedDraft.isEmpty)
-
-            Spacer()
-            Spacer()
         }
         .padding()
+        .padding(.top, 40)
+        }
         .onAppear {
             draft = name
             draftExpertise = expertise
-            fieldFocused = true
+            // Only steal focus (and pop the keyboard) on the very first-ever launch, when
+            // typing a name is the one thing to do here — reopened later purely to change the
+            // experience level, auto-focusing would pop the keyboard right over the picker
+            // below, making it look "stuck" (unreachable, not just unfocused) until you notice
+            // you have to dismiss the keyboard first. See `isEditingExisting`.
+            fieldFocused = !isEditingExisting
         }
     }
 

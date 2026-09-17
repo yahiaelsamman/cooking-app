@@ -44,6 +44,35 @@ simulator:
   `RecipeDetailView` (overview + solo/two-person picker + servings scaling), `StepView` (the core
   screen — timers, hold-to-finish, coach marks, doneness hints), `PeerConnectionView` (host/join),
   `RecipeEditorView` (create/edit a *user-created* recipe only), `ShoppingListView`.
+- **Interactive first-run walkthrough** (`AppTour.swift`, `TourSpotlight.swift`): a real
+  spotlight tour, not a static explainer. `AppTour` (one instance per screen, `@State`) holds a
+  queue of `TourStep`s; `TourSpotlight` draws a pulsing ring around the actual on-screen control
+  (via `.tourAnchor(id)`, a `PreferenceKey` reading real button/section frames) plus a callout
+  next to it. A step with a real target has no "Next" button — it only advances when that control
+  is genuinely used, via a call to `tour.notify(id)` placed at the *real* action site (a `Button`'s
+  own action, or an `.onChange` on the state a `Picker`/`Stepper` edits) — never a gesture bolted
+  onto the overlay, which would risk competing with `StepView`'s already-audited tap/swipe/hold
+  gestures. A step with no single control (e.g. "here's what this app is") shows its own "Next"
+  button instead. `TourSpotlight` never blocks touches (`allowsHitTesting` stays off except on its
+  own Skip/Next buttons), so the real UI underneath always keeps working normally.
+  - Anchors *do* resolve correctly through `.toolbar` items and across `ScrollViewReader.scrollTo`
+    — confirmed empirically in the Simulator, not assumed; both were real open questions in
+    SwiftUI's anchor-preference propagation before being wired up everywhere.
+  - `.tourAnchor` needs a view with a real frame — anchoring it to a `Group` only captures
+    whichever child SwiftUI happens to report, not the union of all of them; use a real container
+    (`VStack`/`HStack`) if you need one anchor to span several children (see `StepView`'s
+    photo+instruction pairing).
+  - Currently covers `RecipeListView` → `RecipeDetailView` → `StepView` (the core browse → decide
+    → cook path), each gated by its own one-time `@AppStorage` flag
+    (`hasSeenRecipeListTour`/`hasSeenRecipeDetailTour`/`hasSeenStepTour`), chained in that order.
+    `StepView` additionally runs two dynamic one-off tips independent of that front-loaded tour —
+    the first time a step has a timer (`hasSeenTimerTourTip`) and the first time you reach the
+    last step (`hasSeenFinishTourTip`) — since those controls don't exist until you're actually
+    there.
+  - Deliberately not (yet) extended to `ShoppingListView`, `PeerConnectionView`,
+    `RecipeEditorView`, or `IngredientChecklistView` — each is a plain list/form with
+    self-explanatory controls (checkboxes, a "Done" button, labeled text fields), not a screen a
+    first-time cook would get stuck on the way the three above are.
 - `Notifications/` — local notification scheduling for step timers; not unit-tested (needs a real
   `UNUserNotificationCenter`/app process).
 
@@ -67,9 +96,9 @@ simulator:
 3. Solo recipes run fine in Simulator. Two-person mode needs two physical iPhones (no Bluetooth
    radio in Simulator).
 4. Added a new source file under `CookingApp/CookingApp/`, or changed `project.yml`? Re-run
-   `xcodegen generate` from inside `CookingApp/` — **this resets the local `DEVELOPMENT_TEAM`
-   signing setting** (not tracked by `project.yml`); check `git diff` on `project.pbxproj` after
-   and re-select your team if it's gone.
+   `xcodegen generate` from inside `CookingApp/`. `DEVELOPMENT_TEAM` is set in `project.yml` itself
+   (both targets), so regenerating no longer wipes your signing team — if you ever switch to a
+   different team, update it there rather than just in Xcode, or the next regenerate will revert it.
 
 ### Building/testing from the CLI
 
@@ -123,6 +152,11 @@ are safe; save an actual `test` run for an interactive session where you can wat
 - **Swipe-to-favorite, drag-to-reorder, and the recipe editor's dynamic rows** have never been
   exercised with a real touch in this environment (no accessibility automation here) — only
   confirmed to render and compile.
+- **The interactive tour (`TourSpotlight`) has basic accessibility, not the same audited rigor**
+  as the rest of the app: the ring is hidden (`accessibilityHidden`) and each callout is one
+  combined element with a label/hint, but a step that waits on a real control being used has no
+  VoiceOver-specific affordance beyond that control's own existing accessibility action — never
+  verified with a real screen reader. `Skip Walkthrough` is reachable and labeled either way.
 
 ## Open next steps
 

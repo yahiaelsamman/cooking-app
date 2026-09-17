@@ -29,6 +29,8 @@ struct RecipeDetailView: View {
     /// the action itself has no other visible effect on this screen (the list it updates is a
     /// separate sheet), so without this there'd be no confirmation the tap did anything at all.
     @State private var justAddedToShoppingList = false
+    @AppStorage("hasSeenRecipeDetailTour") private var hasSeenRecipeDetailTour = false
+    @State private var tour = AppTour()
 
     init(recipe: Recipe, path: Binding<NavigationPath>) {
         self.recipe = recipe
@@ -36,33 +38,102 @@ struct RecipeDetailView: View {
         _targetServings = State(initialValue: recipe.servings ?? 1)
     }
 
+    /// Built fresh each time the tour begins, since which steps even apply depends on this
+    /// particular recipe — a solo-only recipe skips the mode-picker step, one with no declared
+    /// `servings` skips the scaling-stepper step, same "don't explain a control that isn't even
+    /// on screen" stance the screen itself already takes (see `modePicker`/`servingsStepper`).
+    private var recipeDetailTourSteps: [TourStep] {
+        var steps = [
+            TourStep(
+                id: "intro",
+                title: "Everything about this recipe",
+                message: "Scroll down to see the ingredients and every step written out — read through as much as you like before you start."
+            ),
+            TourStep(
+                target: "detailFavoriteButton",
+                title: "Favorites",
+                message: "Tap the heart to save this recipe as a favorite."
+            ),
+            TourStep(
+                target: "addToShoppingListButton",
+                title: "Shopping List",
+                message: "Tap the cart to add these ingredients to your shopping list."
+            )
+        ]
+        if recipe.supportsTwoPerson {
+            steps.append(
+                TourStep(
+                    target: "modePicker",
+                    title: "Cooking Together",
+                    message: "This recipe can be split between two phones. Switch here to cook it with a partner."
+                )
+            )
+        }
+        if recipe.servings != nil {
+            steps.append(
+                TourStep(
+                    target: "servingsStepper",
+                    title: "Servings",
+                    message: "Tap + or – to scale the ingredient amounts for more or fewer people."
+                )
+            )
+        }
+        steps.append(
+            TourStep(
+                target: "startCookingButton",
+                title: "Start Cooking",
+                message: "When you're ready, tap Start Cooking to begin, one step at a time."
+            )
+        )
+        return steps
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                header
+        ScrollViewReader { scrollProxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    header
 
-                metadataRow
+                    metadataRow
 
-                if !recipe.dietaryTags.isEmpty {
-                    dietaryTagsRow
+                    if !recipe.dietaryTags.isEmpty {
+                        dietaryTagsRow
+                    }
+
+                    // Only offered when the recipe actually has a curated two-person split —
+                    // there's no generic "mirror" fallback, so a recipe without one simply
+                    // doesn't show this at all rather than offering a toggle that leads nowhere
+                    // useful.
+                    if recipe.supportsTwoPerson {
+                        modePicker
+                    }
+
+                    startCookingButton
+
+                    myNotesSection
+
+                    ingredientsSection
+
+                    stepsOverviewSection
                 }
-
-                // Only offered when the recipe actually has a curated two-person split — there's
-                // no generic "mirror" fallback, so a recipe without one simply doesn't show this
-                // at all rather than offering a toggle that leads nowhere useful.
-                if recipe.supportsTwoPerson {
-                    modePicker
-                }
-
-                startCookingButton
-
-                myNotesSection
-
-                ingredientsSection
-
-                stepsOverviewSection
+                .padding()
             }
-            .padding()
+            .onChange(of: tour.currentStep?.targetID) { _, targetID in
+                guard let targetID else { return }
+                withAnimation {
+                    scrollProxy.scrollTo(targetID, anchor: .center)
+                }
+            }
+        }
+        .onAppear {
+            if !hasSeenRecipeDetailTour {
+                tour.begin(recipeDetailTourSteps)
+            }
+        }
+        .onChange(of: tour.isActive) { wasActive, isActive in
+            if wasActive && !isActive {
+                hasSeenRecipeDetailTour = true
+            }
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -75,24 +146,30 @@ struct RecipeDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     recipe.isFavorite.toggle()
-                    try? modelContext.save()
+                    tour.notify("detailFavoriteButton")
                 } label: {
                     Image(systemName: recipe.isFavorite ? "heart.fill" : "heart")
                         .foregroundStyle(.pink)
                 }
                 .accessibilityLabel(recipe.isFavorite ? "Remove from favorites" : "Add to favorites")
                 .accessibilityIdentifier("detailFavoriteButton")
+                .tourAnchor("detailFavoriteButton")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     addIngredientsToShoppingList()
+                    tour.notify("addToShoppingListButton")
                 } label: {
                     Image(systemName: justAddedToShoppingList ? "checkmark.circle.fill" : "cart.badge.plus")
                         .foregroundStyle(justAddedToShoppingList ? .green : Color.accentColor)
                 }
                 .accessibilityLabel("Add to Shopping List")
                 .accessibilityIdentifier("addToShoppingListButton")
+                .tourAnchor("addToShoppingListButton")
             }
+        }
+        .overlayPreferenceValue(TourAnchorPreferenceKey.self) { anchors in
+            TourSpotlight(tour: tour, anchors: anchors)
         }
         .sheet(isPresented: $showEditRecipe) {
             RecipeEditorView(existingRecipe: recipe, onDelete: deleteRecipeAndPopBack)
@@ -175,11 +252,17 @@ struct RecipeDetailView: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .id("modePicker")
+        .tourAnchor("modePicker")
+        .onChange(of: mode) { _, _ in
+            tour.notify("modePicker")
+        }
     }
 
     private var startCookingButton: some View {
         Button {
             startCooking()
+            tour.notify("startCookingButton")
         } label: {
             Text("Start Cooking")
                 .font(.headline)
@@ -189,6 +272,8 @@ struct RecipeDetailView: View {
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
+        .id("startCookingButton")
+        .tourAnchor("startCookingButton")
     }
 
     private var myNotesSection: some View {
@@ -293,6 +378,11 @@ struct RecipeDetailView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(Color.accentColor)
+        .id("servingsStepper")
+        .tourAnchor("servingsStepper")
+        .onChange(of: targetServings) { _, _ in
+            tour.notify("servingsStepper")
+        }
     }
 
     /// 1 (no change) unless the recipe declares a base `servings` count — an ingredient's amount
