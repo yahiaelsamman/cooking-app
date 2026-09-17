@@ -146,6 +146,7 @@ struct RecipeDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     recipe.isFavorite.toggle()
+                    try? modelContext.save()
                     tour.notify("detailFavoriteButton")
                 } label: {
                     Image(systemName: recipe.isFavorite ? "heart.fill" : "heart")
