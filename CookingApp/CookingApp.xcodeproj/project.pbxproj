@@ -25,6 +25,7 @@
 		65AAC2A6A92D9359736A7096 /* PartnerStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8240C363AF44973B72F87E00 /* PartnerStatusView.swift */; };
 		689F5100E9AFFACE1941209C /* NotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E4454DC0BB4FDFEA2DFDE4 /* NotificationScheduler.swift */; };
 		6A68C5F3BA336B81C3EA6E01 /* RecipeEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB9F5A880E4FEC0EB01711B6 /* RecipeEditorView.swift */; };
+		6B36784331B45C2C018A7A35 /* StepIllustrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00EC3ADDA4E9DF1C03D8AF3A /* StepIllustrationView.swift */; };
 		73A3754D54888B4F6DCD4285 /* StarRatingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408EDD803379F0BD1AE89C05 /* StarRatingView.swift */; };
 		7C3DFE6D8F2F194B3EBBB9DF /* CookingAppCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5BE69C3E90BECDA78A54164F /* CookingAppCore */; };
 		811183032AB7E933175C828D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DE42026A708D5E1A24DCC2C8 /* Assets.xcassets */; };
@@ -48,6 +49,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		00EC3ADDA4E9DF1C03D8AF3A /* StepIllustrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepIllustrationView.swift; sourceTree = "<group>"; };
 		026E933AEE860E9A9F85765F /* SwipeBackDisabler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeBackDisabler.swift; sourceTree = "<group>"; };
 		15269B6C8DB0BC12BE2E031F /* StepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepView.swift; sourceTree = "<group>"; };
 		2F302626E0E7A54321241F02 /* TimerStackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerStackView.swift; sourceTree = "<group>"; };
@@ -168,6 +170,7 @@
 				FC447B5C21877ABDBC55F91E /* Route.swift */,
 				E584C7F89A61FA389A92D8EB /* ShoppingListView.swift */,
 				408EDD803379F0BD1AE89C05 /* StarRatingView.swift */,
+				00EC3ADDA4E9DF1C03D8AF3A /* StepIllustrationView.swift */,
 				C3FBA522835082EB7A8BD936 /* StepTimerControl.swift */,
 				15269B6C8DB0BC12BE2E031F /* StepView.swift */,
 				026E933AEE860E9A9F85765F /* SwipeBackDisabler.swift */,
@@ -313,6 +316,7 @@
 				FE8CEB93DA44904D24C49040 /* Route.swift in Sources */,
 				63B946DE4BB643E14116803C /* ShoppingListView.swift in Sources */,
 				73A3754D54888B4F6DCD4285 /* StarRatingView.swift in Sources */,
+				6B36784331B45C2C018A7A35 /* StepIllustrationView.swift in Sources */,
 				5535DD2F851B1E806B8D4AA3 /* StepTimerControl.swift in Sources */,
 				58F03BD1C47691F5A3A589A7 /* StepView.swift in Sources */,
 				D4C740D370DB039CFB00985D /* SwipeBackDisabler.swift in Sources */,

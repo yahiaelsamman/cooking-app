@@ -293,7 +293,7 @@ struct StepView: View {
                     // `.tourAnchor` below would only ever capture whichever child SwiftUI
                     // happens to report last, not the photo+text pair together.
                     VStack(spacing: 20) {
-                        PlaceholderPhotoView(systemImage: step.imageSystemName, tint: stepTint(for: step))
+                        StepIllustrationView(step: step, tint: stepTint(for: step))
                             .frame(width: 220, height: 160)
 
                         Text(step.instruction)

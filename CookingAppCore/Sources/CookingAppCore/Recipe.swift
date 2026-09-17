@@ -19,8 +19,13 @@ public struct RecipeStep: Identifiable, Codable, Hashable, Sendable {
     public var assignee: StepAssignee
     /// Drives the live countdown in StepTimerControl — nil means the step has no timer at all.
     public var timerSeconds: Int?
-    /// SF Symbol name shown as this step's illustration.
+    /// SF Symbol name shown as this step's illustration when `stepImageName` is nil.
     public var imageSystemName: String
+    /// Name of a bundled step illustration in the app's asset catalog, if one has been sourced for
+    /// this step yet — nil (the default for every step so far) falls back to the plain SF Symbol
+    /// placeholder in `imageSystemName`, same "real asset when we have it, generic stand-in
+    /// otherwise" pattern `Recipe.heroImageName` already uses.
+    public var stepImageName: String?
     /// A plain-language way to tell this step is actually done, shown behind a "How do I check?"
     /// disclosure in `StepView` — nil means this step has no ambiguous doneness call to make.
     /// Deliberately separate from `instruction`: a doneness temperature buried in the middle of a
@@ -30,13 +35,14 @@ public struct RecipeStep: Identifiable, Codable, Hashable, Sendable {
     /// squeezed into the instruction text itself.
     public var checkHint: String?
 
-    public init(id: UUID = UUID(), order: Int, instruction: String, assignee: StepAssignee, timerSeconds: Int? = nil, imageSystemName: String, checkHint: String? = nil) {
+    public init(id: UUID = UUID(), order: Int, instruction: String, assignee: StepAssignee, timerSeconds: Int? = nil, imageSystemName: String, stepImageName: String? = nil, checkHint: String? = nil) {
         self.id = id
         self.order = order
         self.instruction = instruction
         self.assignee = assignee
         self.timerSeconds = timerSeconds
         self.imageSystemName = imageSystemName
+        self.stepImageName = stepImageName
         self.checkHint = checkHint
     }
 }
