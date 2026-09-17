@@ -275,6 +275,7 @@ private struct RecipeRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             RecipeThumbnailView(recipe: recipe)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
@@ -285,6 +286,7 @@ private struct RecipeRow: View {
                         Image(systemName: "heart.fill")
                             .font(.caption)
                             .foregroundStyle(.pink)
+                            .accessibilityLabel("Favorite")
                     }
                 }
                 Text(recipe.summary)
@@ -333,6 +335,10 @@ private struct RecipeRow: View {
             }
         }
         .padding(.vertical, 4)
+        // Without this, VoiceOver focuses each title/badge/label fragment separately — combining
+        // stitches them into one sentence per row, reusing the labels DifficultyStarsView/
+        // SpiceLevelView/StarRatingView already provide for their own pieces.
+        .accessibilityElement(children: .combine)
     }
 }
 

@@ -32,6 +32,7 @@ struct WelcomeNameView: View {
             Image(systemName: "fork.knife.circle.fill")
                 .font(.system(size: 64))
                 .foregroundStyle(Color.accentColor)
+                .accessibilityHidden(true)
 
             VStack(spacing: 8) {
                 Text(isEditingExisting ? "Your Profile" : "Welcome!")

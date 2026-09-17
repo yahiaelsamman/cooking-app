@@ -114,9 +114,12 @@ are safe; save an actual `test` run for an interactive session where you can wat
   best-effort and doesn't survive true iOS background suspension.
 - **You can't edit a bundled recipe or delete any recipe that isn't user-created** — deliberate
   (curated content; deleting a bundled recipe would need a seeder tombstone, which doesn't exist).
-- **VoiceOver accessibility is only fully audited for `StepView`, `PartnerStatusView`, and
-  `DualProgressSliderView`.** `RecipeListView`, `ShoppingListView`, `PeerConnectionView`,
-  `WelcomeNameView`, and `RecipeEditorView` haven't had the same pass — expect gaps.
+- **VoiceOver accessibility has been audited across every screen** (`StepView`,
+  `PartnerStatusView`, `DualProgressSliderView`, `RecipeListView`, `ShoppingListView`,
+  `PeerConnectionView`, `WelcomeNameView`, `RecipeEditorView`) — combined-element treatment for
+  list rows, decorative icons hidden, icon-only buttons labeled. Not verified with a real
+  VoiceOver run (see the sandbox limitation below); if you add a new row/card-style view, follow
+  the same pattern (`.accessibilityElement(children: .combine)` + hide purely decorative icons).
 - **Swipe-to-favorite, drag-to-reorder, and the recipe editor's dynamic rows** have never been
   exercised with a real touch in this environment (no accessibility automation here) — only
   confirmed to render and compile.
@@ -128,7 +131,7 @@ are safe; save an actual `test` run for an interactive session where you can wat
 - Per-step photos (only recipe-level hero photos exist; steps still use a placeholder card).
 - True background reconnection for two-person mode (declared background modes).
 - CloudKit/iCloud sync — for two-person over the internet and cross-device recipe sync.
-- Finish auditing VoiceOver support on the screens listed under Pitfalls.
+- Verify the VoiceOver audit with a real screen-reader run on a device (never done — see Testing).
 - Actually get `CookingAppUITests` running (on an interactive Mac) and expand its coverage.
 
 ## Git / repo

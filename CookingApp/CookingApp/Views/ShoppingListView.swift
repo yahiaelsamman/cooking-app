@@ -73,6 +73,7 @@ struct ShoppingListView: View {
             HStack {
                 Image(systemName: item.isChecked ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(item.isChecked ? Color.accentColor : .secondary)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.name)
                         .strikethrough(item.isChecked)
@@ -87,6 +88,10 @@ struct ShoppingListView: View {
                 Text(item.amount)
                     .foregroundStyle(.secondary)
             }
+            // Combines name/source/amount into one VoiceOver stop instead of three fragments;
+            // the checkmark icon is hidden above since `.isSelected` below already conveys
+            // checked state (VoiceOver appends "selected" itself).
+            .accessibilityElement(children: .combine)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("shoppingListItem_\(item.name)")
