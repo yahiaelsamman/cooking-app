@@ -10,6 +10,10 @@ struct HoldToFinishButton: View {
     @State private var holdProgress: CGFloat = 0
 
     private let holdDuration: Double = 1.0
+    /// Scales the button's frame with Dynamic Type so the two-line "Hold to Finish" label has
+    /// room to grow into at the largest accessibility text sizes instead of clipping against a
+    /// fixed 110×110 circle.
+    @ScaledMetric(relativeTo: .caption) private var diameter: CGFloat = 110
 
     var body: some View {
         ZStack {
@@ -31,7 +35,7 @@ struct HoldToFinishButton: View {
                     .multilineTextAlignment(.center)
             }
         }
-        .frame(width: 110, height: 110)
+        .frame(width: diameter, height: diameter)
         .contentShape(Circle())
         .onLongPressGesture(minimumDuration: holdDuration, maximumDistance: 50) {
             onFinish()
