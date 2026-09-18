@@ -16,7 +16,17 @@ struct ConfettiView: View {
         let size: CGFloat
     }
 
-    private static let colors: [Color] = [.pink, .orange, .yellow, .green, .blue, .purple]
+    // Drawn from the hand-drawn illustration system's locked, desaturated palette
+    // (`illustrations/prompts/*.md`) rather than generic saturated system colors — this is the
+    // app's biggest "juice" moment, and it should read as the same restrained, hand-drawn app as
+    // everywhere else, not a different, louder one.
+    private static let colors: [Color] = [
+        Color(red: 0.9765, green: 0.9490, blue: 0.8392), // lighter cream #F9F2D6
+        Color(red: 0.9412, green: 0.8314, blue: 0.4549), // stronger food yellow (egg yolk) #F0D474
+        Color(red: 0.7686, green: 0.3412, blue: 0.2392), // muted tomato red #C4573D
+        Color(red: 0.5412, green: 0.6039, blue: 0.3569), // muted herb green #8A9A5B
+        Color(red: 0.6392, green: 0.5647, blue: 0.4078), // muted beige/brown #A39068
+    ]
 
     var body: some View {
         ZStack {
