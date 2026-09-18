@@ -290,6 +290,18 @@ struct StepView: View {
             ProgressIndicatorView(progressText: session.progressText, fraction: session.progressFraction)
                 .padding(.top)
 
+            // The background/tint below is color-only otherwise (blue/orange/purple by
+            // assignee) — a real gap for colorblind users in two-person mode, unlike
+            // `RecipeDetailView`'s overview, which already labels the same grouping in text
+            // ("Person A"/"Together"). Only shown in two-person mode: a solo session's steps are
+            // all `.solo`, which `backgroundColor`/`stepTint` don't color-code at all.
+            if let assigneeLabel = currentStepAssigneeLabel {
+                Text(assigneeLabel)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 4)
+            }
+
             if session.role != nil {
                 PartnerStatusView(session: session)
                     .padding(.horizontal)
@@ -487,6 +499,17 @@ struct StepView: View {
         case .personB: return .orange
         case .shared: return .purple
         case .solo: return .accentColor
+        }
+    }
+
+    /// Text counterpart to `backgroundColor`'s color-only assignee coding — `nil` for a solo
+    /// session's `.solo` steps, which `backgroundColor` doesn't color-code either.
+    private var currentStepAssigneeLabel: String? {
+        switch session.currentStep?.assignee {
+        case .personA: return "Person A"
+        case .personB: return "Person B"
+        case .shared: return "Together"
+        case .solo, nil: return nil
         }
     }
 }
