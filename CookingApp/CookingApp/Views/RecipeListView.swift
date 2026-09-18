@@ -128,6 +128,10 @@ struct RecipeListView: View {
                         }
                     }
                 }
+                // Explicit rather than relying on `.automatic`: this list uses a custom card
+                // treatment per row (see `recipeRow`), and `.automatic` risks the system's
+                // grouped/inset chrome fighting that on some size classes.
+                .listStyle(.plain)
                 .environment(\.editMode, .constant(canReorder ? .active : .inactive))
                 .safeAreaInset(edge: .top) {
                     dietaryFilterChips
