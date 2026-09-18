@@ -1,0 +1,7 @@
+# Dependencies for the asset-pipeline scripts in this directory (fetch_recipe_photos.py,
+# install_recipe_photo.py, install_recipe_illustrations.py, generate_app_icon.py). Previously
+# only discoverable by opening each script's own docstring individually.
+#
+#   pip install -r Scripts/requirements.txt
+requests
+pillow
