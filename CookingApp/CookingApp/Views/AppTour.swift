@@ -37,7 +37,12 @@ struct TourStep: Identifiable {
 /// each screen's walkthrough starts fresh and is independently gated by its own `@AppStorage`
 /// "have I seen this screen's tour" flag, the same one-shot pattern the app already used for the
 /// very first coach mark this was built out from.
+///
+/// `@MainActor`: view-only state, driven entirely by SwiftUI (same pattern as
+/// `CookingSessionViewModel`/`PeerSyncService`/etc. in CookingAppCore, lower stakes here since
+/// nothing here touches networking or persistence).
 @Observable
+@MainActor
 final class AppTour {
     private(set) var steps: [TourStep] = []
     private(set) var currentIndex = 0
