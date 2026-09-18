@@ -16,6 +16,7 @@ struct StepView: View {
     @Binding var path: NavigationPath
     @Environment(ActiveSessionStore.self) private var sessionStore
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.notificationPresentationState) private var notificationPresentationState
 
     @State private var timerFinishedBanners: [TimerFinishedBanner] = []
     @State private var showEndSessionConfirm = false
@@ -170,6 +171,7 @@ struct StepView: View {
             Text("Your partner will be disconnected too. You can keep cooking on your own afterward.")
         }
         .onAppear {
+            notificationPresentationState.isStepViewVisible = true
             session.onTimerScheduled = { step, duration in
                 NotificationScheduler.schedule(step: step, durationSeconds: duration)
             }
@@ -207,6 +209,15 @@ struct StepView: View {
             // Restore normal auto-lock the moment cooking isn't the active screen — never leave
             // the device unable to sleep just because it once showed a recipe step.
             UIApplication.shared.isIdleTimerDisabled = false
+            // Flip the shared flag first so a timer that finishes right after this view tears
+            // down lets the system banner through (see `NotificationDelegate`), then clear
+            // `onTimerFinished` itself — it's the one closure here that touches this view's own
+            // `@State`, which becomes stale (no longer attached to anything on screen) the moment
+            // `StepView` disappears. `onTimerScheduled`/`onTimerUnscheduled` stay assigned: they
+            // only forward to the stateless `NotificationScheduler`, so they're still correct to
+            // run while this view isn't visible.
+            notificationPresentationState.isStepViewVisible = false
+            session.onTimerFinished = nil
         }
         .onChange(of: bothFinished) { _, finished in
             guard finished else { return }
