@@ -13,12 +13,12 @@ public enum SampleRecipes {
         summary: "Soft, creamy scrambled eggs in under 5 minutes.",
         servings: 1,
         soloSteps: [
-            RecipeStep(order: 0, instruction: "Crack 3 eggs into a bowl.", assignee: .solo, imageSystemName: "basket.fill"),
-            RecipeStep(order: 1, instruction: "Add a splash of milk and a pinch of salt.", assignee: .solo, imageSystemName: "sparkles"),
-            RecipeStep(order: 2, instruction: "Whisk until fully combined and slightly frothy.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath"),
-            RecipeStep(order: 3, instruction: "Heat a non-stick pan over low-medium heat with a knob of butter.", assignee: .solo, imageSystemName: "flame.fill"),
-            RecipeStep(order: 4, instruction: "Pour in the eggs once the butter foams.", assignee: .solo, imageSystemName: "drop.fill"),
-            RecipeStep(order: 5, instruction: "Gently push the eggs from the edges to the center with a spatula as they set.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath"),
+            RecipeStep(order: 0, instruction: "Crack 3 eggs into a bowl.", assignee: .solo, imageSystemName: "basket.fill", stepImageName: "recipe-step-scrambled-eggs-0"),
+            RecipeStep(order: 1, instruction: "Add a splash of milk and a pinch of salt.", assignee: .solo, imageSystemName: "sparkles", stepImageName: "recipe-step-scrambled-eggs-1"),
+            RecipeStep(order: 2, instruction: "Whisk until fully combined and slightly frothy.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath", stepImageName: "recipe-step-scrambled-eggs-2"),
+            RecipeStep(order: 3, instruction: "Heat a non-stick pan over low-medium heat with a knob of butter.", assignee: .solo, imageSystemName: "flame.fill", stepImageName: "recipe-step-scrambled-eggs-3"),
+            RecipeStep(order: 4, instruction: "Pour in the eggs once the butter foams.", assignee: .solo, imageSystemName: "drop.fill", stepImageName: "recipe-step-scrambled-eggs-4"),
+            RecipeStep(order: 5, instruction: "Gently push the eggs from the edges to the center with a spatula as they set.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath", stepImageName: "recipe-step-scrambled-eggs-5"),
             RecipeStep(order: 6, instruction: "Remove from heat while still slightly glossy — they'll finish cooking off the heat. Serve.", assignee: .solo, imageSystemName: "fork.knife")
         ],
         iconSystemName: "frying.pan.fill",
