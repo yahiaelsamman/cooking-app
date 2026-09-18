@@ -65,6 +65,12 @@ struct PartnerStatusView: View {
         .onTapGesture {
             showStatusExplanation = true
         }
+        // A partner disconnecting mid-cook is easy to miss with messy hands and eyes on the
+        // stove — worth a tactile nudge, scoped to just the transition *into* disconnected so
+        // reconnecting or other state churn doesn't also buzz.
+        .sensoryFeedback(.warning, trigger: session.partnerConnectionState) { oldValue, newValue in
+            newValue == .disconnected && oldValue != .disconnected
+        }
         .alert("Connection Status Colors", isPresented: $showStatusExplanation) {
             Button("OK") {}
         } message: {

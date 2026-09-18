@@ -73,6 +73,7 @@ struct ShoppingListView: View {
             HStack {
                 Image(systemName: item.isChecked ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(item.isChecked ? Color.accentColor : .secondary)
+                    .contentTransition(.symbolEffect(.replace))
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.name)
@@ -94,6 +95,8 @@ struct ShoppingListView: View {
             .accessibilityElement(children: .combine)
         }
         .buttonStyle(.plain)
+        .animation(.default, value: item.isChecked)
+        .sensoryFeedback(.selection, trigger: item.isChecked)
         .accessibilityIdentifier("shoppingListItem_\(item.name)")
         .accessibilityAddTraits(item.isChecked ? [.isSelected] : [])
     }

@@ -28,6 +28,7 @@ struct IngredientChecklistView: View {
                         Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
                             .foregroundStyle(isChecked ? Color.accentColor : .secondary)
                             .font(.title3)
+                            .contentTransition(.symbolEffect(.replace))
                         Text(ingredient.name)
                             .strikethrough(isChecked)
                             .foregroundStyle(isChecked ? .secondary : .primary)
@@ -35,8 +36,10 @@ struct IngredientChecklistView: View {
                         Text(ingredient.amount)
                             .foregroundStyle(.secondary)
                     }
+                    .animation(.default, value: isChecked)
                 }
                 .buttonStyle(.plain)
+                .sensoryFeedback(.selection, trigger: isChecked)
                 .accessibilityIdentifier("ingredientChecklistRow_\(ingredient.name)")
                 .accessibilityAddTraits(isChecked ? [.isSelected] : [])
             }
