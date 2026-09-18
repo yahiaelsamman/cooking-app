@@ -108,12 +108,14 @@ struct StepView: View {
 
             if session.isComplete {
                 completionView
+                    .transition(.scale(scale: 0.85).combined(with: .opacity))
             } else {
                 activeStepView
             }
 
             timerFinishedBannerStack
         }
+        .animation(.spring(response: 0.45, dampingFraction: 0.7), value: session.isComplete)
         .navigationBarBackButtonHidden(true)
         .disablesInteractiveSwipeBack()
         .toolbar {
@@ -294,9 +296,15 @@ struct StepView: View {
                     // `.tourAnchor` below would only ever capture whichever child SwiftUI
                     // happens to report last, not the photo+text pair together.
                     VStack(spacing: 20) {
+                        // Flexible, not a fixed size: the instruction text below is
+                        // `.fixedSize(vertical: true)` (always gets exactly the height it needs,
+                        // never compressed), so whatever's left over in this VStack goes to the
+                        // image — it grows as large as the current step's content allows, capped
+                        // just so it can't dominate a very short instruction on a tall screen.
                         StepIllustrationView(step: step, tint: stepTint(for: step))
-                            .frame(width: 220, height: 160)
+                            .frame(maxWidth: .infinity, maxHeight: 380)
                             .clipped()
+                            .padding(.horizontal, 20)
 
                         Text(step.instruction)
                             .font(.system(size: 30, weight: .semibold))
@@ -411,31 +419,38 @@ struct StepView: View {
     // MARK: - Completion
 
     private var completionView: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.green)
-            Text("Recipe Complete")
-                .font(.title.bold())
+        ZStack {
+            ConfettiView()
 
-            VStack(spacing: 12) {
-                Button("Back to Recipes") {
-                    sessionStore.clear()
-                    path = NavigationPath()
-                }
-                .buttonStyle(.borderedProminent)
+            VStack(spacing: 24) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.green)
+                Text("Recipe Complete")
+                    .font(.title.bold())
 
-                // In case the last tap/hold past the final step was an accident and you're
-                // not actually done cooking yet.
-                Button("Go Back") {
-                    session.goBack()
+                VStack(spacing: 12) {
+                    Button("Back to Recipes") {
+                        sessionStore.clear()
+                        path = NavigationPath()
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    // In case the last tap/hold past the final step was an accident and you're
+                    // not actually done cooking yet.
+                    Button("Go Back") {
+                        session.goBack()
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
             }
         }
         // The enclosing ZStack aligns to .top, so without this the card hugs the top of the
         // screen instead of sitting where your eye actually lands after finishing a recipe.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
     }
 
     // MARK: - Styling

@@ -30,6 +30,7 @@
 		7C3DFE6D8F2F194B3EBBB9DF /* CookingAppCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5BE69C3E90BECDA78A54164F /* CookingAppCore */; };
 		811183032AB7E933175C828D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DE42026A708D5E1A24DCC2C8 /* Assets.xcassets */; };
 		83A45A22422E532DB08488BF /* RecipeListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C5DCABA51CBF434711F5600 /* RecipeListView.swift */; };
+		AD5DD68BF085FB34A5848B14 /* ConfettiView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB20DEF07BDA9BA901582B35 /* ConfettiView.swift */; };
 		C1FAFBDF97BC3D0B45118FCE /* TimerStackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F302626E0E7A54321241F02 /* TimerStackView.swift */; };
 		D238F347F209B9E592B4EA08 /* RecipeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5CE3AAE0769F97B36AE2AC1 /* RecipeDetailView.swift */; };
 		D4C740D370DB039CFB00985D /* SwipeBackDisabler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 026E933AEE860E9A9F85765F /* SwipeBackDisabler.swift */; };
@@ -78,6 +79,7 @@
 		DE42026A708D5E1A24DCC2C8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E584C7F89A61FA389A92D8EB /* ShoppingListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingListView.swift; sourceTree = "<group>"; };
 		E9E4454DC0BB4FDFEA2DFDE4 /* NotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationScheduler.swift; sourceTree = "<group>"; };
+		EB20DEF07BDA9BA901582B35 /* ConfettiView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfettiView.swift; sourceTree = "<group>"; };
 		F5AE9561BB441CD8001DB21D /* CookingAppUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CookingAppUITests.swift; sourceTree = "<group>"; };
 		FC447B5C21877ABDBC55F91E /* Route.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Route.swift; sourceTree = "<group>"; };
 		FE2730D3CBC8D016680255AA /* WelcomeNameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeNameView.swift; sourceTree = "<group>"; };
@@ -155,6 +157,7 @@
 			isa = PBXGroup;
 			children = (
 				DD91F33CBCC2E924FAFBF0B6 /* AppTour.swift */,
+				EB20DEF07BDA9BA901582B35 /* ConfettiView.swift */,
 				B10CFFBC5D27AEF7FF68DF2E /* DonenessHintView.swift */,
 				7E734B1A92691038CB0B3D88 /* DualProgressSliderView.swift */,
 				84258AC035B366A85050DD04 /* HoldToFinishButton.swift */,
@@ -298,6 +301,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				35E4B20385E0CB27D340437C /* AppTour.swift in Sources */,
+				AD5DD68BF085FB34A5848B14 /* ConfettiView.swift in Sources */,
 				36E905D5386D0188746AAE0C /* CookingAppApp.swift in Sources */,
 				4156D6D7D3FCB008410246FE /* DonenessHintView.swift in Sources */,
 				294F44AC71AEFAB387D1382D /* DualProgressSliderView.swift in Sources */,

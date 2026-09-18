@@ -179,10 +179,13 @@ struct RecipeDetailView: View {
 
     private var header: some View {
         VStack(spacing: 12) {
+            // Fills the full content width (this screen scrolls, so there's no "must fit on one
+            // screen" ceiling the way there is in StepView) — legible at a glance is the point,
+            // and a tall, wide hero reads far better than the old fixed 260x160 crop.
             RecipeHeroImageView(recipe: recipe)
-                .frame(width: 260, height: 160)
-                .clipped()
                 .frame(maxWidth: .infinity)
+                .frame(height: 260)
+                .clipped()
 
             Text(recipe.title)
                 .font(.largeTitle.bold())
