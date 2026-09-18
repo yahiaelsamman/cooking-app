@@ -12,7 +12,7 @@ private enum CookingMode: String, CaseIterable {
 /// Cooking" and losing the wall-of-text view in favor of the one-step-at-a-time screen.
 struct RecipeDetailView: View {
     @Bindable var recipe: Recipe
-    @Binding var path: NavigationPath
+    @Binding var path: [Route]
     @Environment(ActiveSessionStore.self) private var sessionStore
     @Environment(\.modelContext) private var modelContext
 
@@ -32,7 +32,7 @@ struct RecipeDetailView: View {
     @AppStorage("hasSeenRecipeDetailTour") private var hasSeenRecipeDetailTour = false
     @State private var tour = AppTour()
 
-    init(recipe: Recipe, path: Binding<NavigationPath>) {
+    init(recipe: Recipe, path: Binding<[Route]>) {
         self.recipe = recipe
         self._path = path
         _targetServings = State(initialValue: recipe.servings ?? 1)
@@ -387,11 +387,11 @@ struct RecipeDetailView: View {
     @MainActor
     private func startCooking() {
         if mode == .twoPerson {
-            path.append(Route.peerConnection(recipe))
+            path.append(.peerConnection(recipe))
         } else {
             let session = CookingSessionViewModel(recipe: recipe)
             sessionStore.setActive(session)
-            path.append(Route.steps(session))
+            path.append(.steps(session))
         }
     }
 
@@ -401,7 +401,7 @@ struct RecipeDetailView: View {
     /// SwiftData has already faulted out from under it. Resetting `path` first means this view is
     /// no longer part of the active navigation stack by the time the delete actually happens.
     private func deleteRecipeAndPopBack() {
-        path = NavigationPath()
+        path = []
         modelContext.delete(recipe)
         try? modelContext.save()
     }

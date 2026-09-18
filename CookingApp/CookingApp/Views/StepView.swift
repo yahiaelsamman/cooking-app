@@ -13,7 +13,7 @@ private struct TimerFinishedBanner: Identifiable {
 
 struct StepView: View {
     let session: CookingSessionViewModel
-    @Binding var path: NavigationPath
+    @Binding var path: [Route]
     @Environment(ActiveSessionStore.self) private var sessionStore
     @Environment(\.modelContext) private var modelContext
     @Environment(\.notificationPresentationState) private var notificationPresentationState
@@ -247,7 +247,7 @@ struct StepView: View {
         ) {
             Button("OK") {
                 sessionStore.clear()
-                path = NavigationPath()
+                path = []
             }
         } message: {
             Text(
@@ -461,7 +461,7 @@ struct StepView: View {
                 VStack(spacing: 12) {
                     Button("Back to Recipes") {
                         sessionStore.clear()
-                        path = NavigationPath()
+                        path = []
                     }
                     .buttonStyle(.borderedProminent)
 
