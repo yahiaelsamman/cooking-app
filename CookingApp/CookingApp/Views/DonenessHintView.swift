@@ -23,6 +23,11 @@ struct DonenessHintView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("donenessHintToggle")
+                // A native `DisclosureGroup` announces expanded/collapsed state automatically;
+                // this hand-rolled toggle doesn't — the label text is identical before and after
+                // activation, so without this a VoiceOver user gets no confirmation the tap did
+                // anything.
+                .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
 
                 if isExpanded {
                     Text(checkHint)
