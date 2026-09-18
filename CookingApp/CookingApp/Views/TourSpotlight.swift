@@ -34,6 +34,14 @@ extension View {
 struct TourSpotlight: View {
     @Bindable var tour: AppTour
     let anchors: [String: Anchor<CGRect>]
+    /// Moved to the callout the moment a step begins or advances — see the `.onChange` below.
+    /// Without this, a VoiceOver user gets a silently-inserted callout they'd only find by
+    /// chance; a sighted user gets the same information for free from the pulsing ring + text.
+    /// Focusing the callout also has VoiceOver announce it immediately, which doubles as the
+    /// "announce this step" half of the fix — a separate `UIAccessibility.post(.announcement)`
+    /// would be redundant on top of that.
+    @AccessibilityFocusState private var isCalloutFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { proxy in
@@ -46,7 +54,16 @@ struct TourSpotlight: View {
         }
         .ignoresSafeArea()
         .allowsHitTesting(tour.isActive)
-        .animation(.spring(duration: 0.3), value: tour.currentStep?.id)
+        .animation(reduceMotion ? nil : .spring(duration: 0.3), value: tour.currentStep?.id)
+        .onChange(of: tour.currentStep?.id) { _, newID in
+            guard newID != nil else { return }
+            // A short delay lets this step's layout/animation settle first — moving VoiceOver
+            // focus mid-transition is what usually causes focus to land on stale geometry.
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(150))
+                isCalloutFocused = true
+            }
+        }
     }
 
     @ViewBuilder
@@ -108,6 +125,7 @@ struct TourSpotlight: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(step.title): \(step.message)")
         .accessibilityHint(step.targetID == nil ? "Double tap Next to continue" : "Use the highlighted control to continue")
+        .accessibilityFocused($isCalloutFocused)
     }
 
     /// Below the target when there's room, else above it; centered on screen for an
