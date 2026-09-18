@@ -71,10 +71,10 @@ struct PartnerStatusView: View {
         .sensoryFeedback(.warning, trigger: session.partnerConnectionState) { oldValue, newValue in
             newValue == .disconnected && oldValue != .disconnected
         }
-        .alert("Connection Status Colors", isPresented: $showStatusExplanation) {
+        .alert("What the Dot Means", isPresented: $showStatusExplanation) {
             Button("OK") {}
         } message: {
-            Text("Green: connected and active. Blue: connected, but they've stepped away. Yellow: connecting. Red: disconnected — you can keep cooking on your own.")
+            Text("Green means your partner's connected and cooking along with you. Blue means they've stepped away — their progress is saved. Yellow means you're still connecting. Red means you've lost each other, but don't stop: keep cooking, and you'll resync if they reconnect.")
         }
     }
 
