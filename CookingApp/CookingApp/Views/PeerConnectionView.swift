@@ -77,10 +77,17 @@ struct PeerConnectionView: View {
                     .pickerStyle(.segmented)
                 }
 
-                Button("Host a two-person session") { viewModel.host(as: chosenRole) }
-                    .buttonStyle(.borderedProminent)
-                Button("Join a nearby session") { viewModel.join() }
-                    .buttonStyle(.bordered)
+                if #available(iOS 26, *) {
+                    Button("Host a two-person session") { viewModel.host(as: chosenRole) }
+                        .buttonStyle(.glassProminent)
+                    Button("Join a nearby session") { viewModel.join() }
+                        .buttonStyle(.glass)
+                } else {
+                    Button("Host a two-person session") { viewModel.host(as: chosenRole) }
+                        .buttonStyle(.borderedProminent)
+                    Button("Join a nearby session") { viewModel.join() }
+                        .buttonStyle(.bordered)
+                }
             }
 
         case .advertising:
@@ -103,10 +110,17 @@ struct PeerConnectionView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
                     ForEach(viewModel.discoveredPeers, id: \.self) { peer in
-                        Button(peer.displayName) {
-                            viewModel.connect(to: peer)
+                        if #available(iOS 26, *) {
+                            Button(peer.displayName) {
+                                viewModel.connect(to: peer)
+                            }
+                            .buttonStyle(.glass)
+                        } else {
+                            Button(peer.displayName) {
+                                viewModel.connect(to: peer)
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
                     }
                 }
             }

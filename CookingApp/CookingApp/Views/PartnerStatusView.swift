@@ -60,7 +60,7 @@ struct PartnerStatusView: View {
             }
         }
         .padding(10)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .background(cardBackground)
         .contentShape(Rectangle())
         .onTapGesture {
             showStatusExplanation = true
@@ -75,6 +75,18 @@ struct PartnerStatusView: View {
             Button("OK") {}
         } message: {
             Text("Green: connected and active. Blue: connected, but they've stepped away. Yellow: connecting. Red: disconnected — you can keep cooking on your own.")
+        }
+    }
+
+    // This card is a floating, tappable status control over the step content, not static
+    // page background — a real fit for Liquid Glass per the skill's "functional control" rule.
+    // Falls back to the existing `.thinMaterial` treatment pre-iOS 26.
+    @ViewBuilder
+    private var cardBackground: some View {
+        if #available(iOS 26, *) {
+            Color.clear.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10))
+        } else {
+            RoundedRectangle(cornerRadius: 10).fill(.thinMaterial)
         }
     }
 
