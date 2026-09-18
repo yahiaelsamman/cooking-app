@@ -41,15 +41,32 @@ struct RecipeSeederTests {
         // fields directly here would permanently pollute it for every other test in the process
         // that reads `SampleRecipes.all` afterward, since it's a class (reference type) held in a
         // `static let`.
+        //
+        // `alreadySeeded`'s *curated* content is deliberately stale — a different title/summary,
+        // a shorter step list, no hero image, no dietary tags — standing in for exactly what a
+        // real device looks like right before an update ships new bundled content for a recipe
+        // it already has. If `updateBundledContent(from:)` were deleted (or replaced with a
+        // no-op), this fixture would still exactly match `SampleRecipes.scrambledEggs` on every
+        // *user*-data field below, so the old version of this test (which built the fixture by
+        // copying fields directly from `SampleRecipes.scrambledEggs`, already-current content and
+        // all) would keep passing even with curated-content refresh completely broken — the real
+        // production bug that motivated `updateBundledContent(from:)` existing at all. Only
+        // user-data fields (`isFavorite`, `personalRating`, `personalNotes`, `timesCooked`,
+        // `lastCookedDate`, `sortOrder`) are set to real-looking values here.
+        let staleSoloSteps = [
+            RecipeStep(order: 0, instruction: "Crack the eggs into a bowl and whisk.", assignee: .solo, imageSystemName: "basket.fill")
+        ]
         let alreadySeeded = Recipe(
             id: SampleRecipes.scrambledEggs.id,
-            title: SampleRecipes.scrambledEggs.title,
-            summary: SampleRecipes.scrambledEggs.summary,
-            soloSteps: SampleRecipes.scrambledEggs.soloSteps,
-            iconSystemName: SampleRecipes.scrambledEggs.iconSystemName,
-            difficulty: SampleRecipes.scrambledEggs.difficulty,
-            soloCookTimeMinutes: SampleRecipes.scrambledEggs.soloCookTimeMinutes,
-            ingredients: SampleRecipes.scrambledEggs.ingredients,
+            title: "Scrambled Eggs (old recipe text)",
+            summary: "An outdated summary, from before this recipe was rewritten.",
+            soloSteps: staleSoloSteps,
+            iconSystemName: "questionmark.circle",
+            heroImageName: nil,
+            difficulty: 3,
+            soloCookTimeMinutes: 99,
+            dietaryTags: [],
+            ingredients: [Ingredient(name: "Eggs", amount: "2")],
             isFavorite: true,
             personalRating: 4,
             personalNotes: "Add more salt next time.",
@@ -100,6 +117,21 @@ struct RecipeSeederTests {
         #expect(stillFavorited?.personalNotes == "Add more salt next time.")
         #expect(stillFavorited?.timesCooked == 3)
         #expect(stillFavorited?.sortOrder == 0, "an already-present recipe's sortOrder must not be reassigned")
+
+        // The actual bug this test exists to catch: `alreadySeeded`'s *curated* content started
+        // deliberately stale (see the fixture's doc comment above) — seeding an already-present
+        // recipe must refresh it to match `SampleRecipes.scrambledEggs`'s current content, not
+        // just leave the stale data sitting there untouched.
+        let current = SampleRecipes.scrambledEggs
+        #expect(stillFavorited?.title == current.title)
+        #expect(stillFavorited?.summary == current.summary)
+        #expect(stillFavorited?.soloSteps.map(\.instruction) == current.soloSteps.map(\.instruction))
+        #expect(stillFavorited?.iconSystemName == current.iconSystemName)
+        #expect(stillFavorited?.heroImageName == current.heroImageName)
+        #expect(stillFavorited?.difficulty == current.difficulty)
+        #expect(stillFavorited?.soloCookTimeMinutes == current.soloCookTimeMinutes)
+        #expect(stillFavorited?.dietaryTags == current.dietaryTags)
+        #expect(stillFavorited?.ingredients.map(\.name) == current.ingredients.map(\.name))
 
         let stillAtFive = afterFirstSeed.first { $0.id == alsoAlreadySeeded.id }
         #expect(stillAtFive?.sortOrder == 5)
