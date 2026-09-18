@@ -9,7 +9,12 @@ public enum StepAssignee: String, Codable, Sendable {
 }
 
 public struct RecipeStep: Identifiable, Codable, Hashable, Sendable {
-    public var id: UUID
+    /// `let`, unlike every property below it — nothing ever writes `.id` through a `Binding`
+    /// (`RecipeEditorView`'s `ForEach($steps)` only binds to the fields users actually edit), so
+    /// there's no reason for identity itself to be mutable. Keeping it `let` closes a latent
+    /// `ForEach` identity-diffing risk: an accidental `$step.id = ...` would silently confuse
+    /// SwiftUI's diffing rather than fail to compile.
+    public let id: UUID
     /// `var`, not `let` — despite every other use of a `RecipeStep` treating it as an immutable
     /// value (a recipe is seeded once and never mutated except via `RecipeEditorView`), these need
     /// to be mutable so SwiftUI's `Binding` dynamic member lookup (`ForEach($steps) { $step in
@@ -80,7 +85,9 @@ public enum DietaryTag: String, Codable, CaseIterable, Hashable, Sendable {
 }
 
 public struct Ingredient: Identifiable, Codable, Hashable, Sendable {
-    public var id: UUID
+    /// `let` — see `RecipeStep.id`'s doc comment for why identity itself stays immutable even
+    /// though `name`/`amount` below are `var`.
+    public let id: UUID
     /// `var` for the same reason as `RecipeStep`'s properties — see its doc comment.
     public var name: String
     public var amount: String
