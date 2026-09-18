@@ -2,6 +2,10 @@ import Foundation
 import Testing
 @testable import CookingAppCore
 
+/// `@MainActor`: the `CookingSessionViewModel` section below constructs and drives real
+/// instances — it's `@MainActor` now (see its doc comment), so every call needs to run on the
+/// main actor too.
+@MainActor
 struct RecipeModelTests {
 
     // MARK: - Sample data integrity

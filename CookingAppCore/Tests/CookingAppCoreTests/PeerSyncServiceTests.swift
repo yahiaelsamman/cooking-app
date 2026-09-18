@@ -13,6 +13,10 @@ import Testing
 /// Important: `MCPeerID` equality is *not* just display-name comparison — two separately
 /// constructed instances with the same display name are not `==`. Every test below constructs
 /// its peer id exactly once into a `let` and reuses that same instance, never a fresh one.
+///
+/// `@MainActor`: `PeerSyncService` is `@MainActor` (see its doc comment), so every call below —
+/// including construction — needs to run on the main actor too.
+@MainActor
 struct PeerSyncServiceTests {
 
     private func makeService() -> PeerSyncService {

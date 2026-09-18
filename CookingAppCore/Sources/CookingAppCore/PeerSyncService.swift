@@ -9,12 +9,20 @@ private let serviceType = "cook-sync"
 /// Networking is strictly additive: local step navigation must keep working with no peer
 /// connected at all, so nothing in this service ever blocks the caller.
 ///
-/// Delegate callbacks below are thin `DispatchQueue.main.async` wrappers around `internal`
-/// (not `private`) handler methods — MultipeerConnectivity calls delegates on an arbitrary
-/// queue, so production code needs the dispatch, but tests can call the synchronous handlers
-/// directly (via `@testable import`) without needing a real MC session or waiting on the main
-/// queue to drain.
+/// The service itself is `@MainActor` — every stored property here is read/written from SwiftUI
+/// bindings and `CookingSessionViewModel`/`PeerConnectionViewModel` (both `@MainActor` too), so
+/// this makes that existing convention compiler-checked instead of just documented. The three
+/// `MCSessionDelegate`/`MCNearbyServiceAdvertiserDelegate`/`MCNearbyServiceBrowserDelegate`
+/// extensions below are the one place that can't follow that isolation directly:
+/// MultipeerConnectivity calls delegate methods on an arbitrary queue, not the main actor, so
+/// those specific methods stay `nonisolated` and hop onto the main actor explicitly (`Task {
+/// @MainActor in ... }`) to reach the `internal` (not `private`) handler methods that hold the
+/// actual logic — `handleSessionStateChange`, `handleReceivedMessage`, `handleFoundPeer`,
+/// `handleLostPeer`. Those handlers are `@MainActor` like the rest of the class; tests call them
+/// directly (via `@testable import`) from a `@MainActor` test suite, so no real MC session or
+/// run-loop spin is needed to exercise them synchronously.
 @Observable
+@MainActor
 public final class PeerSyncService: NSObject {
     public private(set) var connectionState: ConnectionState = .idle
     public private(set) var partnerStepIndex: Int?
@@ -293,43 +301,50 @@ public final class PeerSyncService: NSObject {
 // MARK: - MCSessionDelegate
 
 extension PeerSyncService: MCSessionDelegate {
-    public func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
-        DispatchQueue.main.async {
+    public nonisolated func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
+        Task { @MainActor in
             self.handleSessionStateChange(state, peerID: peerID)
         }
     }
 
-    public func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
+    public nonisolated func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
         guard let message = try? JSONDecoder().decode(SyncMessage.self, from: data) else { return }
-        DispatchQueue.main.async {
+        Task { @MainActor in
             self.handleReceivedMessage(message)
         }
     }
 
-    public func session(_ session: MCSession, didReceive stream: InputStream, withName streamName: String, fromPeer peerID: MCPeerID) {}
-    public func session(_ session: MCSession, didStartReceivingResourceWithName resourceName: String, fromPeer peerID: MCPeerID, with progress: Progress) {}
-    public func session(_ session: MCSession, didFinishReceivingResourceWithName resourceName: String, fromPeer peerID: MCPeerID, at localURL: URL?, withError error: Error?) {}
+    public nonisolated func session(_ session: MCSession, didReceive stream: InputStream, withName streamName: String, fromPeer peerID: MCPeerID) {}
+    public nonisolated func session(_ session: MCSession, didStartReceivingResourceWithName resourceName: String, fromPeer peerID: MCPeerID, with progress: Progress) {}
+    public nonisolated func session(_ session: MCSession, didFinishReceivingResourceWithName resourceName: String, fromPeer peerID: MCPeerID, at localURL: URL?, withError error: Error?) {}
 }
 
 // MARK: - MCNearbyServiceAdvertiserDelegate
 
 extension PeerSyncService: MCNearbyServiceAdvertiserDelegate {
-    public func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didReceiveInvitationFromPeer peerID: MCPeerID, withContext context: Data?, invitationHandler: @escaping (Bool, MCSession?) -> Void) {
-        invitationHandler(true, session)
+    public nonisolated func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didReceiveInvitationFromPeer peerID: MCPeerID, withContext context: Data?, invitationHandler: @escaping (Bool, MCSession?) -> Void) {
+        // `session` is main-actor-isolated storage, so it can only be read from inside the hop —
+        // MCNearbyServiceAdvertiserDelegate explicitly allows calling `invitationHandler` later
+        // rather than synchronously from this method, so deferring the accept by one run-loop
+        // turn onto the main actor is within the API's contract, not a behavior change that
+        // matters here.
+        Task { @MainActor in
+            invitationHandler(true, self.session)
+        }
     }
 }
 
 // MARK: - MCNearbyServiceBrowserDelegate
 
 extension PeerSyncService: MCNearbyServiceBrowserDelegate {
-    public func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID, withDiscoveryInfo info: [String: String]?) {
-        DispatchQueue.main.async {
+    public nonisolated func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID, withDiscoveryInfo info: [String: String]?) {
+        Task { @MainActor in
             self.handleFoundPeer(peerID)
         }
     }
 
-    public func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
-        DispatchQueue.main.async {
+    public nonisolated func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
+        Task { @MainActor in
             self.handleLostPeer(peerID)
         }
     }

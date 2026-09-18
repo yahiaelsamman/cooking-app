@@ -381,6 +381,10 @@ struct RecipeDetailView: View {
         }
     }
 
+    // `@MainActor`: `CookingSessionViewModel` is `@MainActor` now (see its doc comment in
+    // CookingAppCore) — a plain method on a `View` struct isn't implicitly MainActor just
+    // because `body` is, so constructing one here needs this annotation explicitly.
+    @MainActor
     private func startCooking() {
         if mode == .twoPerson {
             path.append(Route.peerConnection(recipe))

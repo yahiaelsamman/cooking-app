@@ -3,7 +3,12 @@ import MultipeerConnectivity
 import Observation
 
 /// Drives the host/join connection screen shown before a two-person cooking session starts.
+///
+/// `@MainActor`: owned by `PeerConnectionView` as `@State` and driven entirely by SwiftUI plus
+/// its own `PeerSyncService` (also `@MainActor`) — this makes that already-true convention
+/// compiler-checked.
 @Observable
+@MainActor
 public final class PeerConnectionViewModel {
     public let recipe: Recipe
     public let peerSync: PeerSyncService
@@ -11,12 +16,25 @@ public final class PeerConnectionViewModel {
     public private(set) var didHandshake = false
     public private(set) var role: PeerRole?
 
-    public init(recipe: Recipe, peerSync: PeerSyncService = PeerSyncService()) {
+    // No default for `peerSync` (there used to be one, `= PeerSyncService()`): a default
+    // argument's value expression is type-checked in its own, always-nonisolated context, not
+    // this initializer's — so it can't call a `@MainActor` initializer like `PeerSyncService()`
+    // no matter how this initializer itself is isolated. Every call site was already on the main
+    // actor (SwiftUI view code or an `@MainActor` test suite), so passing it explicitly costs
+    // nothing real.
+    public init(recipe: Recipe, peerSync: PeerSyncService) {
         self.recipe = recipe
         self.peerSync = peerSync
+        // No dispatch needed here: `PeerSyncService.handleReceivedMessage` (which invokes
+        // `onRecipeSync`) is itself `@MainActor` now, so this closure already runs on the main
+        // actor by the time it's called — assigning `didHandshake` directly is provably safe,
+        // not just conventionally safe. (Previously this wrapped the assignment in its own
+        // `DispatchQueue.main.async`, redundant on top of the hop `PeerSyncService`'s delegate
+        // methods already did — see PeerConnectionViewModelTests for what that redundant defer
+        // cost in test coverage.)
         peerSync.onRecipeSync = { [weak self] receivedRecipeID in
             guard let self, self.role == .joiner, receivedRecipeID == self.recipe.id else { return }
-            DispatchQueue.main.async { self.didHandshake = true }
+            self.didHandshake = true
         }
     }
 

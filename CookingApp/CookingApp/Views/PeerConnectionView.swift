@@ -12,6 +12,10 @@ struct PeerConnectionView: View {
     /// didn't pick, so there's nothing for the joiner to choose here.
     @State private var chosenRole: StepAssignee = .personA
 
+    // `@MainActor`: `PeerConnectionViewModel`/`PeerSyncService` are both `@MainActor` now (see
+    // their doc comments in CookingAppCore) — a plain View `init` isn't implicitly MainActor
+    // just because `body` is, so constructing them here needs this annotation explicitly.
+    @MainActor
     init(recipe: Recipe, path: Binding<NavigationPath>) {
         let cookName = UserDefaults.standard.string(forKey: "cookName")
         _viewModel = State(initialValue: PeerConnectionViewModel(

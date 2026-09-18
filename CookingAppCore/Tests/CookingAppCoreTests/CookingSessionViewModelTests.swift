@@ -8,6 +8,10 @@ import Testing
 /// `PeerSyncService` instance through its synchronous internal handlers (no actual networking)
 /// exactly as if messages had arrived from a partner device. See `PeerSyncServiceTests` for why
 /// this works without a live MultipeerConnectivity session.
+///
+/// `@MainActor`: `CookingSessionViewModel`/`ActiveSessionStore`/`PeerSyncService` are all
+/// `@MainActor` (see their doc comments), so every call below needs to run on the main actor too.
+@MainActor
 struct CookingSessionViewModelTests {
 
     @Test func isLastStepIsTrueOnlyOnTheFinalStep() {
@@ -391,6 +395,18 @@ struct CookingSessionViewModelTests {
     }
 
     // MARK: - ActiveSessionStore
+    //
+    // These cover in-memory identity/lifecycle only (not persistence — that's
+    // `SessionPersistenceTests`'s job, including for `ActiveSessionStore` itself). Every
+    // `CookingSessionViewModel` below is deliberately given a `role` (even though
+    // `SampleRecipes.scrambledEggs` is solo-only and happily ignores it, per `track(for:)`'s
+    // fallback) so `ActiveSessionStore.setActive`/`clear` skip their real
+    // `SessionPersistence`/`UserDefaults.standard` side effect entirely (`setActive` only
+    // persists when `session.role == nil`). Without that, these tests and
+    // `SessionPersistenceTests` — a different suite, scheduled independently — would race on the
+    // same real `UserDefaults` key; that's exactly what caused an intermittent
+    // `SessionPersistenceTests` failure once `CookingSessionViewModelTests` became `@MainActor`
+    // and its tests started actually interleaving with other suites' main-actor work.
 
     @Test func activeSessionStoreStartsEmpty() {
         let store = ActiveSessionStore()
@@ -400,7 +416,7 @@ struct CookingSessionViewModelTests {
 
     @Test func activeSessionStoreHoldsTheSameInstanceAcrossSetAndGet() {
         let store = ActiveSessionStore()
-        let session = CookingSessionViewModel(recipe: SampleRecipes.scrambledEggs)
+        let session = CookingSessionViewModel(recipe: SampleRecipes.scrambledEggs, role: .personA)
         session.advance() // give it distinguishing state
 
         store.setActive(session)
@@ -412,7 +428,7 @@ struct CookingSessionViewModelTests {
 
     @Test func activeSessionStoreClearRemovesTheSession() {
         let store = ActiveSessionStore()
-        store.setActive(CookingSessionViewModel(recipe: SampleRecipes.scrambledEggs))
+        store.setActive(CookingSessionViewModel(recipe: SampleRecipes.scrambledEggs, role: .personA))
 
         store.clear()
 
