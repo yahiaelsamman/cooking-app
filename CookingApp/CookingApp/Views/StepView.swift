@@ -17,6 +17,7 @@ struct StepView: View {
     @Environment(ActiveSessionStore.self) private var sessionStore
     @Environment(\.modelContext) private var modelContext
     @Environment(\.notificationPresentationState) private var notificationPresentationState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var timerFinishedBanners: [TimerFinishedBanner] = []
     @State private var showEndSessionConfirm = false
@@ -109,14 +110,19 @@ struct StepView: View {
 
             if session.isComplete {
                 completionView
-                    .transition(.scale(scale: 0.85).combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .scale(scale: 0.85).combined(with: .opacity))
             } else {
                 activeStepView
             }
 
             timerFinishedBannerStack
         }
-        .animation(.spring(response: 0.45, dampingFraction: 0.7), value: session.isComplete)
+        // `ConfettiView` (shown alongside `completionView`) already gates its own motion behind
+        // this same environment value — this is the matching gate for the screen-swap transition
+        // itself: an instant swap with no scale/spring under Reduce Motion, same as
+        // `.opacity`-only would produce, rather than skipping the `.animation` call and letting
+        // its default implicit animation apply anyway.
+        .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.7), value: session.isComplete)
         .navigationBarBackButtonHidden(true)
         .disablesInteractiveSwipeBack()
         .toolbar {
@@ -318,7 +324,7 @@ struct StepView: View {
                             .padding(.horizontal, 20)
 
                         Text(step.instruction)
-                            .font(.system(size: 30, weight: .semibold))
+                            .font(.system(.title, weight: .semibold))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
                             // Legibility comes first: the illustration sits above, text is never
