@@ -13,7 +13,9 @@ Human-in-the-loop workflow:
   2. Run: python3 Scripts/install_recipe_illustrations.py <slug> <step-count>
      e.g. python3 Scripts/install_recipe_illustrations.py grilled-cheese 9
   3. The script takes the (step-count + 1) most recently downloaded "ChatGPT Image*" files in
-     ~/Downloads, converts each to JPEG, and writes them into the asset catalog:
+     ~/Downloads, converts each to JPEG, and writes them into
+     Assets.xcassets/Recipes/<slug>/ (one folder per recipe, holding its hero + every step
+     illustration together):
        - oldest of the batch -> recipe-photo-<slug>.imageset (the same slot heroImageName already
          points to — no Swift change needed for the hero)
        - the rest, in order  -> recipe-step-<slug>-0.imageset, recipe-step-<slug>-1.imageset, ...
@@ -105,11 +107,12 @@ def main() -> None:
         print("\n(dry run — nothing written)")
         return
 
-    hero_dir = ASSETS_ROOT / f"recipe-photo-{slug}.imageset"
+    recipe_dir = ASSETS_ROOT / "Recipes" / slug
+    hero_dir = recipe_dir / f"recipe-photo-{slug}.imageset"
     write_imageset(hero_src, hero_dir, f"recipe-photo-{slug}.jpg")
 
     for i, src in enumerate(step_srcs):
-        step_dir = ASSETS_ROOT / f"recipe-step-{slug}-{i}.imageset"
+        step_dir = recipe_dir / f"recipe-step-{slug}-{i}.imageset"
         write_imageset(src, step_dir, f"recipe-step-{slug}-{i}.jpg")
 
     for src in batch:

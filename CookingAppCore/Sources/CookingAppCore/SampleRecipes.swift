@@ -19,7 +19,7 @@ public enum SampleRecipes {
             RecipeStep(order: 3, instruction: "Heat a non-stick pan over low-medium heat with a knob of butter.", assignee: .solo, imageSystemName: "flame.fill", stepImageName: "recipe-step-scrambled-eggs-3"),
             RecipeStep(order: 4, instruction: "Pour in the eggs once the butter foams.", assignee: .solo, imageSystemName: "drop.fill", stepImageName: "recipe-step-scrambled-eggs-4"),
             RecipeStep(order: 5, instruction: "Gently push the eggs from the edges to the center with a spatula as they set.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath", stepImageName: "recipe-step-scrambled-eggs-5"),
-            RecipeStep(order: 6, instruction: "Remove from heat while still slightly glossy — they'll finish cooking off the heat. Serve.", assignee: .solo, imageSystemName: "fork.knife")
+            RecipeStep(order: 6, instruction: "Remove from heat while still slightly glossy — they'll finish cooking off the heat. Serve.", assignee: .solo, imageSystemName: "fork.knife", stepImageName: "recipe-step-scrambled-eggs-6")
         ],
         iconSystemName: "frying.pan.fill",
         heroImageName: "recipe-photo-scrambled-eggs",

@@ -347,6 +347,27 @@ public final class Recipe {
         (existing.map(\.sortOrder).max() ?? -1) + 1
     }
 
+    /// Overwrites every bundled/curated field (everything above the "User data" mark) with
+    /// `other`'s values, leaving `id` and every user-data field on `self` completely untouched.
+    /// Used by `RecipeSeeder` to keep an already-seeded bundled recipe's content (steps, images,
+    /// ingredients, ...) in sync with `SampleRecipes.swift` on every launch, without ever
+    /// touching a favorite, rating, note, or the user's own sort order.
+    public func updateBundledContent(from other: Recipe) {
+        title = other.title
+        summary = other.summary
+        servings = other.servings
+        soloSteps = other.soloSteps
+        twoPersonSteps = other.twoPersonSteps
+        iconSystemName = other.iconSystemName
+        heroImageName = other.heroImageName
+        difficulty = other.difficulty
+        spiceLevel = other.spiceLevel
+        soloCookTimeMinutes = other.soloCookTimeMinutes
+        twoPersonCookTimeMinutes = other.twoPersonCookTimeMinutes
+        dietaryTags = other.dietaryTags
+        ingredients = other.ingredients
+    }
+
     public func cookTimeMinutes(forTwoPerson: Bool) -> Int {
         forTwoPerson ? (twoPersonCookTimeMinutes ?? soloCookTimeMinutes) : soloCookTimeMinutes
     }

@@ -7,9 +7,11 @@ Scripts/recipe_photo_candidates/<slug>/ yourself, since stock-photo relevance ne
 What it does:
   1. Center-crops the chosen image to match the app's hero aspect ratio (RecipeDetailView's header
      frame, 260x160 — roughly 13:8) so it isn't stretched/squashed at display time.
-  2. Writes it into CookingApp/CookingApp/Resources/Assets.xcassets/recipe-photo-<slug>.imageset/,
-     declared at "3x" scale (the source is high-res enough that this avoids blur on Retina
-     without needing to generate separate 1x/2x/3x files — same one-file trick used for icons).
+  2. Writes it into
+     CookingApp/CookingApp/Resources/Assets.xcassets/Recipes/<slug>/recipe-photo-<slug>.imageset/
+     (one folder per recipe, holding its hero + every step illustration together), declared at
+     "3x" scale (the source is high-res enough that this avoids blur on Retina without needing to
+     generate separate 1x/2x/3x files — same one-file trick used for icons).
   3. Prints the exact `heroImageName` line to add in SampleRecipes.swift — this script doesn't
      edit Swift source itself, since matching the right recipe initializer is a one-line, easy to
      double-check manual step.
@@ -76,7 +78,7 @@ def main() -> None:
         sys.exit(1)
 
     asset_name = f"recipe-photo-{slug}"
-    imageset_dir = ASSETS_ROOT / f"{asset_name}.imageset"
+    imageset_dir = ASSETS_ROOT / "Recipes" / slug / f"{asset_name}.imageset"
     imageset_dir.mkdir(parents=True, exist_ok=True)
 
     img = Image.open(source_path).convert("RGB")

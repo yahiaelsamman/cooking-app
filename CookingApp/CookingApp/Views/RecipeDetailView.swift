@@ -127,12 +127,12 @@ struct RecipeDetailView: View {
         }
         .onAppear {
             if !hasSeenRecipeDetailTour {
-                tour.begin(recipeDetailTourSteps)
-            }
-        }
-        .onChange(of: tour.isActive) { wasActive, isActive in
-            if wasActive && !isActive {
+                // Marked seen the moment the tour begins, not when every highlighted control has
+                // actually been tapped — tapping "Start Cooking" without first tapping the
+                // favorite/cart/servings controls (the natural thing to do) would otherwise leave
+                // this stuck mid-tour forever, replaying from step 0 on every future recipe.
                 hasSeenRecipeDetailTour = true
+                tour.begin(recipeDetailTourSteps)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -181,6 +181,7 @@ struct RecipeDetailView: View {
         VStack(spacing: 12) {
             RecipeHeroImageView(recipe: recipe)
                 .frame(width: 260, height: 160)
+                .clipped()
                 .frame(maxWidth: .infinity)
 
             Text(recipe.title)

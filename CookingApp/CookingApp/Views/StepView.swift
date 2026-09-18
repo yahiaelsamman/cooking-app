@@ -64,11 +64,17 @@ struct StepView: View {
     /// one-time tip is now due, but never interrupts one that's already showing.
     private func beginNextTourIfNeeded() {
         guard !tour.isActive else { return }
+        // Each flag is marked seen the moment its tour begins, not when every highlighted
+        // control has actually been used — tapping through steps without pausing to use the
+        // timer button (the natural thing to do) would otherwise leave that tip stuck active
+        // forever, replaying every time a timed step comes up.
         if !hasSeenStepTour {
             activeTourKind = .gestures
+            hasSeenStepTour = true
             tour.begin(gestureTourSteps)
         } else if let step = session.currentStep, step.timerSeconds != nil, !hasSeenTimerTourTip {
             activeTourKind = .timer
+            hasSeenTimerTourTip = true
             tour.begin([
                 TourStep(
                     target: "stepTimerButton",
@@ -78,6 +84,7 @@ struct StepView: View {
             ])
         } else if session.isLastStep, !hasSeenFinishTourTip {
             activeTourKind = .finish
+            hasSeenFinishTourTip = true
             tour.begin([
                 TourStep(
                     target: "holdToFinishButton",
@@ -139,12 +146,6 @@ struct StepView: View {
         }
         .onChange(of: tour.isActive) { wasActive, isActive in
             guard wasActive && !isActive else { return }
-            switch activeTourKind {
-            case .gestures: hasSeenStepTour = true
-            case .timer: hasSeenTimerTourTip = true
-            case .finish: hasSeenFinishTourTip = true
-            case nil: break
-            }
             activeTourKind = nil
             beginNextTourIfNeeded()
         }
@@ -295,6 +296,7 @@ struct StepView: View {
                     VStack(spacing: 20) {
                         StepIllustrationView(step: step, tint: stepTint(for: step))
                             .frame(width: 220, height: 160)
+                            .clipped()
 
                         Text(step.instruction)
                             .font(.system(size: 30, weight: .semibold))

@@ -202,11 +202,6 @@ struct RecipeListView: View {
             .overlayPreferenceValue(TourAnchorPreferenceKey.self) { anchors in
                 TourSpotlight(tour: tour, anchors: anchors)
             }
-            .onChange(of: tour.isActive) { wasActive, isActive in
-                if wasActive && !isActive {
-                    hasSeenRecipeListTour = true
-                }
-            }
             .onAppear {
                 // The system notification permission dialog can't be reliably dismissed from
                 // XCUITest, so UI tests skip requesting it entirely — CookingAppUITests always
@@ -219,6 +214,11 @@ struct RecipeListView: View {
                 if cookName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     showWelcomeName = true
                 } else if !hasSeenRecipeListTour {
+                    // Marked seen the moment the tour begins, not when every highlighted control
+                    // has actually been tapped — tapping straight into a recipe (the natural
+                    // thing to do) would otherwise leave this stuck mid-tour forever, replaying
+                    // from step 0 on every future visit to this screen.
+                    hasSeenRecipeListTour = true
                     tour.begin(recipeListTourSteps)
                 }
             }
@@ -236,6 +236,7 @@ struct RecipeListView: View {
                 WelcomeNameView(name: $cookName, expertise: cookExpertiseBinding) {
                     showWelcomeName = false
                     if !hasSeenRecipeListTour {
+                        hasSeenRecipeListTour = true
                         tour.begin(recipeListTourSteps)
                     }
                 }
@@ -297,6 +298,9 @@ struct RecipeListView: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier("recipeRow_\(recipe.title)")
         .tourAnchor("recipeRow_\(recipe.title)")
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
         .swipeActions(edge: .leading) {
             Button {
                 recipe.isFavorite.toggle()
@@ -342,12 +346,20 @@ private struct ResumeSessionButton: View {
     }
 }
 
+/// One recipe as a big-image card: a full-width photo (or the `PlaceholderPhotoView` gradient
+/// card when there's no `heroImageName` yet — sized generously via `RecipeHeroImageView`, which
+/// already does that real-photo-or-placeholder fallback) on top, everything else underneath.
+/// Replaced the old small-leading-thumbnail row layout — a 52pt square thumbnail didn't do
+/// justice to real recipe photos/illustrations, and this app is squarely about the images now.
 private struct RecipeRow: View {
     let recipe: Recipe
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            RecipeThumbnailView(recipe: recipe)
+        VStack(alignment: .leading, spacing: 10) {
+            RecipeHeroImageView(recipe: recipe)
+                .frame(height: 180)
+                .frame(maxWidth: .infinity)
+                .clipped()
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -406,39 +418,15 @@ private struct RecipeRow: View {
                     .padding(.top, 2)
                 }
             }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 12)
         }
-        .padding(.vertical, 4)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
         // Without this, VoiceOver focuses each title/badge/label fragment separately — combining
         // stitches them into one sentence per row, reusing the labels DifficultyStarsView/
         // SpiceLevelView/StarRatingView already provide for their own pieces.
         .accessibilityElement(children: .combine)
-    }
-}
-
-/// The small square photo in a recipe row. Deliberately *not* the gradient `PlaceholderPhotoView`
-/// card treatment used at full hero size — that doesn't read well this small (see
-/// `PlaceholderPhotoView`'s doc comment) — so a recipe without a real photo yet keeps the plain
-/// SF-Symbol tile look it's always had, and only recipes with an approved `heroImageName` upgrade
-/// to a real cropped photo.
-private struct RecipeThumbnailView: View {
-    let recipe: Recipe
-
-    var body: some View {
-        Group {
-            if let heroImageName = recipe.heroImageName {
-                Image(heroImageName)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Image(systemName: recipe.iconSystemName)
-                    .font(.system(size: 30))
-                    .foregroundStyle(Color.accentColor)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.accentColor.opacity(0.12))
-            }
-        }
-        .frame(width: 52, height: 52)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
