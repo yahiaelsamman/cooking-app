@@ -12,12 +12,15 @@ struct StepTimerControl: View {
     /// leaf view needing to know anything about `AppTour` itself.
     var onInteract: (() -> Void)? = nil
 
+    /// Start and cancel share one on-screen spot, so a double-tap (or a wet-handed second tap)
+    /// used to start a timer and instantly kill it. Cancelling now needs a confirmation.
+    @State private var confirmCancel = false
+
     var body: some View {
         if let seconds = step.timerSeconds {
             if let running = session.activeTimer(for: step) {
                 Button {
-                    session.cancelTimer(for: step)
-                    onInteract?()
+                    confirmCancel = true
                 } label: {
                     Label(Self.formatted(running.remainingSeconds), systemImage: "timer")
                         .font(.title3.monospacedDigit().weight(.semibold))
@@ -27,7 +30,14 @@ struct StepTimerControl: View {
                 // Without this, VoiceOver reads only the raw digits ("3 59, button") with no
                 // indication tapping cancels the timer.
                 .accessibilityLabel("Cancel timer")
-                .accessibilityValue("\(Self.formatted(running.remainingSeconds)) remaining")
+                .accessibilityValue("\(Self.spoken(running.remainingSeconds)) remaining")
+                .confirmationDialog("Cancel this timer?", isPresented: $confirmCancel, titleVisibility: .visible) {
+                    Button("Cancel Timer", role: .destructive) {
+                        session.cancelTimer(for: step)
+                        onInteract?()
+                    }
+                    Button("Keep Running", role: .cancel) {}
+                }
                 .tourAnchor("stepTimerButton")
             } else {
                 Button {
@@ -38,9 +48,17 @@ struct StepTimerControl: View {
                         .font(.title3)
                 }
                 .buttonStyle(.bordered)
+                .accessibilityLabel("Start \(Self.spoken(seconds)) timer")
                 .tourAnchor("stepTimerButton")
             }
         }
+    }
+
+    /// "3 minutes, 59 seconds" — VoiceOver reads the `m:ss` form as "3 colon 59".
+    static func spoken(_ seconds: Int) -> String {
+        Duration.seconds(seconds).formatted(
+            .units(allowed: [.hours, .minutes, .seconds], width: .wide)
+        )
     }
 
     static func formatted(_ seconds: Int) -> String {
