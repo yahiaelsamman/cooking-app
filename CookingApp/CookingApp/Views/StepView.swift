@@ -489,14 +489,19 @@ struct StepView: View {
                 }
             }
             .font(.footnote.weight(.semibold))
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             Button {
                 notificationHintDismissed = true
             } label: {
                 Image(systemName: "xmark")
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Dismiss")
         }
-        .padding(10)
+        .padding(.leading, 10)
+        .padding(.vertical, 0)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
     }
 

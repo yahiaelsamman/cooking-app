@@ -163,6 +163,8 @@ struct TourSpotlight: View {
                     .padding(.vertical, 6)
                     .foregroundStyle(.white)
                     .background(Color.black.opacity(0.85), in: Capsule())
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                     .accessibilityIdentifier("tourSkipButton")
             }
             // Bottom, not top: the top of list screens is the nav-bar toolbar, which covers it.

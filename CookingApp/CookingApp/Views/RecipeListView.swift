@@ -271,6 +271,8 @@ struct RecipeListView: View {
                             .padding(.vertical, 6)
                             .background(isSelected ? Color.green : Color.green.opacity(0.12), in: Capsule())
                             .foregroundStyle(isSelected ? .white : .green)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(isSelected ? [.isSelected] : [])
@@ -278,7 +280,7 @@ struct RecipeListView: View {
                 }
             }
             .padding(.horizontal)
-            .padding(.vertical, 8)
+            // 44pt chip hit areas already provide the vertical breathing room.
         }
         .background(.bar)
     }
