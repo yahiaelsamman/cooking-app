@@ -8,10 +8,6 @@ struct HoldToFinishButton: View {
 
     @State private var isHolding = false
     @State private var holdProgress: CGFloat = 0
-    /// Flips exactly when `onFinish()` is called (both from the hold gesture completing and from
-    /// the VoiceOver alternate action) — gives `.sensoryFeedback` below something to fire on at
-    /// the precise moment the hold actually registers, not a beat later when the screen changes.
-    @State private var didFinish = false
 
     private let holdDuration: Double = 1.0
     /// Scales the button's frame with Dynamic Type so the two-line "Hold to Finish" label has
@@ -42,15 +38,13 @@ struct HoldToFinishButton: View {
         .frame(width: diameter, height: diameter)
         .contentShape(Circle())
         .onLongPressGesture(minimumDuration: holdDuration, maximumDistance: 50) {
-            onFinish()
-            didFinish.toggle()
+            finish()
             isHolding = false
             holdProgress = 0
         } onPressingChanged: { pressing in
             isHolding = pressing
             holdProgress = pressing ? 1 : 0
         }
-        .sensoryFeedback(.success, trigger: didFinish)
         // A long-press gesture has no reliable VoiceOver equivalent — without this, the one
         // control that finishes a solo cook-through would be effectively unreachable by a
         // screen-reader user. `accessibilityAction` adds a real alternate path (a plain double
@@ -60,8 +54,14 @@ struct HoldToFinishButton: View {
         .accessibilityLabel("Finish Recipe")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction {
-            onFinish()
-            didFinish.toggle()
+            finish()
         }
+    }
+
+    /// Fires the haptic directly rather than via `.sensoryFeedback`: `onFinish()` swaps this view
+    /// out for the completion screen, so a state-triggered haptic could be torn down before it plays.
+    private func finish() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        onFinish()
     }
 }

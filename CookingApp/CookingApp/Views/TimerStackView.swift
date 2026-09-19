@@ -34,6 +34,7 @@ struct TimerStackView: View {
     private func chip(for info: TimerChipInfo) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "timer")
+                .foregroundStyle(info.isMine ? Color.accentColor : .orange)
             Text(info.step.instruction)
                 .lineLimit(1)
             Spacer(minLength: 8)
@@ -42,8 +43,9 @@ struct TimerStackView: View {
         }
         .font(.caption.weight(.medium))
         // Matches DualProgressSliderView's marker colors: mine = accentColor, partner = orange —
-        // so "the partner's color" means the same thing everywhere it shows up.
-        .foregroundStyle(info.isMine ? Color.accentColor : .orange)
+        // so "the partner's color" means the same thing everywhere it shows up. Only the icon and
+        // background carry it; the text stays primary so it keeps its contrast on tinted glass.
+        .foregroundStyle(.primary)
         .padding(8)
         .background(chipBackground(isMine: info.isMine))
         .contentShape(Rectangle())
