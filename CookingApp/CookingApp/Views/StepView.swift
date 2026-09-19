@@ -268,7 +268,17 @@ struct StepView: View {
             guard UIAccessibility.isVoiceOverRunning, !session.isComplete,
                   let step = session.currentStep else { return }
             let suffix = session.isLastStep ? " Last step. Use Finish Recipe." : ""
-            AccessibilityNotification.Announcement("\(session.progressText). \(step.instruction).\(suffix)").post()
+            let index = session.currentIndex
+            let text = "\(session.progressText). \(step.instruction).\(suffix)"
+            // Short delay so the element's own re-read/activation feedback doesn't cancel it, and
+            // high priority so it isn't dropped. Skipped if the step changed again meanwhile.
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(300))
+                guard session.currentIndex == index, !session.isComplete else { return }
+                var announcement = AttributedString(text)
+                announcement.accessibilitySpeechAnnouncementPriority = .high
+                AccessibilityNotification.Announcement(announcement).post()
+            }
         }
         .onChange(of: session.isComplete) { _, isComplete in
             guard UIAccessibility.isVoiceOverRunning else { return }
