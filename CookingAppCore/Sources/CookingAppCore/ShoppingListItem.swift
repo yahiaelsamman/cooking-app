@@ -64,6 +64,6 @@ public final class ShoppingListItem {
     }
 
     private static func dedupeKey(name: String, amount: String) -> String {
-        "\(name.lowercased())|\(amount)"
+        "\(name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())|\(amount)"
     }
 }
