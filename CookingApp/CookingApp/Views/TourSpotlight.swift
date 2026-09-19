@@ -145,15 +145,16 @@ struct TourSpotlight: View {
     }
 
     /// The overlay ignores the safe area (so the dimming covers the whole screen), which makes
-    /// the chip's own geometry report a zero inset and sit on the status bar — read it from the window.
-    private static var topSafeInset: CGFloat {
+    /// the chip's own geometry report a zero inset — read it from the window.
+    private static var bottomSafeInset: CGFloat {
         UIApplication.shared.connectedScenes
             .compactMap { ($0 as? UIWindowScene)?.keyWindow }
-            .first?.safeAreaInsets.top ?? 0
+            .first?.safeAreaInsets.bottom ?? 0
     }
 
     private var skipChip: some View {
         VStack {
+            Spacer()
             HStack {
                 Spacer()
                 Button("Skip Walkthrough") { tour.skip() }
@@ -164,9 +165,10 @@ struct TourSpotlight: View {
                     .background(Color.black.opacity(0.85), in: Capsule())
                     .accessibilityIdentifier("tourSkipButton")
             }
-            .padding(.top, Self.topSafeInset + 8)
+            // Bottom, not top: the top of list screens is the nav-bar toolbar, which covers it.
+            // Extra lift clears a bottom search bar.
+            .padding(.bottom, Self.bottomSafeInset + 72)
             .padding(.trailing, 16)
-            Spacer()
         }
     }
 }
