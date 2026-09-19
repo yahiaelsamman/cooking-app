@@ -12,6 +12,7 @@ struct PartnerStatusView: View {
     /// there's something worth showing on tap, it still absorbs the tap either way — nothing
     /// about that original purpose changes.
     @State private var showStatusExplanation = false
+    @State private var announceTask: Task<Void, Never>?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -71,10 +72,27 @@ struct PartnerStatusView: View {
         .sensoryFeedback(.warning, trigger: session.partnerConnectionState) { oldValue, newValue in
             newValue == .disconnected && oldValue != .disconnected
         }
+        // Status text changes silently otherwise; announce it for VoiceOver. Debounced so a
+        // flapping connection speaks only the state it settles on.
+        .onChange(of: session.partnerConnectionState) { _, _ in announceStatus() }
+        .onChange(of: session.partnerIsAway) { _, _ in announceStatus() }
+        .onDisappear { announceTask?.cancel() }
         .alert("What the Dot Means", isPresented: $showStatusExplanation) {
             Button("OK") {}
         } message: {
             Text("Green means your partner's connected and cooking along with you. Blue means they've stepped away — their progress is saved. Yellow means you're still connecting. Red means you've lost each other, but don't stop: keep cooking, and you'll resync if they reconnect.")
+        }
+    }
+
+    private func announceStatus() {
+        announceTask?.cancel()
+        guard session.partnerConnectionState != .idle else { return }
+        announceTask = Task {
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            var announcement = AttributedString(statusText)
+            announcement.accessibilitySpeechAnnouncementPriority = .high
+            AccessibilityNotification.Announcement(announcement).post()
         }
     }
 
