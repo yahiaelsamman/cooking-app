@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import AudioToolbox
 import CookingAppCore
 
 /// One finished-timer toast — non-blocking (unlike a `.alert`, it never demands a tap before you
@@ -199,9 +200,21 @@ struct StepView: View {
                 let banner = TimerFinishedBanner(instruction: step.instruction)
                 timerFinishedBanners.append(banner)
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
-                Task {
-                    try? await Task.sleep(for: .seconds(4))
-                    timerFinishedBanners.removeAll { $0.id == banner.id }
+                // The system banner and its sound are suppressed while this screen is visible
+                // (see `NotificationDelegate`), so without an audible cue the only signals are a
+                // haptic and a toast — neither reaches a phone propped across the kitchen, or
+                // someone using VoiceOver. Respects the ringer switch like any system sound.
+                AudioServicesPlayAlertSound(SystemSoundID(1005))
+                var announcement = AttributedString("Timer finished: \(step.instruction)")
+                announcement.accessibilitySpeechAnnouncementPriority = .high
+                AccessibilityNotification.Announcement(announcement).post()
+                // Under VoiceOver a 4s toast is easy to miss or lose focus on, so it stays until
+                // dismissed there.
+                if !UIAccessibility.isVoiceOverRunning {
+                    Task {
+                        try? await Task.sleep(for: .seconds(4))
+                        timerFinishedBanners.removeAll { $0.id == banner.id }
+                    }
                 }
             }
             if session.role != nil {
@@ -282,6 +295,9 @@ struct StepView: View {
                 .onTapGesture {
                     timerFinishedBanners.removeAll { $0.id == banner.id }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("Double tap to dismiss")
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
