@@ -52,12 +52,12 @@ struct RecipeDetailView: View {
             TourStep(
                 target: "detailFavoriteButton",
                 title: "Favorites",
-                message: "Tap the heart to save this recipe as a favorite."
+                message: "Use the Add to favorites button to save this recipe."
             ),
             TourStep(
                 target: "addToShoppingListButton",
                 title: "Shopping List",
-                message: "Tap the cart to add these ingredients to your shopping list."
+                message: "Use the Add to Shopping List button to add these ingredients."
             )
         ]
         if recipe.supportsTwoPerson {
@@ -74,7 +74,7 @@ struct RecipeDetailView: View {
                 TourStep(
                     target: "servingsStepper",
                     title: "Servings",
-                    message: "Tap + or – to scale the ingredient amounts for more or fewer people."
+                    message: "Use the Fewer servings and More servings buttons to scale the ingredient amounts."
                 )
             )
         }

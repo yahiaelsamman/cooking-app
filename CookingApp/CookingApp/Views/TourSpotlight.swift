@@ -112,7 +112,7 @@ struct TourSpotlight: View {
                     .foregroundStyle(.black)
                     .accessibilityIdentifier("tourNextButton")
             } else {
-                Label("Tap it to continue", systemImage: "hand.tap.fill")
+                Label("Use it to continue", systemImage: "hand.tap.fill")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.75))
             }
@@ -124,7 +124,7 @@ struct TourSpotlight: View {
         .allowsHitTesting(true)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(step.title): \(step.message)")
-        .accessibilityHint(step.targetID == nil ? "Double tap Next to continue" : "Use the highlighted control to continue")
+        .accessibilityHint(step.targetID == nil ? "Double tap Next to continue" : "Use the control described above to continue")
         .accessibilityFocused($isCalloutFocused)
     }
 

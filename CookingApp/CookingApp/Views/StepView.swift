@@ -48,17 +48,17 @@ struct StepView: View {
             TourStep(
                 target: "stepAdvance",
                 title: "Move Through the Recipe",
-                message: "Tap the right side of the screen to move on, or the left side to go back. Swiping works too."
+                message: "Double tap the step to move to the next one. Use the Previous step button to go back."
             ),
             TourStep(
                 target: "ingredientChecklistButton",
                 title: "Ingredient checklist",
-                message: "Tap here anytime to check off ingredients as you use them."
+                message: "Open the Ingredient checklist button anytime to check off ingredients as you use them."
             ),
             TourStep(
                 id: "stepBack",
                 title: "Going Back",
-                message: "Use the arrow in the bottom-left corner anytime you need to go back a step."
+                message: "Use the Previous step button anytime you need to go back."
             )
         ]
     }
@@ -92,7 +92,7 @@ struct StepView: View {
                 TourStep(
                     target: "holdToFinishButton",
                     title: "Finishing Up",
-                    message: "Press and hold the checkmark for a second to finish cooking."
+                    message: "Touch and hold the Finish Recipe button for a second, or double tap it, to finish cooking."
                 )
             ])
         }

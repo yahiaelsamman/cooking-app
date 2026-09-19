@@ -60,17 +60,17 @@ struct RecipeListView: View {
             TourStep(
                 target: "favoritesFilterButton",
                 title: "Favorites",
-                message: "Tap the heart to show just the recipes you've favorited."
+                message: "Use the Show favorites only button to see just the recipes you've favorited."
             ),
             TourStep(
                 target: "shoppingListButton",
                 title: "Shopping List",
-                message: "Tap the cart to see everything you've added to your shopping list."
+                message: "Use the Shopping List button to see everything you've added."
             ),
             TourStep(
                 target: "cookingProfileButton",
                 title: "Your Profile",
-                message: "Tap here anytime to change your name or how comfortable you are in the kitchen."
+                message: "Use the Your Profile button anytime to change your name or how comfortable you are in the kitchen."
             ),
             TourStep(
                 id: "search",
@@ -80,7 +80,7 @@ struct RecipeListView: View {
             TourStep(
                 target: "addRecipeButton",
                 title: "Write Your Own",
-                message: "Tap + to add one of your own recipes."
+                message: "Use the Add Recipe button to add one of your own recipes."
             )
         ]
         if let firstRecipe = displayedRecipes.first {
