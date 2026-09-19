@@ -49,6 +49,7 @@ struct StepTimerControl: View {
                 // indication tapping cancels the timer.
                 .accessibilityLabel("Cancel timer")
                 .accessibilityValue("\(Self.spoken(running.remainingSeconds)) remaining")
+                .accessibilityInputLabels(["Cancel timer", "Timer"])
                 .tourAnchor("stepTimerButton")
             } else {
                 Button {
@@ -60,6 +61,7 @@ struct StepTimerControl: View {
                 }
                 .buttonStyle(.bordered)
                 .accessibilityLabel("Start \(Self.spoken(seconds)) timer")
+                .accessibilityInputLabels(["Start timer", "Start \(Self.spoken(seconds)) timer"])
                 .tourAnchor("stepTimerButton")
             }
         }

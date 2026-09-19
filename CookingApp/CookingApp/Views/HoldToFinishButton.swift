@@ -56,6 +56,8 @@ struct HoldToFinishButton: View {
         // using VoiceOver, so the accidental-tap protection this button exists for is unaffected.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Finish Recipe")
+        .accessibilityInputLabels(["Finish Recipe", "Finish", "Hold to Finish"])
+        .accessibilityHint("Double tap to finish the recipe.")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction {
             finish()
