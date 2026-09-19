@@ -296,6 +296,12 @@ struct StepView: View {
             guard UIAccessibility.isVoiceOverRunning else { return }
             if isComplete {
                 AccessibilityNotification.ScreenChanged("Recipe complete").post()
+            } else {
+                // Going back from the completion screen: put focus back on the step.
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(500))
+                    if !session.isComplete, !tour.isActive { stepFocused = true }
+                }
             }
         }
         .alert(
