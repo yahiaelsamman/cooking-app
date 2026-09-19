@@ -44,6 +44,11 @@ public final class ActiveSessionStore {
     }
 
     private func persist(_ session: CookingSessionViewModel) {
+        // A finished recipe has nothing to resume — don't bring it back as a Resume Cooking banner.
+        if session.isComplete {
+            SessionPersistence.clear()
+            return
+        }
         let timers = session.activeTimers.map { timer in
             TimerSnapshot(
                 stepID: timer.step.id,

@@ -104,6 +104,21 @@ struct SessionPersistenceTests {
         #expect(SessionPersistence.load()?.currentIndex == 1)
     }
 
+    @Test func completingASoloSessionClearsThePersistedSnapshot() {
+        let recipe = makeTestRecipe()
+        let store = ActiveSessionStore()
+        let session = CookingSessionViewModel(recipe: recipe)
+        store.setActive(session)
+        session.advance()
+        session.advance()
+        #expect(SessionPersistence.load() != nil)
+
+        session.advance()
+
+        #expect(session.isComplete)
+        #expect(SessionPersistence.load() == nil)
+    }
+
     @Test func startingATimerUpdatesThePersistedSnapshotWithTimers() {
         let recipe = makeTestRecipe()
         let store = ActiveSessionStore()
