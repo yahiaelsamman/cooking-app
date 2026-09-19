@@ -119,6 +119,19 @@ public struct Ingredient: Identifiable, Codable, Hashable, Sendable {
     private static func scaleNormalized(_ amount: String, by factor: Double) -> String {
         guard let quantity = parseLeadingQuantity(amount) else { return amount }
         var remainder = quantity.remainder
+        // Hyphenated mixed number "1-1/2 cups" (whole, dash, proper fraction, no spaces) is
+        // 1 1/2, not the range 1 to 1/2.
+        if let dashIndex = amount.firstIndex(of: "-"), dashIndex != amount.startIndex,
+           amount[..<dashIndex].allSatisfy({ $0.isASCII && $0.isNumber }) {
+            let afterDash = amount.index(after: dashIndex)
+            var probe = Substring(amount[afterDash...])
+            if let n = consumeDigits(&probe), probe.first == "/" {
+                probe.removeFirst()
+                if let d = consumeDigits(&probe), let num = Double(n), let den = Double(d), den != 0, num < den {
+                    return scaleNormalized(String(amount[..<dashIndex]) + " " + String(amount[afterDash...]), by: factor)
+                }
+            }
+        }
         // Range like "2-3 cloves": the remainder starts with a dash then another quantity.
         var rangeSeparator = Substring(remainder)
         var separator = ""
