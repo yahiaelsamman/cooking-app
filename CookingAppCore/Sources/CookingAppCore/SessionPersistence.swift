@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// One timer that was running when a solo session was last persisted. Stores an absolute
 /// `endDate` rather than a `remainingSeconds` count — a force-quit can last anywhere from seconds
@@ -39,15 +40,28 @@ public struct CookingSessionSnapshot: Codable, Equatable, Sendable {
 /// a few dozen bytes at most, nowhere near what would justify a file-based store.
 public enum SessionPersistence {
     private static let key = "activeCookingSessionSnapshot"
+    private static let logger = Logger(subsystem: "com.yahia.cookingapp", category: "SessionPersistence")
 
     public static func save(_ snapshot: CookingSessionSnapshot, defaults: UserDefaults = .standard) {
-        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        // Lower stakes than a `RecipeSeeder` failure (this only affects "resume cooking after a
+        // force-quit," never the recipe data itself), but still logged rather than silently
+        // dropped — a save failure here means the *next* launch quietly loses "resume cooking"
+        // with no signal anything went wrong.
+        guard let data = try? JSONEncoder().encode(snapshot) else {
+            logger.error("Failed to encode a CookingSessionSnapshot for saving.")
+            return
+        }
         defaults.set(data, forKey: key)
     }
 
     public static func load(defaults: UserDefaults = .standard) -> CookingSessionSnapshot? {
         guard let data = defaults.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(CookingSessionSnapshot.self, from: data)
+        do {
+            return try JSONDecoder().decode(CookingSessionSnapshot.self, from: data)
+        } catch {
+            logger.error("Failed to decode the saved CookingSessionSnapshot: \(error, privacy: .public)")
+            return nil
+        }
     }
 
     public static func clear(defaults: UserDefaults = .standard) {

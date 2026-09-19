@@ -1,4 +1,5 @@
 import SwiftData
+import os
 
 /// Inserts every bundled sample recipe the on-device store doesn't already have (matched by its
 /// fixed id), and refreshes every already-seeded bundled recipe's *curated* content (steps,
@@ -27,8 +28,20 @@ import SwiftData
 /// delete UI yet, so this can't actually happen today — but whichever pass adds deletion needs a
 /// tombstone (e.g. a stored set of deleted bundled ids) alongside it, or this needs to change.
 public enum RecipeSeeder {
+    private static let logger = Logger(subsystem: "com.yahia.cookingapp", category: "RecipeSeeder")
+
     public static func seedIfNeeded(context: ModelContext) {
-        let existing = (try? context.fetch(FetchDescriptor<Recipe>())) ?? []
+        let existing: [Recipe]
+        do {
+            existing = try context.fetch(FetchDescriptor<Recipe>())
+        } catch {
+            // Not recoverable here — falling back to `[]` means every bundled recipe gets
+            // (re-)inserted below, same as a genuinely empty store, rather than leaving the user
+            // with nothing at all. Logged so a field report ("my recipes disappeared") has an
+            // actual diagnostic trail instead of a silently swallowed fetch failure.
+            logger.error("Failed to fetch existing recipes before seeding: \(error, privacy: .public)")
+            existing = []
+        }
         let existingByID = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
 
         var nextSortOrder = Recipe.nextSortOrder(after: existing)
@@ -44,6 +57,10 @@ public enum RecipeSeeder {
                 context.insert(recipe)
             }
         }
-        try? context.save()
+        do {
+            try context.save()
+        } catch {
+            logger.error("Failed to save after seeding bundled recipes: \(error, privacy: .public)")
+        }
     }
 }

@@ -35,6 +35,7 @@ struct CookingAppApp: App {
         WindowGroup {
             RecipeListView()
                 .environment(sessionStore)
+                .environment(\.notificationPresentationState, notificationDelegate.presentationState)
         }
         .modelContainer(modelContainer)
     }

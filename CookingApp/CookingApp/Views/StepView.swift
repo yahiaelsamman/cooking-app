@@ -13,9 +13,11 @@ private struct TimerFinishedBanner: Identifiable {
 
 struct StepView: View {
     let session: CookingSessionViewModel
-    @Binding var path: NavigationPath
+    @Binding var path: [Route]
     @Environment(ActiveSessionStore.self) private var sessionStore
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.notificationPresentationState) private var notificationPresentationState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var timerFinishedBanners: [TimerFinishedBanner] = []
     @State private var showEndSessionConfirm = false
@@ -108,14 +110,19 @@ struct StepView: View {
 
             if session.isComplete {
                 completionView
-                    .transition(.scale(scale: 0.85).combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .scale(scale: 0.85).combined(with: .opacity))
             } else {
                 activeStepView
             }
 
             timerFinishedBannerStack
         }
-        .animation(.spring(response: 0.45, dampingFraction: 0.7), value: session.isComplete)
+        // `ConfettiView` (shown alongside `completionView`) already gates its own motion behind
+        // this same environment value — this is the matching gate for the screen-swap transition
+        // itself: an instant swap with no scale/spring under Reduce Motion, same as
+        // `.opacity`-only would produce, rather than skipping the `.animation` call and letting
+        // its default implicit animation apply anyway.
+        .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.7), value: session.isComplete)
         .navigationBarBackButtonHidden(true)
         .disablesInteractiveSwipeBack()
         .toolbar {
@@ -170,6 +177,7 @@ struct StepView: View {
             Text("Your partner will be disconnected too. You can keep cooking on your own afterward.")
         }
         .onAppear {
+            notificationPresentationState.isStepViewVisible = true
             session.onTimerScheduled = { step, duration in
                 NotificationScheduler.schedule(step: step, durationSeconds: duration)
             }
@@ -207,6 +215,15 @@ struct StepView: View {
             // Restore normal auto-lock the moment cooking isn't the active screen — never leave
             // the device unable to sleep just because it once showed a recipe step.
             UIApplication.shared.isIdleTimerDisabled = false
+            // Flip the shared flag first so a timer that finishes right after this view tears
+            // down lets the system banner through (see `NotificationDelegate`), then clear
+            // `onTimerFinished` itself — it's the one closure here that touches this view's own
+            // `@State`, which becomes stale (no longer attached to anything on screen) the moment
+            // `StepView` disappears. `onTimerScheduled`/`onTimerUnscheduled` stay assigned: they
+            // only forward to the stateless `NotificationScheduler`, so they're still correct to
+            // run while this view isn't visible.
+            notificationPresentationState.isStepViewVisible = false
+            session.onTimerFinished = nil
         }
         .onChange(of: bothFinished) { _, finished in
             guard finished else { return }
@@ -230,7 +247,7 @@ struct StepView: View {
         ) {
             Button("OK") {
                 sessionStore.clear()
-                path = NavigationPath()
+                path = []
             }
         } message: {
             Text(
@@ -273,6 +290,18 @@ struct StepView: View {
             ProgressIndicatorView(progressText: session.progressText, fraction: session.progressFraction)
                 .padding(.top)
 
+            // The background/tint below is color-only otherwise (blue/orange/purple by
+            // assignee) — a real gap for colorblind users in two-person mode, unlike
+            // `RecipeDetailView`'s overview, which already labels the same grouping in text
+            // ("Person A"/"Together"). Only shown in two-person mode: a solo session's steps are
+            // all `.solo`, which `backgroundColor`/`stepTint` don't color-code at all.
+            if let assigneeLabel = currentStepAssigneeLabel {
+                Text(assigneeLabel)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 4)
+            }
+
             if session.role != nil {
                 PartnerStatusView(session: session)
                     .padding(.horizontal)
@@ -307,7 +336,7 @@ struct StepView: View {
                             .padding(.horizontal, 20)
 
                         Text(step.instruction)
-                            .font(.system(size: 30, weight: .semibold))
+                            .font(.system(.title, weight: .semibold))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
                             // Legibility comes first: the illustration sits above, text is never
@@ -432,7 +461,7 @@ struct StepView: View {
                 VStack(spacing: 12) {
                     Button("Back to Recipes") {
                         sessionStore.clear()
-                        path = NavigationPath()
+                        path = []
                     }
                     .buttonStyle(.borderedProminent)
 
@@ -470,6 +499,17 @@ struct StepView: View {
         case .personB: return .orange
         case .shared: return .purple
         case .solo: return .accentColor
+        }
+    }
+
+    /// Text counterpart to `backgroundColor`'s color-only assignee coding — `nil` for a solo
+    /// session's `.solo` steps, which `backgroundColor` doesn't color-code either.
+    private var currentStepAssigneeLabel: String? {
+        switch session.currentStep?.assignee {
+        case .personA: return "Person A"
+        case .personB: return "Person B"
+        case .shared: return "Together"
+        case .solo, nil: return nil
         }
     }
 }

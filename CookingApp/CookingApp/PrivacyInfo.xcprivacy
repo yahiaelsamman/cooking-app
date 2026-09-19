@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	This app never transmits data off-device except peer-to-peer over MultipeerConnectivity to a
+	partner's phone the user explicitly connects to during a two-person cooking session (see
+	PeerSyncService.swift) — there's no analytics, no ad SDK, no server, nothing the developer
+	receives. Nothing here is "tracking" in the App Store Privacy sense, so NSPrivacyTracking is
+	false and NSPrivacyCollectedDataTypes is empty.
+	-->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<!--
+			UserDefaults is genuinely used, both directly (SessionPersistence.swift,
+			PeerConnectionView.swift's cookName lookup) and via @AppStorage (10+ files: cookName,
+			cookExpertise, and every "hasSeenXTour" one-shot flag) — always information private
+			to this app itself, never shared via an App Group.
+			-->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

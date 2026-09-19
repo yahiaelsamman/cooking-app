@@ -14,7 +14,12 @@ import SwiftData
 /// snapshotted — the live `PeerSyncService`/MultipeerConnectivity session underneath one can't
 /// survive termination anyway, and re-handshaking mid-recipe with a partner is a materially
 /// different (and unbuilt) feature, so a force-quit still loses a shared session exactly as before.
+///
+/// `@MainActor`: constructed once as `@State` on the app's root view and handed around via
+/// `.environment`, read/written only from SwiftUI — this makes that already-true convention
+/// compiler-checked.
 @Observable
+@MainActor
 public final class ActiveSessionStore {
     public private(set) var currentSession: CookingSessionViewModel?
 

@@ -65,9 +65,18 @@ def fetch_candidates(api_key: str, slug: str, query: str) -> None:
     manifest = []
     for i, photo in enumerate(photos, start=1):
         image_url = photo["src"]["large"]
-        image_data = requests.get(image_url, timeout=30).content
         filename = f"candidate-{i}.jpg"
-        (out_dir / filename).write_bytes(image_data)
+        image_response = requests.get(image_url, timeout=30)
+        try:
+            image_response.raise_for_status()
+        except requests.HTTPError as error:
+            # Without this, a 404/rate-limit response body gets written straight to disk as if
+            # it were a real photo — silently "successful" until someone opens the file. Skip
+            # and keep going rather than aborting the whole recipe's candidate batch over one bad
+            # download.
+            print(f"  skipping {filename}: {error}")
+            continue
+        (out_dir / filename).write_bytes(image_response.content)
         manifest.append({
             "filename": filename,
             "photographer": photo["photographer"],

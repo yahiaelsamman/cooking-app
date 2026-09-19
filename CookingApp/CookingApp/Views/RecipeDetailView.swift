@@ -12,7 +12,7 @@ private enum CookingMode: String, CaseIterable {
 /// Cooking" and losing the wall-of-text view in favor of the one-step-at-a-time screen.
 struct RecipeDetailView: View {
     @Bindable var recipe: Recipe
-    @Binding var path: NavigationPath
+    @Binding var path: [Route]
     @Environment(ActiveSessionStore.self) private var sessionStore
     @Environment(\.modelContext) private var modelContext
 
@@ -32,7 +32,7 @@ struct RecipeDetailView: View {
     @AppStorage("hasSeenRecipeDetailTour") private var hasSeenRecipeDetailTour = false
     @State private var tour = AppTour()
 
-    init(recipe: Recipe, path: Binding<NavigationPath>) {
+    init(recipe: Recipe, path: Binding<[Route]>) {
         self.recipe = recipe
         self._path = path
         _targetServings = State(initialValue: recipe.servings ?? 1)
@@ -110,7 +110,7 @@ struct RecipeDetailView: View {
 
                     startCookingButton
 
-                    myNotesSection
+                    MyNotesSection(recipe: recipe)
 
                     ingredientsSection
 
@@ -281,58 +281,6 @@ struct RecipeDetailView: View {
         .tourAnchor("startCookingButton")
     }
 
-    private var myNotesSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("My Notes").font(.title3.bold())
-
-            HStack {
-                Text("Rating").font(.subheadline).foregroundStyle(.secondary)
-                Spacer()
-                StarRatingView(rating: recipe.personalRating) { newValue in
-                    recipe.personalRating = newValue
-                    try? modelContext.save()
-                }
-            }
-
-            HStack {
-                Text("Cooked").font(.subheadline).foregroundStyle(.secondary)
-                Spacer()
-                Text(cookedSummary)
-                    .font(.subheadline.weight(.medium))
-            }
-
-            TextEditor(text: Binding(
-                get: { recipe.personalNotes },
-                set: { recipe.personalNotes = $0 }
-            ))
-            .frame(minHeight: 80)
-            .overlay(alignment: .topLeading) {
-                if recipe.personalNotes.isEmpty {
-                    Text("What did you change? How did it turn out?")
-                        .font(.subheadline)
-                        .foregroundStyle(.tertiary)
-                        .padding(.top, 8)
-                        .padding(.leading, 5)
-                        .allowsHitTesting(false)
-                }
-            }
-            .padding(6)
-            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
-            .onChange(of: recipe.personalNotes) { _, _ in
-                try? modelContext.save()
-            }
-        }
-    }
-
-    private var cookedSummary: String {
-        guard recipe.timesCooked > 0 else { return "Not yet" }
-        let times = recipe.timesCooked == 1 ? "1 time" : "\(recipe.timesCooked) times"
-        if let lastCookedDate = recipe.lastCookedDate {
-            return "\(times), last on \(lastCookedDate.formatted(date: .abbreviated, time: .omitted))"
-        }
-        return times
-    }
-
     private var ingredientsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -433,13 +381,17 @@ struct RecipeDetailView: View {
         }
     }
 
+    // `@MainActor`: `CookingSessionViewModel` is `@MainActor` now (see its doc comment in
+    // CookingAppCore) — a plain method on a `View` struct isn't implicitly MainActor just
+    // because `body` is, so constructing one here needs this annotation explicitly.
+    @MainActor
     private func startCooking() {
         if mode == .twoPerson {
-            path.append(Route.peerConnection(recipe))
+            path.append(.peerConnection(recipe))
         } else {
             let session = CookingSessionViewModel(recipe: recipe)
             sessionStore.setActive(session)
-            path.append(Route.steps(session))
+            path.append(.steps(session))
         }
     }
 
@@ -449,7 +401,7 @@ struct RecipeDetailView: View {
     /// SwiftData has already faulted out from under it. Resetting `path` first means this view is
     /// no longer part of the active navigation stack by the time the delete actually happens.
     private func deleteRecipeAndPopBack() {
-        path = NavigationPath()
+        path = []
         modelContext.delete(recipe)
         try? modelContext.save()
     }
@@ -469,5 +421,80 @@ struct RecipeDetailView: View {
             try? await Task.sleep(for: .seconds(1.5))
             justAddedToShoppingList = false
         }
+    }
+}
+
+/// Rating, cook history, and the free-text notes field — split out from `RecipeDetailView` so
+/// typing in the notes `TextEditor` only re-evaluates this small view's body, not the whole
+/// screen (hero image, metadata, ingredients, full step overview all live in the parent and don't
+/// read `personalNotes`). Also debounces the save itself: writing to `modelContext` on every
+/// keystroke was a synchronous disk write on the main thread per character typed.
+private struct MyNotesSection: View {
+    @Bindable var recipe: Recipe
+    @Environment(\.modelContext) private var modelContext
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("My Notes").font(.title3.bold())
+
+            HStack {
+                Text("Rating").font(.subheadline).foregroundStyle(.secondary)
+                Spacer()
+                StarRatingView(rating: recipe.personalRating) { newValue in
+                    recipe.personalRating = newValue
+                    try? modelContext.save()
+                }
+            }
+
+            HStack {
+                Text("Cooked").font(.subheadline).foregroundStyle(.secondary)
+                Spacer()
+                Text(cookedSummary)
+                    .font(.subheadline.weight(.medium))
+            }
+
+            TextEditor(text: Binding(
+                get: { recipe.personalNotes },
+                set: { recipe.personalNotes = $0 }
+            ))
+            .frame(minHeight: 80)
+            .overlay(alignment: .topLeading) {
+                if recipe.personalNotes.isEmpty {
+                    Text("What did you change? How did it turn out?")
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 8)
+                        .padding(.leading, 5)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
+            .accessibilityLabel("Notes")
+            .padding(6)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+            // Debounced rather than saved on every keystroke: `.task(id:)` cancels its previous
+            // Task the instant `personalNotes` changes again (SwiftUI's own behavior for a
+            // changed task id), so only the save that survives 600ms of no further typing ever
+            // actually reaches disk — one write per pause instead of one per character. The
+            // `.onDisappear` save below is the safety net for "typed something, then immediately
+            // left the screen before the debounce fired."
+            .task(id: recipe.personalNotes) {
+                try? await Task.sleep(for: .milliseconds(600))
+                guard !Task.isCancelled else { return }
+                try? modelContext.save()
+            }
+        }
+        .onDisappear {
+            try? modelContext.save()
+        }
+    }
+
+    private var cookedSummary: String {
+        guard recipe.timesCooked > 0 else { return "Not yet" }
+        let times = recipe.timesCooked == 1 ? "1 time" : "\(recipe.timesCooked) times"
+        if let lastCookedDate = recipe.lastCookedDate {
+            return "\(times), last on \(lastCookedDate.formatted(date: .abbreviated, time: .omitted))"
+        }
+        return times
     }
 }

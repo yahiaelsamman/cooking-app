@@ -17,7 +17,6 @@ import CookingAppCore
 struct RecipeEditorView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @Query private var allRecipes: [Recipe]
 
     /// `nil` when creating a brand-new recipe.
     let existingRecipe: Recipe?
@@ -225,6 +224,12 @@ struct RecipeEditorView: View {
             existingRecipe.ingredients = finalIngredients
             existingRecipe.soloSteps = finalSteps
         } else {
+            // Fetched on demand rather than kept as a live `@Query` — this is the only place in
+            // this view that ever needs the full recipe list (once, at save time), and a
+            // persistent `@Query` here meant any Recipe mutation anywhere else in the app
+            // (a favorite toggle, a rating change) while this Form-heavy sheet happened to be
+            // open would trigger an unnecessary re-render of the whole thing.
+            let allRecipes = (try? modelContext.fetch(FetchDescriptor<Recipe>())) ?? []
             let nextSortOrder = Recipe.nextSortOrder(after: allRecipes)
             let recipe = Recipe(
                 title: trimmedTitle,

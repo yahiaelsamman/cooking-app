@@ -7,17 +7,26 @@ import Testing
 /// untested. Drives a real `PeerSyncService` through its synchronous internal handlers (same
 /// approach as `PeerSyncServiceTests`/`CookingSessionViewModelTests`) rather than real networking.
 ///
-/// `didHandshake`'s "joiner accepted a matching recipeSync" path assigns on
-/// `DispatchQueue.main.async` (see `PeerConnectionViewModel.init`), which — like this codebase's
-/// Timer-based countdowns — isn't reliably observable from a `swift test` process with no
-/// actively-spinning main run loop. So this file only asserts the synchronous *guard* conditions
-/// that gate that assignment (wrong role, mismatched recipe id): both are directly observable
-/// without waiting on anything async. The one *synchronous* handshake path — `hostDidConnect()`,
-/// which assigns `didHandshake` directly with no dispatch — is fully covered below.
+/// `@MainActor`: `PeerConnectionViewModel`/`PeerSyncService` are both `@MainActor` now (see their
+/// doc comments), so this suite runs on the main actor too — every call below is a plain
+/// synchronous call to a main-actor-isolated method, exactly as production code makes it.
+///
+/// `didHandshake`'s "joiner accepted a matching recipeSync" path used to assign on its own
+/// `DispatchQueue.main.async`, redundant on top of the hop `PeerSyncService`'s own delegate
+/// methods already did — which meant it wasn't reliably observable from a `swift test` process
+/// with no actively-spinning main run loop, same limitation this codebase's Timer-based
+/// countdowns have. Now that both types are provably `@MainActor`, that redundant inner dispatch
+/// is gone, so `joinerHandshakeSucceedsOnAMatchingRecipeSync` below exercises the real path
+/// directly, alongside the guard conditions that gate it (wrong role, mismatched recipe id).
+@MainActor
 struct PeerConnectionViewModelTests {
 
+    private func makeViewModel(recipe: Recipe = SampleRecipes.scrambledEggs) -> PeerConnectionViewModel {
+        PeerConnectionViewModel(recipe: recipe, peerSync: PeerSyncService(displayName: "test-device"))
+    }
+
     @Test func hostSetsHostRoleAndBeginsAdvertising() {
-        let viewModel = PeerConnectionViewModel(recipe: SampleRecipes.scrambledEggs)
+        let viewModel = makeViewModel()
 
         viewModel.host(as: .personA)
 
@@ -27,7 +36,7 @@ struct PeerConnectionViewModelTests {
 
     @Test func hostResolvesItsOwnChosenRoleImmediately() {
         // The host doesn't wait on any message for this — it knows its own choice right away.
-        let viewModel = PeerConnectionViewModel(recipe: SampleRecipes.scrambledEggs)
+        let viewModel = makeViewModel()
 
         viewModel.host(as: .personB)
 
@@ -58,7 +67,7 @@ struct PeerConnectionViewModelTests {
     }
 
     @Test func joinSetsJoinerRoleAndBeginsBrowsing() {
-        let viewModel = PeerConnectionViewModel(recipe: SampleRecipes.scrambledEggs)
+        let viewModel = makeViewModel()
 
         viewModel.join()
 
@@ -67,7 +76,7 @@ struct PeerConnectionViewModelTests {
     }
 
     @Test func cancelTearsDownTheUnderlyingConnection() {
-        let viewModel = PeerConnectionViewModel(recipe: SampleRecipes.scrambledEggs)
+        let viewModel = makeViewModel()
         viewModel.host(as: .personA)
         #expect(viewModel.connectionState == .advertising)
 
@@ -79,7 +88,7 @@ struct PeerConnectionViewModelTests {
     // MARK: - hostDidConnect (synchronous — no dispatch involved)
 
     @Test func hostDidConnectSetsDidHandshakeWhenHosting() {
-        let viewModel = PeerConnectionViewModel(recipe: SampleRecipes.scrambledEggs)
+        let viewModel = makeViewModel()
         viewModel.host(as: .personA)
         #expect(!viewModel.didHandshake)
 
@@ -90,7 +99,7 @@ struct PeerConnectionViewModelTests {
 
     @Test func hostDidConnectDoesNothingBeforeHostIsCalled() {
         // Guards against a stray/late callback firing before `host()` has even set `role`.
-        let viewModel = PeerConnectionViewModel(recipe: SampleRecipes.scrambledEggs)
+        let viewModel = makeViewModel()
 
         viewModel.hostDidConnect()
 
@@ -100,7 +109,7 @@ struct PeerConnectionViewModelTests {
     @Test func hostDidConnectDoesNothingForAJoiner() {
         // The joiner's handshake signal is the incoming `recipeSync` message, not this method —
         // it should be a no-op if role is `.joiner`.
-        let viewModel = PeerConnectionViewModel(recipe: SampleRecipes.scrambledEggs)
+        let viewModel = makeViewModel()
         viewModel.join()
 
         viewModel.hostDidConnect()
@@ -109,7 +118,7 @@ struct PeerConnectionViewModelTests {
     }
 
     @Test func hostDidConnectIsIdempotentOnceAlreadyHandshaken() {
-        let viewModel = PeerConnectionViewModel(recipe: SampleRecipes.scrambledEggs)
+        let viewModel = makeViewModel()
         viewModel.host(as: .personA)
         viewModel.hostDidConnect()
         #expect(viewModel.didHandshake)
@@ -156,6 +165,21 @@ struct PeerConnectionViewModelTests {
         peerSync.handleReceivedMessage(.recipeSync(recipeID: recipe.id, hostRole: .personB, senderName: "Alex"))
 
         #expect(!viewModel.didHandshake)
+    }
+
+    // MARK: - onRecipeSync success path (previously untestable — see the file's doc comment)
+
+    @Test func joinerHandshakeSucceedsOnAMatchingRecipeSync() {
+        let recipe = SampleRecipes.scrambledEggs
+        let peerSync = PeerSyncService(displayName: "me")
+        let viewModel = PeerConnectionViewModel(recipe: recipe, peerSync: peerSync)
+        viewModel.join()
+        #expect(!viewModel.didHandshake)
+
+        peerSync.handleReceivedMessage(.recipeSync(recipeID: recipe.id, hostRole: .personA, senderName: "Alex"))
+
+        #expect(viewModel.didHandshake)
+        #expect(viewModel.resolvedStepAssignee == .personB)
     }
 
     // MARK: - discoveredPeers / connectionState pass-through

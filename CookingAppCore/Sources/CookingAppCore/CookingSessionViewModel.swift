@@ -13,7 +13,12 @@ public struct ActiveTimer: Identifiable, Hashable, Sendable {
 /// Drives the step-through experience for one cooking session. Works identically for solo
 /// recipes (`role: nil`, `peerSync: nil`) and two-person recipes — local navigation never
 /// depends on a connected peer, sync is a strictly additive layer on top.
+///
+/// `@MainActor`: every mutation here comes from SwiftUI bindings, the main-run-loop `Timer` in
+/// `ensureTicking()`, or a `PeerSyncService` callback (itself `@MainActor` — see its doc comment)
+/// — this makes that already-true convention compiler-checked.
 @Observable
+@MainActor
 public final class CookingSessionViewModel {
     public let recipe: Recipe
     public let role: StepAssignee?
@@ -77,7 +82,10 @@ public final class CookingSessionViewModel {
         }
     }
 
-    deinit {
+    // `isolated deinit` (rather than a plain nonisolated one): `ticker` is main-actor-isolated
+    // storage like everything else on this class, and there's no way to synchronously invalidate
+    // it from a deinit that isn't itself isolated to the same actor.
+    isolated deinit {
         ticker?.invalidate()
     }
 
@@ -272,8 +280,14 @@ public final class CookingSessionViewModel {
 
     private func ensureTicking() {
         guard ticker == nil else { return }
+        // `Timer.scheduledTimer(_:repeats:block:)`'s block is `@Sendable`, so it can't be
+        // main-actor-isolated itself even though it always actually fires on the main run loop
+        // here (this is scheduled from a main-actor method) — hop explicitly, same pattern as
+        // `PeerSyncService`'s delegate callbacks.
         ticker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            self?.tick()
+            Task { @MainActor in
+                self?.tick()
+            }
         }
     }
 
@@ -316,12 +330,21 @@ public final class CookingSessionViewModel {
 
 // MARK: - Hashable (identity-based, for use as SwiftUI navigation-path elements)
 
+// `nonisolated`, not an isolated conformance: `==`/`hash(into:)` never touch any of this class's
+// actor-isolated state — identity only (`===`/`ObjectIdentifier`), which is safe to evaluate from
+// any thread — so there's no reason to restrict where this conformance can be *used* to the main
+// actor. (An isolated `@MainActor Hashable` conformance here was tried first, since the class
+// itself is `@MainActor`; it compiled, but calling it while `Route` — see `Route.swift` in the
+// app target — also synthesizes a `Hashable` conformance one layer up hit a compiler limitation
+// synthesizing a derived conformance on top of an isolated one. Plain `nonisolated` avoids that
+// entirely and is the more precise annotation anyway, since the implementation really is
+// thread-safe as written.)
 extension CookingSessionViewModel: Hashable {
-    public static func == (lhs: CookingSessionViewModel, rhs: CookingSessionViewModel) -> Bool {
+    nonisolated public static func == (lhs: CookingSessionViewModel, rhs: CookingSessionViewModel) -> Bool {
         lhs === rhs
     }
 
-    public func hash(into hasher: inout Hasher) {
+    nonisolated public func hash(into hasher: inout Hasher) {
         hasher.combine(ObjectIdentifier(self))
     }
 }

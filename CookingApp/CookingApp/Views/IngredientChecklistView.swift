@@ -28,6 +28,7 @@ struct IngredientChecklistView: View {
                         Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
                             .foregroundStyle(isChecked ? Color.accentColor : .secondary)
                             .font(.title3)
+                            .accessibilityHidden(true)
                         Text(ingredient.name)
                             .strikethrough(isChecked)
                             .foregroundStyle(isChecked ? .secondary : .primary)
@@ -35,6 +36,11 @@ struct IngredientChecklistView: View {
                         Text(ingredient.amount)
                             .foregroundStyle(.secondary)
                     }
+                    // Combines name/amount into one VoiceOver stop instead of three fragments —
+                    // matches ShoppingListView's structurally identical row exactly, including
+                    // why: the checkmark icon is hidden above since `.isSelected` below already
+                    // conveys checked state (VoiceOver appends "selected" itself).
+                    .accessibilityElement(children: .combine)
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("ingredientChecklistRow_\(ingredient.name)")

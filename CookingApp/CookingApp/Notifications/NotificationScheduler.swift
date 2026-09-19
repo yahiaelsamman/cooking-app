@@ -1,13 +1,27 @@
 import UserNotifications
 import CookingAppCore
+import os
 
 /// Schedules/cancels local notifications for a step's timer, keyed by the step's own id so a
 /// cancel always targets the right pending request even with multiple timers stacked at once.
 /// Stateless — everything goes straight through `UNUserNotificationCenter.current()` — so this
 /// is a namespace of static functions rather than an instance.
 enum NotificationScheduler {
+    private static let logger = Logger(subsystem: "com.yahia.cookingapp", category: "NotificationScheduler")
+
     static func requestAuthorizationIfNeeded() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if let error {
+                logger.error("Notification authorization request failed: \(error, privacy: .public)")
+            } else if !granted {
+                // Not logged as an error — declining is a legitimate, expected choice. There's
+                // no in-app fallback UI (a "notifications are off" hint + Settings deep link) for
+                // this yet: a timer that finishes while the app is backgrounded with permission
+                // denied has no way to reach the user at all today. Tracked as a known gap, not
+                // silently unaccounted for.
+                logger.notice("Notification authorization was denied.")
+            }
+        }
     }
 
     static func schedule(step: RecipeStep, durationSeconds: Int) {
@@ -18,7 +32,15 @@ enum NotificationScheduler {
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(durationSeconds), repeats: false)
         let request = UNNotificationRequest(identifier: identifier(for: step), content: content, trigger: trigger)
-        UNUserNotificationCenter.current().add(request)
+        // `add(request)` previously dropped a scheduling failure silently — no `try await`, no
+        // completion handler. A failure here (e.g. denied authorization) means a timer that
+        // finishes while the app is backgrounded gives the user zero signal, so it's worth
+        // knowing about even though there's nothing actionable to do about it in the moment.
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error {
+                logger.error("Failed to schedule timer notification: \(error, privacy: .public)")
+            }
+        }
     }
 
     /// Cancels both a still-pending request (timer cancelled early) and an already-delivered one

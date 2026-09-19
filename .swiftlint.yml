@@ -1,0 +1,56 @@
+# Calibrated for this codebase's existing conventions rather than stock SwiftLint defaults — a
+# scan against a stock config would misfire immediately in two specific ways:
+#   - SampleRecipes.swift's recipe-data literals run long (243 lines over the stock 120-char
+#     line_length as of this writing, up to 470 chars) — real content, not a style problem.
+#   - ~20 intentional `UUID(uuidString: "...")!` force-unwraps on fixed literal strings (every
+#     bundled recipe's stable id, which can never actually fail) — `force_unwrapping` is opt-in,
+#     not a stock default, so it's deliberately left out of `opt_in_rules` below rather than
+#     enabled and then suppressed 20 times over.
+#
+# Everything else here is the stock default rule set plus a small, deliberate set of additional
+# opt-in rules — not `only_rules` — so this still catches the usual things (unused code,
+# force-casts, control-flow style) without a wholesale rewrite of the existing style.
+
+included:
+  - CookingApp/CookingApp
+  - CookingAppCore/Sources
+  - CookingAppCore/Tests
+
+excluded:
+  - CookingApp/CookingApp.xcodeproj
+  - CookingAppCore/.build
+  - "**/.build"
+  - "**/.swiftpm"
+  - Scripts
+
+line_length:
+  warning: 220
+  error: 480
+  ignores_comments: true
+  ignores_urls: true
+
+file_length:
+  warning: 600
+  error: 1000
+
+type_body_length:
+  warning: 350
+  error: 600
+
+function_body_length:
+  warning: 80
+  error: 150
+
+opt_in_rules:
+  - closure_spacing
+  - empty_count
+  - sorted_imports
+  - unhandled_throwing_task
+  - accessibility_label_for_image
+  - accessibility_trait_for_button
+
+# Doc-comment-heavy files with long "why, not just what" explanations (this codebase's own
+# established convention — see any file's header comment) routinely exceed the default
+# `file_length` warning even well under `line_length` limits; `type_body_length`/
+# `function_body_length` above are nudged the same direction for the same reason, not because
+# long functions/types are the goal.

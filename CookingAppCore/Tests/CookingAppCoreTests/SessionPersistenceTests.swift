@@ -10,7 +10,11 @@ import Testing
 /// `.serialized`, matching `RecipeSeederTests`'s convention — every test here reads/writes the
 /// same `SessionPersistence` key (backed by `UserDefaults.standard`), which would race under
 /// swift-testing's default parallel execution.
+///
+/// `@MainActor`: `ActiveSessionStore`/`CookingSessionViewModel` are both `@MainActor` (see their
+/// doc comments), so every call below needs to run on the main actor too.
 @Suite(.serialized)
+@MainActor
 struct SessionPersistenceTests {
 
     init() {

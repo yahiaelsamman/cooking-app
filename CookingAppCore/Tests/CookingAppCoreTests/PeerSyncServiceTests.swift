@@ -13,6 +13,10 @@ import Testing
 /// Important: `MCPeerID` equality is *not* just display-name comparison — two separately
 /// constructed instances with the same display name are not `==`. Every test below constructs
 /// its peer id exactly once into a `let` and reuses that same instance, never a fresh one.
+///
+/// `@MainActor`: `PeerSyncService` is `@MainActor` (see its doc comment), so every call below —
+/// including construction — needs to run on the main actor too.
+@MainActor
 struct PeerSyncServiceTests {
 
     private func makeService() -> PeerSyncService {
@@ -338,5 +342,84 @@ struct PeerSyncServiceTests {
         // Should be discovered but not auto-invited (that's a manual "tap to connect" moment).
         #expect(service.discoveredPeers.contains(peer))
         #expect(service.connectionState == .browsing)
+    }
+
+    // MARK: - Real delegate entry points
+    //
+    // Every test above calls the synchronous `handle*`/internal methods directly, exercising the
+    // actual logic but not the delegate methods themselves. Those are `nonisolated` (see
+    // `PeerSyncService`'s doc comment — MultipeerConnectivity calls them on an arbitrary queue)
+    // and hop onto the main actor via `Task { @MainActor in ... }` to reach the handlers, so
+    // calling one here doesn't update state synchronously the way `handleSessionStateChange(...)`
+    // does — there's a real, if brief, gap before the hop lands. A short sleep is the only way to
+    // observe that without a direct handle to the spawned `Task`; every dummy `MCSession`/
+    // `MCNearbyServiceAdvertiser`/`MCNearbyServiceBrowser` passed to these calls is required by
+    // the delegate signature but never actually read by the method body (each one operates on
+    // `self`'s own stored state instead), so a throwaway instance is fine.
+
+    @Test func sessionDelegateDidChangeStateReachesConnectionStateThroughTheRealHop() async {
+        let service = makeService()
+        let peer = MCPeerID(displayName: "partner-device")
+        service.startBrowsing()
+        let dummySession = MCSession(peer: MCPeerID(displayName: "dummy"))
+
+        service.session(dummySession, peer: peer, didChange: .connected)
+        try? await Task.sleep(for: .milliseconds(100))
+
+        #expect(service.connectionState == .connected)
+    }
+
+    @Test func sessionDelegateDidReceiveDataReachesReceivedMessageHandlingThroughTheRealHop() async {
+        let service = makeService()
+        let peer = MCPeerID(displayName: "partner-device")
+        let dummySession = MCSession(peer: MCPeerID(displayName: "dummy"))
+        let data = try! JSONEncoder().encode(SyncMessage.progressUpdate(stepIndex: 4))
+
+        service.session(dummySession, didReceive: data, fromPeer: peer)
+        try? await Task.sleep(for: .milliseconds(100))
+
+        #expect(service.partnerStepIndex == 4)
+    }
+
+    @Test func advertiserDidReceiveInvitationAcceptsThroughTheRealHop() async {
+        let service = makeService()
+        let peer = MCPeerID(displayName: "partner-device")
+        let dummyAdvertiser = MCNearbyServiceAdvertiser(peer: MCPeerID(displayName: "dummy"), discoveryInfo: nil, serviceType: "test-svc")
+        var handlerResult: (accepted: Bool, session: MCSession?)?
+
+        service.advertiser(dummyAdvertiser, didReceiveInvitationFromPeer: peer, withContext: nil) { accepted, session in
+            handlerResult = (accepted, session)
+        }
+        try? await Task.sleep(for: .milliseconds(100))
+
+        #expect(handlerResult?.accepted == true)
+        #expect(handlerResult?.session != nil)
+    }
+
+    @Test func browserDelegateFoundPeerReachesDiscoveredPeersThroughTheRealHop() async {
+        let service = makeService()
+        let peer = MCPeerID(displayName: "partner-device")
+        service.startBrowsing()
+        let dummyBrowser = MCNearbyServiceBrowser(peer: MCPeerID(displayName: "dummy"), serviceType: "test-svc")
+
+        service.browser(dummyBrowser, foundPeer: peer, withDiscoveryInfo: nil)
+        try? await Task.sleep(for: .milliseconds(100))
+
+        #expect(service.discoveredPeers.contains(peer))
+    }
+
+    @Test func browserDelegateLostPeerReachesDiscoveredPeersThroughTheRealHop() async {
+        let service = makeService()
+        let peer = MCPeerID(displayName: "partner-device")
+        service.startBrowsing()
+        let dummyBrowser = MCNearbyServiceBrowser(peer: MCPeerID(displayName: "dummy"), serviceType: "test-svc")
+        service.browser(dummyBrowser, foundPeer: peer, withDiscoveryInfo: nil)
+        try? await Task.sleep(for: .milliseconds(100))
+        #expect(service.discoveredPeers.contains(peer))
+
+        service.browser(dummyBrowser, lostPeer: peer)
+        try? await Task.sleep(for: .milliseconds(100))
+
+        #expect(!service.discoveredPeers.contains(peer))
     }
 }

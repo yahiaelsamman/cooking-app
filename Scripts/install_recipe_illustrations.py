@@ -28,9 +28,14 @@ Human-in-the-loop workflow:
      successfully.
 
 Usage:
-    python3 Scripts/install_recipe_illustrations.py <slug> <step-count> [--dry-run]
+    python3 Scripts/install_recipe_illustrations.py <slug> <step-count> [--dry-run] [--confirm]
     (requires Pillow: pip install pillow)
+
+    --dry-run  Preview which files would be used and where they'd go; writes nothing.
+    --confirm  Required for a real (non-dry-run) invocation — a safety gate against a typo'd
+               command line writing/deleting files immediately with no preview step.
 """
+import re
 import sys
 import time
 from pathlib import Path
@@ -45,6 +50,19 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 ASSETS_ROOT = (
     SCRIPT_DIR.parent / "CookingApp" / "CookingApp" / "Resources" / "Assets.xcassets"
 )
+SAMPLE_RECIPES_PATH = (
+    SCRIPT_DIR.parent / "CookingAppCore" / "Sources" / "CookingAppCore" / "SampleRecipes.swift"
+)
+
+
+def known_slugs() -> set:
+    """Every slug SampleRecipes.swift already knows about, parsed from its own
+    `heroImageName: "recipe-photo-<slug>"` literals — the same naming scheme this script itself
+    writes into. A typo'd slug that doesn't match any of these would otherwise silently create an
+    orphaned imageset folder nothing in the app ever references; validating against this catches
+    that before anything is written."""
+    text = SAMPLE_RECIPES_PATH.read_text()
+    return set(re.findall(r'heroImageName:\s*"recipe-photo-([a-z0-9-]+)"', text))
 
 
 def write_imageset(image_path: Path, imageset_dir: Path, filename: str) -> None:
@@ -69,10 +87,15 @@ def write_imageset(image_path: Path, imageset_dir: Path, filename: str) -> None:
 
 
 def main() -> None:
-    args = [a for a in sys.argv[1:] if a != "--dry-run"]
+    args = [a for a in sys.argv[1:] if a not in ("--dry-run", "--confirm")]
     dry_run = "--dry-run" in sys.argv
+    confirmed = "--confirm" in sys.argv
     if len(args) != 2:
-        print("Usage: python3 Scripts/install_recipe_illustrations.py <slug> <step-count> [--dry-run]", file=sys.stderr)
+        print(
+            "Usage: python3 Scripts/install_recipe_illustrations.py <slug> <step-count> "
+            "[--dry-run] [--confirm]",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     slug, step_count_str = args
@@ -80,6 +103,27 @@ def main() -> None:
         step_count = int(step_count_str)
     except ValueError:
         print(f"step-count must be an integer, got {step_count_str!r}", file=sys.stderr)
+        sys.exit(1)
+
+    known = known_slugs()
+    if slug not in known:
+        print(
+            f"'{slug}' doesn't match any recipe's heroImageName in SampleRecipes.swift "
+            f"(looked for recipe-photo-{slug}). Known slugs:\n  "
+            + "\n  ".join(sorted(known))
+            + "\nIf this is a genuinely new recipe, add it to SampleRecipes.swift first — this "
+            "script only installs illustrations for a recipe the app already knows about.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if not dry_run and not confirmed:
+        print(
+            "Refusing to write/delete files without --confirm (this writes new imagesets into "
+            "Assets.xcassets and deletes the source files from ~/Downloads once done). Run with "
+            "--dry-run first to preview, then re-run with --confirm once it looks right.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     needed = step_count + 1

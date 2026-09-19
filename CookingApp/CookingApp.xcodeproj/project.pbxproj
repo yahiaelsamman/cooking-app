@@ -16,6 +16,7 @@
 		3D41AF99C02CF4E3AFACAADA /* RecipeHeroImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99765317138B0B5A5B087DE8 /* RecipeHeroImageView.swift */; };
 		407F997AB48F8011E3E0D7EE /* TourSpotlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35D0E8837FAC228ABC3C38AA /* TourSpotlight.swift */; };
 		4156D6D7D3FCB008410246FE /* DonenessHintView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10CFFBC5D27AEF7FF68DF2E /* DonenessHintView.swift */; };
+		489D2EB2A7D6CD8F22667EB5 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 70EE4FF6EFFF9FDC8CCDF93A /* PrivacyInfo.xcprivacy */; };
 		4CFF0C6B115C75BABA093AE3 /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77EFAA155D72E4A52788EE1D /* NotificationDelegate.swift */; };
 		5535DD2F851B1E806B8D4AA3 /* StepTimerControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3FBA522835082EB7A8BD936 /* StepTimerControl.swift */; };
 		5779F3991B7A5464F3027081 /* PlaceholderPhotoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94975B8B83C5E9BC918DE2C9 /* PlaceholderPhotoView.swift */; };
@@ -62,6 +63,7 @@
 		6B9C1345C29B06EECE42B12F /* CookingApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CookingApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6C5DCABA51CBF434711F5600 /* RecipeListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeListView.swift; sourceTree = "<group>"; };
 		6D0CF09CFC045EE522BF01A7 /* CookingAppCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CookingAppCore; path = ../CookingAppCore; sourceTree = SOURCE_ROOT; };
+		70EE4FF6EFFF9FDC8CCDF93A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		77EFAA155D72E4A52788EE1D /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
 		7E734B1A92691038CB0B3D88 /* DualProgressSliderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualProgressSliderView.swift; sourceTree = "<group>"; };
 		8240C363AF44973B72F87E00 /* PartnerStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartnerStatusView.swift; sourceTree = "<group>"; };
@@ -146,6 +148,7 @@
 			children = (
 				C9FB5013BDA30E016170360A /* CookingAppApp.swift */,
 				3EE50CE27846BC5D33F6763B /* Info.plist */,
+				70EE4FF6EFFF9FDC8CCDF93A /* PrivacyInfo.xcprivacy */,
 				2D9879C14516143EB4BAAB5A /* Notifications */,
 				32DBE39E5CADB8E63E56BCBF /* Resources */,
 				C645524A79FAE8C246198C50 /* Views */,
@@ -282,6 +285,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				811183032AB7E933175C828D /* Assets.xcassets in Resources */,
+				489D2EB2A7D6CD8F22667EB5 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

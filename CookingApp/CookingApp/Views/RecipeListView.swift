@@ -17,7 +17,7 @@ struct RecipeListView: View {
     @Environment(ActiveSessionStore.self) private var sessionStore
     @Environment(\.modelContext) private var modelContext
     @Query private var recipes: [Recipe]
-    @State private var path = NavigationPath()
+    @State private var path: [Route] = []
     @AppStorage("cookName") private var cookName: String = ""
     @AppStorage("cookExpertise") private var cookExpertiseRaw: String = CookExpertise.intermediate.rawValue
     @State private var showWelcomeName = false
@@ -128,6 +128,10 @@ struct RecipeListView: View {
                         }
                     }
                 }
+                // Explicit rather than relying on `.automatic`: this list uses a custom card
+                // treatment per row (see `recipeRow`), and `.automatic` risks the system's
+                // grouped/inset chrome fighting that on some size classes.
+                .listStyle(.plain)
                 .environment(\.editMode, .constant(canReorder ? .active : .inactive))
                 .safeAreaInset(edge: .top) {
                     dietaryFilterChips
@@ -136,7 +140,7 @@ struct RecipeListView: View {
                 if sessionStore.hasActiveSession {
                     ResumeSessionButton {
                         if let session = sessionStore.currentSession {
-                            path.append(Route.steps(session))
+                            path.append(.steps(session))
                         }
                     }
                     .padding(20)
@@ -290,7 +294,7 @@ struct RecipeListView: View {
     @ViewBuilder
     private func recipeRow(for recipe: Recipe) -> some View {
         Button {
-            path.append(Route.detail(recipe))
+            path.append(.detail(recipe))
             tour.notify("recipeRow_\(recipe.title)")
         } label: {
             RecipeRow(recipe: recipe)
