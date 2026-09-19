@@ -216,11 +216,15 @@ struct RecipeDetailView: View {
                 Label("\(recipe.cookTimeMinutes(forTwoPerson: mode == .twoPerson)) min", systemImage: "clock.fill")
                 Text("Cook Time").font(.caption2).foregroundStyle(.secondary)
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Cook time, \(recipe.cookTimeMinutes(forTwoPerson: mode == .twoPerson)) minutes")
             if recipe.servings != nil {
                 VStack(spacing: 4) {
                     Label("\(targetServings)", systemImage: "person.fill")
                     Text("Servings").font(.caption2).foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Servings, \(targetServings)")
             }
         }
         .font(.subheadline.weight(.medium))

@@ -383,6 +383,7 @@ private struct RecipeRow: View {
                         }
                         if recipe.timesCooked > 0 {
                             Label("Cooked \(recipe.timesCooked)×", systemImage: "checkmark.circle.fill")
+                                .accessibilityLabel(recipe.timesCooked == 1 ? "Cooked once" : "Cooked \(recipe.timesCooked) times")
                                 .font(.caption2.weight(.medium))
                                 .foregroundStyle(.secondary)
                         }
@@ -396,8 +397,10 @@ private struct RecipeRow: View {
                         SpiceLevelView(spiceLevel: recipe.spiceLevel)
                     }
                     Label("\(recipe.soloCookTimeMinutes) min", systemImage: "clock.fill")
+                        .accessibilityLabel(recipe.soloCookTimeMinutes == 1 ? "1 minute" : "\(recipe.soloCookTimeMinutes) minutes")
                     if recipe.supportsTwoPerson {
                         Label("Also for two", systemImage: "person.2.fill")
+                            .accessibilityLabel("Also works for two people")
                             .foregroundStyle(.blue)
                     }
                 }
