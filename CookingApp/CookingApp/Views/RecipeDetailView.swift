@@ -477,6 +477,7 @@ private struct MyNotesSection: View {
                 Text(cookedSummary)
                     .font(.subheadline.weight(.medium))
             }
+            .accessibilityElement(children: .combine)
 
             TextEditor(text: Binding(
                 get: { recipe.personalNotes },

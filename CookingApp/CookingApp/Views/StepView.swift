@@ -320,6 +320,7 @@ struct StepView: View {
             ForEach(timerFinishedBanners) { banner in
                 HStack(spacing: 10) {
                     Image(systemName: "timer")
+                        .accessibilityHidden(true)
                     Text("Timer finished: \(banner.instruction)")
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(2)
@@ -478,6 +479,7 @@ struct StepView: View {
     private var notificationsOffHint: some View {
         HStack(spacing: 10) {
             Image(systemName: "bell.slash")
+                .accessibilityHidden(true)
             Text("Notifications are off, so you won't hear this timer if you leave the app.")
                 .font(.footnote)
             Spacer(minLength: 0)
