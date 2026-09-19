@@ -278,7 +278,10 @@ struct StepView: View {
                   let step = session.currentStep else { return }
             let suffix = session.isLastStep ? " Last step. Use Finish Recipe." : ""
             let index = session.currentIndex
-            let text = "\(session.progressText). \(step.instruction).\(suffix)"
+            var text = "\(session.progressText). \(step.instruction).\(suffix)"
+            if cookExpertise.prefersVerboseGuidance, let hint = step.checkHint {
+                text += " To check: \(hint)"
+            }
             // Short delay so the element's own re-read/activation feedback doesn't cancel it, and
             // high priority so it isn't dropped. Skipped if the step changed again meanwhile.
             Task { @MainActor in
