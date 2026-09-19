@@ -207,14 +207,6 @@ struct RecipeListView: View {
                 TourSpotlight(tour: tour, anchors: anchors)
             }
             .onAppear {
-                // The system notification permission dialog can't be reliably dismissed from
-                // XCUITest, so UI tests skip requesting it entirely — CookingAppUITests always
-                // launches with this flag.
-                if !ProcessInfo.processInfo.arguments.contains("-UITesting") {
-                    // Requested once, right at app start — not the first time you happen to
-                    // start a timer — so the permission prompt doesn't ambush you mid-cook.
-                    NotificationScheduler.requestAuthorizationIfNeeded()
-                }
                 if cookName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     showWelcomeName = true
                 } else if !hasSeenRecipeListTour {

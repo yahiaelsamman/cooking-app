@@ -144,6 +144,14 @@ struct TourSpotlight: View {
         }
     }
 
+    /// The overlay ignores the safe area (so the dimming covers the whole screen), which makes
+    /// the chip's own geometry report a zero inset and sit on the status bar — read it from the window.
+    private static var topSafeInset: CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+            .first?.safeAreaInsets.top ?? 0
+    }
+
     private var skipChip: some View {
         VStack {
             HStack {
@@ -152,10 +160,11 @@ struct TourSpotlight: View {
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(.thinMaterial, in: Capsule())
+                    .foregroundStyle(.white)
+                    .background(Color.black.opacity(0.85), in: Capsule())
                     .accessibilityIdentifier("tourSkipButton")
             }
-            .padding(.top, 8)
+            .padding(.top, Self.topSafeInset + 8)
             .padding(.trailing, 16)
             Spacer()
         }

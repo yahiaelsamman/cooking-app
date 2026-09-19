@@ -386,6 +386,12 @@ struct RecipeDetailView: View {
     // because `body` is, so constructing one here needs this annotation explicitly.
     @MainActor
     private func startCooking() {
+        // Asked here rather than at app launch, where the system prompt landed on top of the
+        // first-launch tour before the user knew what the app was. It's a no-op after the first
+        // answer. UI tests skip it: the system dialog can't be reliably dismissed from XCUITest.
+        if !ProcessInfo.processInfo.arguments.contains("-UITesting") {
+            NotificationScheduler.requestAuthorizationIfNeeded()
+        }
         if mode == .twoPerson {
             path.append(.peerConnection(recipe))
         } else {
