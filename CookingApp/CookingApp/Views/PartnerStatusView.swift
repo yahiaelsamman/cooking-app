@@ -133,16 +133,16 @@ struct PartnerStatusView: View {
     private var statusText: String {
         switch session.partnerConnectionState {
         case .disconnected:
-            return "Partner disconnected — keep cooking, we'll resync if they reconnect."
+            return "Disconnected — keep cooking, we'll resync if they reconnect."
         case .connected:
             if session.partnerIsAway {
-                return "Partner stepped away — they'll pick back up from where they left off."
+                return "Stepped away — they'll pick back up from where they left off."
             }
             // Check "finished" before falling back to "Getting started…" — `partnerStep` is
             // also nil once they're past their last step, so without this check a partner who's
             // actually done looks indistinguishable from one who hasn't started yet.
             if session.partnerProgressFraction == 1.0 {
-                return "Partner has finished — waiting for you!"
+                return "Finished — waiting for you!"
             }
             return session.partnerStep?.instruction ?? "Getting started…"
         case .idle:

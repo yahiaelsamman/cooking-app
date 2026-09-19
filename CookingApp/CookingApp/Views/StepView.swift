@@ -48,7 +48,7 @@ struct StepView: View {
             TourStep(
                 target: "stepAdvance",
                 title: "Move Through the Recipe",
-                message: "Double tap the step to move to the next one. Use the Previous step button to go back."
+                message: "Tap the right side of the screen for the next step, or the left side to go back. With VoiceOver, use the Next step action or the Previous step button."
             ),
             TourStep(
                 target: "ingredientChecklistButton",
