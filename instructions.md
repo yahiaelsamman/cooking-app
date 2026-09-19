@@ -27,19 +27,19 @@ simulator:
 |---|---|
 | `Recipe.swift` | `Recipe` (a SwiftData `@Model`), `RecipeStep`, `Ingredient`, `StepAssignee`, `DietaryTag`. The central data model — start here. |
 | `SampleRecipes.swift` | 20 bundled recipes, fixed `UUID` literals (never random — see Pitfalls). |
-| `RecipeSeeder.swift` | Inserts bundled recipes into SwiftData additively by id, on every launch. Never touches a recipe already in the store. |
+| `RecipeSeeder.swift` | Inserts missing bundled recipes by id and, on every launch, refreshes existing bundled recipes' curated content via `Recipe.updateBundledContent` (user fields and user-created recipes are never touched). |
 | `SessionPersistence.swift` | Snapshots the active *solo* session (recipe id, step index, running timers) to `UserDefaults` so it survives a force-quit. |
 | `ActiveSessionStore.swift` | Holds the in-memory `CookingSessionViewModel` currently in progress, independent of navigation — powers "Resume Cooking" and calls `SessionPersistence`. |
 | `CookingSessionViewModel.swift` | Step navigation (`advance`/`goBack`), the timer engine, and (for two-person) partner progress/presence mirroring. |
 | `CookExpertise.swift` | Beginner/intermediate/experienced — a presentation-only lever for how much hand-holding the step screen shows. |
 | `SyncMessage.swift` | The wire protocol for two-person sync — a `Codable` enum, 7 message types. |
-| `PeerSyncService.swift` | Wraps `MCSession`/advertiser/browser. Every delegate callback is a thin wrapper around an `internal` synchronous handler — that's what makes it unit-testable without real networking. |
+| `PeerSyncService.swift` | Wraps `MCSession`/advertiser/browser. Every delegate callback is a thin wrapper around an `internal` synchronous handler — that's what makes it unit-testable without real networking. Late connecting/notConnected callbacks after leave/stop are ignored (state stays `.idle`). |
 | `PeerConnectionViewModel.swift` | Host/join connect-screen logic. |
 | `ShoppingListItem.swift` | A second `@Model` type; snapshots ingredients (not a live relationship) onto a shopping list. |
 
 ### App (`CookingApp/CookingApp/`)
 
-- `CookingAppApp.swift` — builds the `ModelContainer`, seeds it, wires up notifications.
+- `CookingAppApp.swift` — builds the `ModelContainer`, seeds it, and sets the notification delegate (the permission prompt is requested on first Start Cooking in `RecipeDetailView`, not at launch).
 - `Views/` — one SwiftUI view per screen/component. `RecipeListView` (browse/search/filter/sort),
   `RecipeDetailView` (overview + solo/two-person picker + servings scaling), `StepView` (the core
   screen — timers, hold-to-finish, coach marks, doneness hints), `PeerConnectionView` (host/join),
@@ -74,7 +74,7 @@ simulator:
     self-explanatory controls (checkboxes, a "Done" button, labeled text fields), not a screen a
     first-time cook would get stuck on the way the three above are.
 - `Notifications/` — local notification scheduling for step timers; not unit-tested (needs a real
-  `UNUserNotificationCenter`/app process).
+  `UNUserNotificationCenter`/app process). Permission is requested on first Start Cooking, not at launch.
 
 ### Data model notes worth knowing before you change `Recipe`
 
@@ -121,7 +121,7 @@ are safe; save an actual `test` run for an interactive session where you can wat
 
 ## Testing
 
-- `CookingAppCoreTests` (`swift test`): the real test suite — 190 tests as of the last pass,
+- `CookingAppCoreTests` (`swift test`): the real test suite — 210 tests as of the last pass,
   covering every Core file. Run this after any Core change.
 - `CookingAppUITests` (XCUITest, in the app target): exists, builds, and links, but has never
   successfully *run* in this sandboxed environment — `xcodebuild test` stalls at "loading
@@ -138,6 +138,9 @@ are safe; save an actual `test` run for an interactive session where you can wat
   hand-authored for it.
 - **Local Network permission** must be accepted on both phones or peer discovery silently fails.
 - **Recipe IDs must be fixed UUID literals** — see above.
+- **Step ids are stable across launches only via `Recipe.preservingStepIDs`**, which carries stored ids forward by instruction text (then by position if the timer matches) so saved timers still resolve after a re-seed. Don't key anything durable on a step id that doesn't pass through `updateBundledContent`.
+- **Session persistence:** a completed solo session is cleared, not persisted (`ActiveSessionStore.persist`), and replacing the active session detaches the old one's `onMutated` so it can't overwrite the snapshot.
+- **Tour details:** the `Skip Walkthrough` chip sits at the bottom (about 72pt above the safe area) to clear the nav bar/search bar, and the step-change VoiceOver announcement is suppressed while a tour callout is speaking.
 - **Two-person session state isn't persisted** — only solo sessions survive a force-quit
   (`SessionPersistence`); a killed two-person session is gone. Reconnection after backgrounding is
   best-effort and doesn't survive true iOS background suspension.
@@ -146,7 +149,7 @@ are safe; save an actual `test` run for an interactive session where you can wat
 - **VoiceOver accessibility has been audited across every screen** (`StepView`,
   `PartnerStatusView`, `DualProgressSliderView`, `RecipeListView`, `ShoppingListView`,
   `PeerConnectionView`, `WelcomeNameView`, `RecipeEditorView`) — combined-element treatment for
-  list rows, decorative icons hidden, icon-only buttons labeled. Not verified with a real
+  list rows, decorative icons hidden, icon-only buttons labeled, step-change/timer-finish/partner-state announcements, an adjustable star rating, and Voice Control input labels. Not verified with a real
   VoiceOver run (see the sandbox limitation below); if you add a new row/card-style view, follow
   the same pattern (`.accessibilityElement(children: .combine)` + hide purely decorative icons).
 - **Swipe-to-favorite, drag-to-reorder, and the recipe editor's dynamic rows** have never been
@@ -197,7 +200,7 @@ If you're picking this up fresh, read in this order:
 **Architectural decisions worth noticing, not just the code itself:**
 
 - **Package boundary as a testability boundary.** `CookingAppCore` has zero UIKit/SwiftUI imports.
-  This isn't just "clean architecture" for its own sake — it's the concrete reason 190 tests run in
+  This isn't just "clean architecture" for its own sake — it's the concrete reason 210 tests run in
   under half a second with `swift test`, no simulator needed, while the app target's view code is
   verified by compiling + eyeballing it. When you add a feature, ask "does this belong in Core?"
   before reaching for a View — if the answer is logic/state/decisions, it almost always does.
@@ -206,7 +209,7 @@ If you're picking this up fresh, read in this order:
   reads from one real on-device SwiftData store via `@Query`. There's no separate "test mode with
   fake data" vs "prod mode with real data" branch to keep in sync.
 - **Additive-by-id seeding, not idempotent-overwrite seeding.** `RecipeSeeder` inserts whichever
-  bundled recipes the store doesn't already have and never touches existing rows. This is the kind
+  bundled recipes the store doesn't already have; for existing bundled ones it re-syncs curated content only (user fields such as favorites, notes and ratings are preserved). This is the kind
   of decision that looks like extra complexity until you trace through *why* — the naive version
   (wipe and reseed) would destroy user data (favorites, notes, ratings) on every app update.
 - **Snapshot, not a live reference, for the shopping list.** `ShoppingListItem` copies ingredient
