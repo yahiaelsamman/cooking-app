@@ -47,7 +47,7 @@ struct StepView: View {
             TourStep(
                 target: "stepAdvance",
                 title: "Move Through the Recipe",
-                message: "Tap anywhere, or swipe left, to move to the next step."
+                message: "Tap the right side of the screen to move on, or the left side to go back. Swiping works too."
             ),
             TourStep(
                 target: "ingredientChecklistButton",
@@ -103,6 +103,10 @@ struct StepView: View {
     private var bothFinished: Bool {
         session.role != nil && session.isComplete && session.partnerProgressFraction == 1.0
     }
+
+    @State private var stepAreaWidth: CGFloat = 0
+    @State private var notificationsDenied = false
+    @State private var notificationHintDismissed = false
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -175,6 +179,9 @@ struct StepView: View {
             Button("Keep Cooking Together", role: .cancel) {}
         } message: {
             Text("Your partner will be disconnected too. You can keep cooking on your own afterward.")
+        }
+        .task(id: session.activeTimers.count) {
+            notificationsDenied = await NotificationScheduler.isDenied()
         }
         .onAppear {
             notificationPresentationState.isStepViewVisible = true
@@ -312,6 +319,12 @@ struct StepView: View {
                 .padding(.horizontal)
                 .padding(.top, 8)
 
+            if notificationsDenied && !notificationHintDismissed && !session.activeTimers.isEmpty {
+                notificationsOffHint
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+            }
+
             Spacer()
 
             if let step = session.currentStep {
@@ -378,18 +391,57 @@ struct StepView: View {
             // to this, it doesn't replace it.
             backButtonRow
         }
-        // Most of the screen advances to the next step on tap — the large target is
-        // deliberate: this needs to work reliably with wet or messy hands while cooking.
-        // A left/right swipe does the same thing as a convenience, but is never required.
-        // On the final step, tap/swipe-forward is disabled in favor of the deliberate
-        // hold-to-finish control above — going back still works normally.
+        // Tap zones, like most story/step-through apps: the left third steps back, the rest
+        // advances. The large targets are deliberate — this needs to work reliably with wet or
+        // messy hands while cooking. A left/right swipe does the same as a convenience, but is
+        // never required. On the final step, tap-forward is disabled in favor of the deliberate
+        // hold-to-finish control above. On the first step the back zone does nothing (rather than
+        // leaving the screen) so a stray edge tap can't throw you out of the recipe — the back
+        // button below still does that.
         .contentShape(Rectangle())
-        .onTapGesture {
-            guard !session.isLastStep else { return }
-            session.advance()
-            tour.notify("stepAdvance")
+        .background(
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { stepAreaWidth = proxy.size.width }
+                    .onChange(of: proxy.size.width) { _, width in stepAreaWidth = width }
+            }
+        )
+        .onTapGesture { location in
+            if stepAreaWidth > 0, location.x < stepAreaWidth / 3 {
+                guard session.currentIndex > 0 else { return }
+                session.goBack()
+            } else {
+                guard !session.isLastStep else { return }
+                session.advance()
+                tour.notify("stepAdvance")
+            }
         }
         .gesture(stepSwipeGesture)
+    }
+
+    /// Shown only while a timer is running with notifications denied — the one situation where
+    /// the denial actually costs the user something (a timer finishing while backgrounded).
+    private var notificationsOffHint: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "bell.slash")
+            Text("Notifications are off, so you won't hear this timer if you leave the app.")
+                .font(.footnote)
+            Spacer(minLength: 0)
+            Button("Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            .font(.footnote.weight(.semibold))
+            Button {
+                notificationHintDismissed = true
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .accessibilityLabel("Dismiss")
+        }
+        .padding(10)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private var stepSwipeGesture: some Gesture {
@@ -477,9 +529,6 @@ struct StepView: View {
         // The enclosing ZStack aligns to .top, so without this the card hugs the top of the
         // screen instead of sitting where your eye actually lands after finishing a recipe.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear {
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-        }
     }
 
     // MARK: - Styling

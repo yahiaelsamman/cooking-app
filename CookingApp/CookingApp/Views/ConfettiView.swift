@@ -38,6 +38,9 @@ struct ConfettiView: View {
                     .opacity(animate ? 0 : 1)
             }
         }
+        // Flattened to one layer so 24 independently spring-animated pieces don't each cost a
+        // separate render pass on the frame the completion screen appears.
+        .drawingGroup()
         // Purely decorative — nothing here is meant to be read or interacted with, so it should
         // never take VoiceOver focus away from the completion message.
         .accessibilityHidden(true)

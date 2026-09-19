@@ -79,6 +79,9 @@ public final class PeerSyncService: NSObject {
     public init(displayName: String = ProcessInfo.processInfo.hostName) {
         self.myPeerID = MCPeerID(displayName: displayName)
         self.myDisplayName = displayName
+        // `.none` is deliberate: the only payload is a recipe's steps and progress indices over a
+        // short-range, in-person link — nothing sensitive — and skipping the TLS handshake keeps
+        // pairing fast and avoids `.required`/`.optional` mismatches failing connections silently.
         self.session = MCSession(peer: myPeerID, securityIdentity: nil, encryptionPreference: .none)
         super.init()
         session.delegate = self

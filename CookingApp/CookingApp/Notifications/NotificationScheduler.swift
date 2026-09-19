@@ -14,14 +14,17 @@ enum NotificationScheduler {
             if let error {
                 logger.error("Notification authorization request failed: \(error, privacy: .public)")
             } else if !granted {
-                // Not logged as an error — declining is a legitimate, expected choice. There's
-                // no in-app fallback UI (a "notifications are off" hint + Settings deep link) for
-                // this yet: a timer that finishes while the app is backgrounded with permission
-                // denied has no way to reach the user at all today. Tracked as a known gap, not
-                // silently unaccounted for.
+                // Not logged as an error — declining is a legitimate, expected choice. `StepView`
+                // shows a hint with a Settings link while a timer runs and this is denied.
                 logger.notice("Notification authorization was denied.")
             }
         }
+    }
+
+    /// True when the user has explicitly turned notifications off — `.notDetermined` isn't
+    /// "denied", it just hasn't been asked yet.
+    static func isDenied() async -> Bool {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus == .denied
     }
 
     static func schedule(step: RecipeStep, durationSeconds: Int) {

@@ -10,6 +10,9 @@ struct HoldToFinishButton: View {
     @State private var holdProgress: CGFloat = 0
 
     private let holdDuration: Double = 1.0
+    /// Prepared while the button is held, so the first-ever haptic doesn't spin up the taptic
+    /// engine on the main thread at the moment the recipe finishes.
+    private let feedback = UINotificationFeedbackGenerator()
     /// Scales the button's frame with Dynamic Type so the two-line "Hold to Finish" label has
     /// room to grow into at the largest accessibility text sizes instead of clipping against a
     /// fixed 110×110 circle.
@@ -44,6 +47,7 @@ struct HoldToFinishButton: View {
         } onPressingChanged: { pressing in
             isHolding = pressing
             holdProgress = pressing ? 1 : 0
+            if pressing { feedback.prepare() }
         }
         // A long-press gesture has no reliable VoiceOver equivalent — without this, the one
         // control that finishes a solo cook-through would be effectively unreachable by a
@@ -61,7 +65,7 @@ struct HoldToFinishButton: View {
     /// Fires the haptic directly rather than via `.sensoryFeedback`: `onFinish()` swaps this view
     /// out for the completion screen, so a state-triggered haptic could be torn down before it plays.
     private func finish() {
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        feedback.notificationOccurred(.success)
         onFinish()
     }
 }
