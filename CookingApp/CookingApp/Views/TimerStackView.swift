@@ -60,5 +60,5 @@ struct TimerChipInfo: Identifiable {
     let step: RecipeStep
     let remainingSeconds: Int
     let isMine: Bool
-    var id: UUID { step.id }
+    var id: String { "\(isMine ? "me" : "partner")-\(step.id.uuidString)" }
 }

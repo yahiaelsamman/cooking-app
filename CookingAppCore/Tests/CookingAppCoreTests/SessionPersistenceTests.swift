@@ -265,4 +265,17 @@ struct SessionPersistenceTests {
         #expect(restored != nil)
         store.currentSession?.cancelTimer(for: recipe.track(for: nil)[1])
     }
+
+    @Test func replacedSessionNoLongerOverwritesThePersistedSnapshot() {
+        let recipeA = makeTestRecipe()
+        let recipeB = makeTestRecipe()
+        let store = ActiveSessionStore()
+        let a = CookingSessionViewModel(recipe: recipeA)
+        store.setActive(a)
+        store.setActive(CookingSessionViewModel(recipe: recipeB))
+
+        a.advance() // would previously persist A's snapshot over B's
+
+        #expect(SessionPersistence.load()?.recipeID == recipeB.id)
+    }
 }

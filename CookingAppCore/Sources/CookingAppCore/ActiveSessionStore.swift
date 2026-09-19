@@ -28,6 +28,7 @@ public final class ActiveSessionStore {
     public var hasActiveSession: Bool { currentSession != nil }
 
     public func setActive(_ session: CookingSessionViewModel) {
+        if let old = currentSession, old !== session { old.onMutated = nil }
         currentSession = session
         guard session.role == nil else { return }
         session.onMutated = { [weak self, weak session] in
