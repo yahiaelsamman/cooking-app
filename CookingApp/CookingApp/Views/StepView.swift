@@ -286,7 +286,7 @@ struct StepView: View {
             // high priority so it isn't dropped. Skipped if the step changed again meanwhile.
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(300))
-                guard session.currentIndex == index, !session.isComplete else { return }
+                guard session.currentIndex == index, !session.isComplete, !tour.isActive else { return }
                 var announcement = AttributedString(text)
                 announcement.accessibilitySpeechAnnouncementPriority = .high
                 AccessibilityNotification.Announcement(announcement).post()
@@ -501,7 +501,6 @@ struct StepView: View {
             .accessibilityLabel("Dismiss")
         }
         .padding(.leading, 10)
-        .padding(.vertical, 0)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
     }
 
