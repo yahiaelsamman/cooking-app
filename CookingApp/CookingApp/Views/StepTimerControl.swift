@@ -17,6 +17,24 @@ struct StepTimerControl: View {
     @State private var confirmCancel = false
 
     var body: some View {
+        timerButton
+            // Attached to the always-present wrapper, not the running-state button: if the timer
+            // finishes while the dialog is open that button leaves the hierarchy, and a stale
+            // `confirmCancel` would re-present the dialog on the next Start.
+            .confirmationDialog("Cancel this timer?", isPresented: $confirmCancel, titleVisibility: .visible) {
+                Button("Cancel Timer", role: .destructive) {
+                    session.cancelTimer(for: step)
+                    onInteract?()
+                }
+                Button("Keep Running", role: .cancel) {}
+            }
+            .onChange(of: session.activeTimer(for: step) == nil) { _, gone in
+                if gone { confirmCancel = false }
+            }
+    }
+
+    @ViewBuilder
+    private var timerButton: some View {
         if let seconds = step.timerSeconds {
             if let running = session.activeTimer(for: step) {
                 Button {
@@ -31,13 +49,6 @@ struct StepTimerControl: View {
                 // indication tapping cancels the timer.
                 .accessibilityLabel("Cancel timer")
                 .accessibilityValue("\(Self.spoken(running.remainingSeconds)) remaining")
-                .confirmationDialog("Cancel this timer?", isPresented: $confirmCancel, titleVisibility: .visible) {
-                    Button("Cancel Timer", role: .destructive) {
-                        session.cancelTimer(for: step)
-                        onInteract?()
-                    }
-                    Button("Keep Running", role: .cancel) {}
-                }
                 .tourAnchor("stepTimerButton")
             } else {
                 Button {
