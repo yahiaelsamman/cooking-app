@@ -104,11 +104,12 @@ struct PeerSyncServiceTests {
         // callback finally arriving after the deliberate leave above.
         service.handleSessionStateChange(.notConnected, peerID: peer)
 
-        #expect(service.connectionState == .disconnected)
+        // A late callback must not turn a deliberate leave into "partner disconnected".
+        #expect(service.connectionState == .idle)
         // If auto-reconnect had (incorrectly) fired, a peer showing up would flip us back to
         // .connecting; confirm it doesn't.
         service.handleFoundPeer(peer)
-        #expect(service.connectionState == .disconnected)
+        #expect(service.connectionState == .idle)
     }
 
     @Test func stopResetsStateForReuse() {
@@ -304,7 +305,7 @@ struct PeerSyncServiceTests {
         // the same drop shouldn't trigger an auto-reconnect attempt either.
         service.handleSessionStateChange(.notConnected, peerID: peer)
         service.handleFoundPeer(peer)
-        #expect(service.connectionState == .disconnected)
+        #expect(service.connectionState == .idle)
     }
 
     // MARK: - Peer discovery
