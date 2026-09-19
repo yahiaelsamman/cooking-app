@@ -240,4 +240,29 @@ struct SessionPersistenceTests {
 
         #expect(store.currentSession === alreadyActive)
     }
+
+    @Test func savedTimerStepIDStillResolvesAfterBundledContentIsReseeded() throws {
+        let recipe = makeTestRecipe()
+        let context = try makeInMemoryContext(inserting: recipe)
+        let timedStep = recipe.track(for: nil)[1]
+        SessionPersistence.save(CookingSessionSnapshot(
+            recipeID: recipe.id,
+            role: nil,
+            currentIndex: 1,
+            timers: [TimerSnapshot(stepID: timedStep.id, totalSeconds: 60, endDate: Date().addingTimeInterval(50))]
+        ))
+
+        // A relaunch re-seeds with freshly built steps (new random UUIDs) carrying the same content.
+        let reseeded = makeTestRecipe()
+        #expect(reseeded.soloSteps[1].id != timedStep.id)
+        recipe.updateBundledContent(from: reseeded)
+        #expect(recipe.soloSteps[1].id == timedStep.id)
+        #expect(recipe.soloSteps.map(\.instruction) == reseeded.soloSteps.map(\.instruction))
+
+        let store = ActiveSessionStore()
+        store.restoreIfNeeded(modelContext: context)
+        let restored = store.currentSession?.activeTimer(for: recipe.track(for: nil)[1])
+        #expect(restored != nil)
+        store.currentSession?.cancelTimer(for: recipe.track(for: nil)[1])
+    }
 }

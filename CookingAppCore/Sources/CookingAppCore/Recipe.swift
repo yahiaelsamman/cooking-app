@@ -397,8 +397,8 @@ public final class Recipe {
         title = other.title
         summary = other.summary
         servings = other.servings
-        soloSteps = other.soloSteps
-        twoPersonSteps = other.twoPersonSteps
+        soloSteps = Self.preservingStepIDs(of: soloSteps, in: other.soloSteps)
+        twoPersonSteps = other.twoPersonSteps.map { Self.preservingStepIDs(of: twoPersonSteps ?? [], in: $0) }
         iconSystemName = other.iconSystemName
         heroImageName = other.heroImageName
         difficulty = other.difficulty
@@ -407,6 +407,25 @@ public final class Recipe {
         twoPersonCookTimeMinutes = other.twoPersonCookTimeMinutes
         dietaryTags = other.dietaryTags
         ingredients = other.ingredients
+    }
+
+    /// Bundled steps are built with a fresh `UUID()` every launch, but a persisted timer snapshot
+    /// (and its pending notification key) refers to a step by id. Carrying the previously stored
+    /// id over, by position, keeps those references resolvable across launches.
+    static func preservingStepIDs(of existing: [RecipeStep], in updated: [RecipeStep]) -> [RecipeStep] {
+        updated.enumerated().map { index, step in
+            guard index < existing.count else { return step }
+            return RecipeStep(
+                id: existing[index].id,
+                order: step.order,
+                instruction: step.instruction,
+                assignee: step.assignee,
+                timerSeconds: step.timerSeconds,
+                imageSystemName: step.imageSystemName,
+                stepImageName: step.stepImageName,
+                checkHint: step.checkHint
+            )
+        }
     }
 
     public func cookTimeMinutes(forTwoPerson: Bool) -> Int {
