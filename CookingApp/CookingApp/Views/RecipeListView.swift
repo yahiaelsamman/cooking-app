@@ -179,7 +179,7 @@ struct RecipeListView: View {
                     } label: {
                         Image(systemName: "person.crop.circle")
                     }
-                    .accessibilityLabel("Cooking Profile")
+                    .accessibilityLabel("Your Profile")
                     .accessibilityIdentifier("cookingProfileButton")
                     .tourAnchor("cookingProfileButton")
                 }
@@ -304,7 +304,7 @@ struct RecipeListView: View {
                 recipe.isFavorite.toggle()
                 try? modelContext.save()
             } label: {
-                Label(recipe.isFavorite ? "Unfavorite" : "Favorite", systemImage: recipe.isFavorite ? "heart.slash" : "heart")
+                Label(recipe.isFavorite ? "Remove from favorites" : "Add to favorites", systemImage: recipe.isFavorite ? "heart.slash" : "heart")
             }
             .accessibilityIdentifier("swipeFavoriteButton_\(recipe.title)")
             .tint(.pink)

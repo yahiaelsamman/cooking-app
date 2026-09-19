@@ -52,7 +52,7 @@ struct StepView: View {
             ),
             TourStep(
                 target: "ingredientChecklistButton",
-                title: "Ingredient Checklist",
+                title: "Ingredient checklist",
                 message: "Tap here anytime to check off ingredients as you use them."
             ),
             TourStep(
@@ -141,7 +141,7 @@ struct StepView: View {
                     } label: {
                         Image(systemName: "checklist")
                     }
-                    .accessibilityLabel("Ingredients")
+                    .accessibilityLabel("Ingredient checklist")
                     .accessibilityIdentifier("ingredientChecklistButton")
                     .tourAnchor("ingredientChecklistButton")
                 }
@@ -623,8 +623,8 @@ struct StepView: View {
     /// session's `.solo` steps, which `backgroundColor` doesn't color-code either.
     private var currentStepAssigneeLabel: String? {
         switch session.currentStep?.assignee {
-        case .personA: return "Person A"
-        case .personB: return "Person B"
+        case .personA: return session.role == .personA ? "Your steps (Person A)" : "Your partner's steps (Person A)"
+        case .personB: return session.role == .personB ? "Your steps (Person B)" : "Your partner's steps (Person B)"
         case .shared: return "Together"
         case .solo, nil: return nil
         }
