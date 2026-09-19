@@ -322,7 +322,7 @@ struct RecipeDetailView: View {
                 .frame(minWidth: 70)
 
             Button {
-                targetServings = min(20, targetServings + 1)
+                targetServings = min(max(20, recipe.servings ?? 20), targetServings + 1)
             } label: {
                 Image(systemName: "plus.circle.fill")
             }
