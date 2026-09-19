@@ -408,6 +408,12 @@ struct RecipeDetailView: View {
     /// no longer part of the active navigation stack by the time the delete actually happens.
     private func deleteRecipeAndPopBack() {
         path = []
+        // A live session for this recipe would otherwise outlive it: timers keep firing and
+        // "Resume Cooking" points at a deleted model.
+        if let session = sessionStore.currentSession, session.recipe.id == recipe.id {
+            for timer in session.activeTimers { session.cancelTimer(for: timer.step) }
+            sessionStore.clear()
+        }
         modelContext.delete(recipe)
         try? modelContext.save()
     }
