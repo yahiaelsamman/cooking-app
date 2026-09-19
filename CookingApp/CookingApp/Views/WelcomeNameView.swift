@@ -36,6 +36,7 @@ struct WelcomeNameView: View {
             VStack(spacing: 8) {
                 Text(isEditingExisting ? "Your Profile" : "Welcome!")
                     .font(.title.bold())
+                    .accessibilityAddTraits(.isHeader)
                 Text("What should we call you?")
                     .font(.body)
                     .foregroundStyle(.secondary)
@@ -92,7 +93,7 @@ struct WelcomeNameView: View {
             // experience level, auto-focusing would pop the keyboard right over the picker
             // below, making it look "stuck" (unreachable, not just unfocused) until you notice
             // you have to dismiss the keyboard first. See `isEditingExisting`.
-            fieldFocused = !isEditingExisting
+            fieldFocused = !isEditingExisting && !UIAccessibility.isVoiceOverRunning
         }
     }
 
