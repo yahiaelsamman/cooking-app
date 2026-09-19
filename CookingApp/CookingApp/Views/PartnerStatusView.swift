@@ -60,15 +60,33 @@ struct PartnerStatusView: View {
             }
         }
         .padding(10)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .background(cardBackground)
         .contentShape(Rectangle())
         .onTapGesture {
             showStatusExplanation = true
         }
-        .alert("Connection Status Colors", isPresented: $showStatusExplanation) {
+        // A partner disconnecting mid-cook is easy to miss with messy hands and eyes on the
+        // stove — worth a tactile nudge, scoped to just the transition *into* disconnected so
+        // reconnecting or other state churn doesn't also buzz.
+        .sensoryFeedback(.warning, trigger: session.partnerConnectionState) { oldValue, newValue in
+            newValue == .disconnected && oldValue != .disconnected
+        }
+        .alert("What the Dot Means", isPresented: $showStatusExplanation) {
             Button("OK") {}
         } message: {
-            Text("Green: connected and active. Blue: connected, but they've stepped away. Yellow: connecting. Red: disconnected — you can keep cooking on your own.")
+            Text("Green means your partner's connected and cooking along with you. Blue means they've stepped away — their progress is saved. Yellow means you're still connecting. Red means you've lost each other, but don't stop: keep cooking, and you'll resync if they reconnect.")
+        }
+    }
+
+    // This card is a floating, tappable status control over the step content, not static
+    // page background — a real fit for Liquid Glass per the skill's "functional control" rule.
+    // Falls back to the existing `.thinMaterial` treatment pre-iOS 26.
+    @ViewBuilder
+    private var cardBackground: some View {
+        if #available(iOS 26, *) {
+            Color.clear.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10))
+        } else {
+            RoundedRectangle(cornerRadius: 10).fill(.thinMaterial)
         }
     }
 

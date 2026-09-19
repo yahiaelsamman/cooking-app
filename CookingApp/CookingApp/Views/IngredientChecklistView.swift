@@ -29,6 +29,7 @@ struct IngredientChecklistView: View {
                             .foregroundStyle(isChecked ? Color.accentColor : .secondary)
                             .font(.title3)
                             .accessibilityHidden(true)
+                            .contentTransition(.symbolEffect(.replace))
                         Text(ingredient.name)
                             .strikethrough(isChecked)
                             .foregroundStyle(isChecked ? .secondary : .primary)
@@ -41,8 +42,10 @@ struct IngredientChecklistView: View {
                     // why: the checkmark icon is hidden above since `.isSelected` below already
                     // conveys checked state (VoiceOver appends "selected" itself).
                     .accessibilityElement(children: .combine)
+                    .animation(.default, value: isChecked)
                 }
                 .buttonStyle(.plain)
+                .sensoryFeedback(.selection, trigger: isChecked)
                 .accessibilityIdentifier("ingredientChecklistRow_\(ingredient.name)")
                 .accessibilityAddTraits(isChecked ? [.isSelected] : [])
             }

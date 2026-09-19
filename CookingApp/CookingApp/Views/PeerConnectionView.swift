@@ -79,12 +79,25 @@ struct PeerConnectionView: View {
                         Text("Person B").tag(StepAssignee.personB)
                     }
                     .pickerStyle(.segmented)
+
+                    if let rolePreview {
+                        Text(rolePreview)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
-                Button("Host a two-person session") { viewModel.host(as: chosenRole) }
-                    .buttonStyle(.borderedProminent)
-                Button("Join a nearby session") { viewModel.join() }
-                    .buttonStyle(.bordered)
+                if #available(iOS 26, *) {
+                    Button("Host a two-person session") { viewModel.host(as: chosenRole) }
+                        .buttonStyle(.glassProminent)
+                    Button("Join a nearby session") { viewModel.join() }
+                        .buttonStyle(.glass)
+                } else {
+                    Button("Host a two-person session") { viewModel.host(as: chosenRole) }
+                        .buttonStyle(.borderedProminent)
+                    Button("Join a nearby session") { viewModel.join() }
+                        .buttonStyle(.bordered)
+                }
             }
 
         case .advertising:
@@ -107,10 +120,17 @@ struct PeerConnectionView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
                     ForEach(viewModel.discoveredPeers, id: \.self) { peer in
-                        Button(peer.displayName) {
-                            viewModel.connect(to: peer)
+                        if #available(iOS 26, *) {
+                            Button(peer.displayName) {
+                                viewModel.connect(to: peer)
+                            }
+                            .buttonStyle(.glass)
+                        } else {
+                            Button(peer.displayName) {
+                                viewModel.connect(to: peer)
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
                     }
                 }
             }
@@ -130,5 +150,31 @@ struct PeerConnectionView: View {
                     .buttonStyle(.borderedProminent)
             }
         }
+    }
+
+    /// A one-line, side-by-side preview of what each role actually does for *this* recipe —
+    /// turns the role picker from a blind choice into an informed one. Shown regardless of which
+    /// role is currently selected (it describes what both roles do, not just the chosen one), and
+    /// built entirely from this recipe's own hand-authored `twoPersonSteps` — no placeholder text.
+    private var rolePreview: String? {
+        guard let steps = viewModel.recipe.twoPersonSteps,
+              let personAStep = steps.first(where: { $0.assignee == .personA }),
+              let personBStep = steps.first(where: { $0.assignee == .personB }) else {
+            return nil
+        }
+        return "Person A: \(Self.summarize(personAStep.instruction)) · Person B: \(Self.summarize(personBStep.instruction))"
+    }
+
+    /// Trims a full step instruction down to a short, glanceable phrase — cutting at the nearest
+    /// word boundary rather than mid-word, and stripping any trailing punctuation so it reads as
+    /// a fragment ("Cook the pasta"), not a truncated sentence.
+    private static func summarize(_ instruction: String, limit: Int = 32) -> String {
+        let trimmed = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > limit else { return trimmed }
+        let cutoff = trimmed.index(trimmed.startIndex, offsetBy: limit)
+        let truncated = trimmed[..<cutoff]
+        let words = truncated.split(separator: " ").dropLast()
+        let phrase = words.isEmpty ? String(truncated) : words.joined(separator: " ")
+        return phrase.trimmingCharacters(in: .whitespaces) + "…"
     }
 }
