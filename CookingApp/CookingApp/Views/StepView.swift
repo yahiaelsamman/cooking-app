@@ -261,6 +261,21 @@ struct StepView: View {
             session.recipe.lastCookedDate = Date()
             try? modelContext.save()
         }
+        // A focused VoiceOver element doesn't re-speak when its label changes, so advancing,
+        // going back and finishing were silent. Announce from one place so every path (tap zone,
+        // swipe, accessibility action, back button, partner-driven) is covered.
+        .onChange(of: session.currentIndex) { _, _ in
+            guard UIAccessibility.isVoiceOverRunning, !session.isComplete,
+                  let step = session.currentStep else { return }
+            let suffix = session.isLastStep ? " Last step. Use Finish Recipe." : ""
+            AccessibilityNotification.Announcement("\(session.progressText). \(step.instruction).\(suffix)").post()
+        }
+        .onChange(of: session.isComplete) { _, isComplete in
+            guard UIAccessibility.isVoiceOverRunning else { return }
+            if isComplete {
+                AccessibilityNotification.ScreenChanged("Recipe complete").post()
+            }
+        }
         .alert(
             session.isComplete ? "You Both Finished!" : "Partner Ended the Session",
             isPresented: .constant(session.partnerDidLeave)
@@ -523,8 +538,10 @@ struct StepView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 64))
                     .foregroundStyle(.green)
+                    .accessibilityHidden(true)
                 Text("Recipe Complete")
                     .font(.title.bold())
+                    .accessibilityAddTraits(.isHeader)
 
                 VStack(spacing: 12) {
                     Button("Back to Recipes") {
