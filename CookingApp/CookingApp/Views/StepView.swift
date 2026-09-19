@@ -336,12 +336,12 @@ struct StepView: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(.isButton)
                 .accessibilityHint("Double tap to dismiss")
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
             }
         }
         .padding(.horizontal)
         .padding(.top, 8)
-        .animation(.default, value: timerFinishedBanners.map(\.id))
+        .animation(reduceMotion ? nil : .default, value: timerFinishedBanners.map(\.id))
     }
 
     // MARK: - Active step
