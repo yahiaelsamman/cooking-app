@@ -139,6 +139,8 @@ struct PartnerStatusView: View {
                 return "Partner has finished — waiting for you!"
             }
             return session.partnerStep?.instruction ?? "Getting started…"
+        case .idle:
+            return "Shared session ended. You're cooking on your own."
         default:
             return "Connecting…"
         }
