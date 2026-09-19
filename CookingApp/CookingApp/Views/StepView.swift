@@ -149,7 +149,7 @@ struct StepView: View {
                     Button("End Session", role: .destructive) {
                         showEndSessionConfirm = true
                     }
-                    .font(.caption)
+                    .frame(minHeight: 44)
                 }
             }
         }
@@ -526,7 +526,7 @@ struct StepView: View {
             } label: {
                 Image(systemName: "chevron.left.circle.fill")
                     .font(.system(size: 44))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.55))
             }
             .padding()
             // An icon-only button synthesizes a poor default VoiceOver label ("chevron left
