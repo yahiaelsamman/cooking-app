@@ -280,12 +280,12 @@ struct RecipeModelTests {
     @Test func startTimerSetsRunningStateForTimedStep() {
         let recipe = SampleRecipes.searedSteak
         let session = CookingSessionViewModel(recipe: recipe)
-        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 180 }!
+        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 360 }!
 
         session.startTimer(for: timedStep)
 
-        #expect(session.activeTimer(for: timedStep)?.remainingSeconds == 180)
-        #expect(session.activeTimer(for: timedStep)?.totalSeconds == 180)
+        #expect(session.activeTimer(for: timedStep)?.remainingSeconds == 360)
+        #expect(session.activeTimer(for: timedStep)?.totalSeconds == 360)
 
         session.cancelTimer(for: timedStep) // avoid leaking a live Timer past the end of the test
     }
@@ -293,7 +293,7 @@ struct RecipeModelTests {
     @Test func cancelTimerClearsRunningState() {
         let recipe = SampleRecipes.searedSteak
         let session = CookingSessionViewModel(recipe: recipe)
-        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 180 }!
+        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 360 }!
 
         session.startTimer(for: timedStep)
         session.cancelTimer(for: timedStep)
@@ -339,7 +339,7 @@ struct RecipeModelTests {
     @Test func restartingATimerOnTheSameStepReplacesItRatherThanStacking() {
         let recipe = SampleRecipes.searedSteak
         let session = CookingSessionViewModel(recipe: recipe)
-        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 180 }!
+        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 360 }!
 
         session.startTimer(for: timedStep)
         session.startTimer(for: timedStep)
@@ -567,7 +567,9 @@ struct RecipeModelTests {
         for recipe in SampleRecipes.all {
             let allSteps = recipe.soloSteps + (recipe.twoPersonSteps ?? [])
             for step in allSteps {
-                guard step.instruction.contains("°F") else { continue }
+                // Oven temperatures aren't a doneness call; only food temperatures need a hint.
+                let lowered = step.instruction.lowercased()
+                guard step.instruction.contains("°F"), !lowered.contains("preheat"), !lowered.contains("bake at") else { continue }
                 #expect(step.checkHint != nil, "\(recipe.title) step \(step.order) cites a temperature but has no checkHint: \"\(step.instruction)\"")
             }
         }

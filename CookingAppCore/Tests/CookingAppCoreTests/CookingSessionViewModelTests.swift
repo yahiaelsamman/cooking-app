@@ -183,7 +183,7 @@ struct CookingSessionViewModelTests {
 
     @Test func startingATimerFiresOnTimerScheduledWithItsDuration() {
         let session = CookingSessionViewModel(recipe: SampleRecipes.searedSteak)
-        let step = session.track.first { $0.timerSeconds == 180 }!
+        let step = session.track.first { $0.timerSeconds == 360 }!
 
         var scheduled: (RecipeStep, Int)?
         session.onTimerScheduled = { scheduled = ($0, $1) }
@@ -191,12 +191,12 @@ struct CookingSessionViewModelTests {
         session.startTimer(for: step)
 
         #expect(scheduled?.0.id == step.id)
-        #expect(scheduled?.1 == 180)
+        #expect(scheduled?.1 == 360)
     }
 
     @Test func cancellingATimerFiresOnTimerUnscheduled() {
         let session = CookingSessionViewModel(recipe: SampleRecipes.searedSteak)
-        let step = session.track.first { $0.timerSeconds == 180 }!
+        let step = session.track.first { $0.timerSeconds == 360 }!
         session.startTimer(for: step)
 
         var unscheduledStep: RecipeStep?
@@ -209,7 +209,7 @@ struct CookingSessionViewModelTests {
     @Test func cancellingATimerThatIsntRunningDoesNotFireOnTimerUnscheduled() {
         let recipe = SampleRecipes.searedSteak
         let session = CookingSessionViewModel(recipe: recipe)
-        let neverStartedStep = recipe.soloSteps.first { $0.timerSeconds == 180 }!
+        let neverStartedStep = recipe.soloSteps.first { $0.timerSeconds == 360 }!
 
         var fired = false
         session.onTimerUnscheduled = { _ in fired = true }
@@ -278,7 +278,7 @@ struct CookingSessionViewModelTests {
     @Test func advancingPastTheLastStepCancelsEveryRunningTimerAndUnschedulesItsNotification() {
         let recipe = SampleRecipes.searedSteak
         let session = CookingSessionViewModel(recipe: recipe)
-        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 180 }!
+        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 360 }!
         session.startTimer(for: timedStep)
         #expect(session.activeTimers.count == 1)
 
@@ -341,7 +341,7 @@ struct CookingSessionViewModelTests {
     @Test func onMutatedFiresOnStartAndCancelTimer() {
         let recipe = SampleRecipes.searedSteak
         let session = CookingSessionViewModel(recipe: recipe)
-        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 180 }!
+        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 360 }!
         var mutationCount = 0
         session.onMutated = { mutationCount += 1 }
 
@@ -374,8 +374,8 @@ struct CookingSessionViewModelTests {
     @Test func restoreStateSetsCurrentIndexAndTimersDirectlyWithoutSendingProgress() {
         let recipe = SampleRecipes.searedSteak
         let session = CookingSessionViewModel(recipe: recipe)
-        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 180 }!
-        let restoredTimer = ActiveTimer(step: timedStep, totalSeconds: 180, remainingSeconds: 90)
+        let timedStep = recipe.soloSteps.first { $0.timerSeconds == 360 }!
+        let restoredTimer = ActiveTimer(step: timedStep, totalSeconds: 360, remainingSeconds: 90)
 
         session.restoreState(currentIndex: 3, timers: [restoredTimer])
 
