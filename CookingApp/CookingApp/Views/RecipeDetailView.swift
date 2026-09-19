@@ -428,11 +428,16 @@ struct RecipeDetailView: View {
         for item in newItems { modelContext.insert(item) }
         try? modelContext.save()
 
-        AccessibilityNotification.Announcement(
-            newItems.isEmpty
-                ? "Everything is already on your shopping list"
-                : "Added \(newItems.count) \(newItems.count == 1 ? "ingredient" : "ingredients") to your shopping list"
-        ).post()
+        let message = newItems.isEmpty
+            ? "Everything is already on your shopping list"
+            : "Added \(newItems.count) \(newItems.count == 1 ? "ingredient" : "ingredients") to your shopping list"
+        // High priority after a short delay, or VoiceOver's own button feedback cancels it.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+            var announcement = AttributedString(message)
+            announcement.accessibilitySpeechAnnouncementPriority = .high
+            AccessibilityNotification.Announcement(announcement).post()
+        }
         // No false success checkmark when nothing new was added.
         guard !newItems.isEmpty else { return }
         justAddedToShoppingList = true
@@ -458,6 +463,7 @@ private struct MyNotesSection: View {
 
             HStack {
                 Text("Rating").font(.subheadline).foregroundStyle(.secondary)
+                    .accessibilityHidden(true) // the adjustable stars are already labelled "Rating"
                 Spacer()
                 StarRatingView(rating: recipe.personalRating) { newValue in
                     recipe.personalRating = newValue

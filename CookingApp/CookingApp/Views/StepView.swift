@@ -107,6 +107,8 @@ struct StepView: View {
 
     @State private var stepAreaWidth: CGFloat = 0
     @State private var notificationsDenied = false
+    /// Moves VoiceOver straight to the step text on arrival; otherwise focus starts on the toolbar.
+    @AccessibilityFocusState private var stepFocused: Bool
     @State private var notificationHintDismissed = false
 
     var body: some View {
@@ -226,6 +228,13 @@ struct StepView: View {
             UIApplication.shared.isIdleTimerDisabled = true
             if !session.isComplete {
                 beginNextTourIfNeeded()
+            }
+            if UIAccessibility.isVoiceOverRunning, !session.isComplete {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(500))
+                    // The tour callout takes focus itself when it is showing.
+                    if !tour.isActive { stepFocused = true }
+                }
             }
         }
         .onDisappear {
@@ -406,6 +415,7 @@ struct StepView: View {
                         session.advance()
                         tour.notify("stepAdvance")
                     }
+                    .accessibilityFocused($stepFocused)
                     .tourAnchor("stepAdvance")
 
                     DonenessHintView(checkHint: step.checkHint, expertise: cookExpertise)
