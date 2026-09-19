@@ -51,7 +51,7 @@ struct PartnerStatusView: View {
             // sighted tap triggers.
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(partnerLabel). \(statusText)")
-            .accessibilityHint("Double tap to learn what the connection status colors mean")
+            .accessibilityHint("Double tap for more about the connection status")
             .accessibilityAction {
                 showStatusExplanation = true
             }
@@ -77,10 +77,16 @@ struct PartnerStatusView: View {
         .onChange(of: session.partnerConnectionState) { _, _ in announceStatus() }
         .onChange(of: session.partnerIsAway) { _, _ in announceStatus() }
         .onDisappear { announceTask?.cancel() }
-        .alert("What the Dot Means", isPresented: $showStatusExplanation) {
+        .alert("Connection Status", isPresented: $showStatusExplanation) {
             Button("OK") {}
         } message: {
-            Text("Green means your partner's connected and cooking along with you. Blue means they've stepped away — their progress is saved. Yellow means you're still connecting. Red means you've lost each other, but don't stop: keep cooking, and you'll resync if they reconnect.")
+            Text(
+                "Green (connected): your partner is cooking along with you. "
+                    + "Blue (stepped away): their progress is saved. "
+                    + "Yellow (connecting): still finding each other. "
+                    + "Red (disconnected): you've lost each other, but keep cooking and you'll resync if they reconnect. "
+                    + "Ended: the shared session is over and you're cooking on your own."
+            )
         }
     }
 
@@ -90,7 +96,7 @@ struct PartnerStatusView: View {
         announceTask = Task {
             try? await Task.sleep(for: .milliseconds(600))
             guard !Task.isCancelled else { return }
-            var announcement = AttributedString(statusText)
+            var announcement = AttributedString("\(partnerLabel): \(statusText)")
             announcement.accessibilitySpeechAnnouncementPriority = .high
             AccessibilityNotification.Announcement(announcement).post()
         }

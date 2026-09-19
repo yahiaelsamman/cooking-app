@@ -316,7 +316,7 @@ struct StepView: View {
             Text(
                 session.isComplete
                     ? "Nice work — head back to the recipe list whenever you're ready."
-                    : "You can keep cooking on your own — the recipe is still right here."
+                    : "Your partner ended the session. Tap OK to go back to your recipes."
             )
         }
     }
