@@ -284,7 +284,7 @@ struct RecipeDetailView: View {
     private var ingredientsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Ingredients").font(.title3.bold())
+                Text("Ingredients").font(.title3.bold()).accessibilityAddTraits(.isHeader)
                 Spacer()
                 // Only offered when the recipe declares a base serving count to scale relative
                 // to — same "don't show a control that has nothing sensible to do" stance as
@@ -347,7 +347,7 @@ struct RecipeDetailView: View {
 
     private var stepsOverviewSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Steps").font(.title3.bold())
+            Text("Steps").font(.title3.bold()).accessibilityAddTraits(.isHeader)
 
             if mode == .twoPerson, let twoPersonSteps = recipe.twoPersonSteps {
                 stepsGroup(title: "Together", steps: twoPersonSteps.filter { $0.assignee == .shared }.sorted { $0.order < $1.order })
@@ -422,6 +422,13 @@ struct RecipeDetailView: View {
         for item in newItems { modelContext.insert(item) }
         try? modelContext.save()
 
+        AccessibilityNotification.Announcement(
+            newItems.isEmpty
+                ? "Everything is already on your shopping list"
+                : "Added \(newItems.count) \(newItems.count == 1 ? "ingredient" : "ingredients") to your shopping list"
+        ).post()
+        // No false success checkmark when nothing new was added.
+        guard !newItems.isEmpty else { return }
         justAddedToShoppingList = true
         Task {
             try? await Task.sleep(for: .seconds(1.5))
@@ -441,7 +448,7 @@ private struct MyNotesSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("My Notes").font(.title3.bold())
+            Text("My Notes").font(.title3.bold()).accessibilityAddTraits(.isHeader)
 
             HStack {
                 Text("Rating").font(.subheadline).foregroundStyle(.secondary)

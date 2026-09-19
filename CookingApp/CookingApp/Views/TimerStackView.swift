@@ -40,7 +40,8 @@ struct TimerStackView: View {
         // Otherwise reads as three disconnected fragments ("timer" image, instruction, digits) —
         // one label makes it clear whose timer it is and how much time is left.
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(info.isMine ? "Your timer" : "Partner's timer"): \(info.step.instruction), \(StepTimerControl.formatted(info.remainingSeconds)) remaining")
+        .accessibilityLabel("\(info.isMine ? "Your timer" : "Partner's timer"): \(info.step.instruction)")
+        .accessibilityValue("\(StepTimerControl.spoken(info.remainingSeconds)) remaining")
     }
 
     // Opaque-ish on purpose: these sit over a tinted step background and must stay readable at a
