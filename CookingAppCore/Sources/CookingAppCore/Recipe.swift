@@ -411,12 +411,30 @@ public final class Recipe {
 
     /// Bundled steps are built with a fresh `UUID()` every launch, but a persisted timer snapshot
     /// (and its pending notification key) refers to a step by id. Carrying the previously stored
-    /// id over, by position, keeps those references resolvable across launches.
+    /// id over keeps those references resolvable across launches. Old steps are matched by
+    /// identical instruction text first, so an inserted or removed step in a later app version
+    /// can't shift a saved timer onto a different step; only a step whose text changed falls
+    /// back to the same position, and then only if its timer is unchanged. Anything else gets
+    /// the new step's own fresh id.
     static func preservingStepIDs(of existing: [RecipeStep], in updated: [RecipeStep]) -> [RecipeStep] {
-        updated.enumerated().map { index, step in
-            guard index < existing.count else { return step }
+        var claimed = Set<Int>()
+        var matched = [Int?](repeating: nil, count: updated.count)
+        for (index, step) in updated.enumerated() {
+            if let old = existing.indices.first(where: { !claimed.contains($0) && existing[$0].instruction == step.instruction }) {
+                claimed.insert(old)
+                matched[index] = old
+            }
+        }
+        for (index, step) in updated.enumerated() where matched[index] == nil {
+            if index < existing.count, !claimed.contains(index), existing[index].timerSeconds == step.timerSeconds {
+                claimed.insert(index)
+                matched[index] = index
+            }
+        }
+        return updated.enumerated().map { index, step in
+            guard let old = matched[index] else { return step }
             return RecipeStep(
-                id: existing[index].id,
+                id: existing[old].id,
                 order: step.order,
                 instruction: step.instruction,
                 assignee: step.assignee,
