@@ -106,6 +106,7 @@ struct StepView: View {
     }
 
     @State private var stepAreaWidth: CGFloat = 0
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var notificationsDenied = false
     /// Moves VoiceOver straight to the step text on arrival; otherwise focus starts on the toolbar.
     @AccessibilityFocusState private var stepFocused: Bool
@@ -169,7 +170,7 @@ struct StepView: View {
             beginNextTourIfNeeded()
         }
         .sheet(isPresented: $showIngredientChecklist) {
-            IngredientChecklistView(ingredients: session.recipe.ingredients, checkedIDs: $checkedIngredientIDs)
+            IngredientChecklistView(ingredients: session.recipe.ingredients, scaleFactor: session.servingsScaleFactor, checkedIDs: $checkedIngredientIDs)
         }
         .confirmationDialog(
             "End the shared session?",
@@ -393,52 +394,13 @@ struct StepView: View {
             Spacer()
 
             if let step = session.currentStep {
-                VStack(spacing: 20) {
-                    // Grouped into one VoiceOver element (rather than a separately-focusable
-                    // image and text) with an explicit "next step" action — the tap-to-advance
-                    // gesture below only fires on a real touch, which VoiceOver intercepts for
-                    // its own navigation, so without this a VoiceOver user would have no way to
-                    // move forward at all.
-                    // A real container, not `Group` — `Group` has no frame of its own, so
-                    // `.tourAnchor` below would only ever capture whichever child SwiftUI
-                    // happens to report last, not the photo+text pair together.
-                    VStack(spacing: 20) {
-                        // Flexible, not a fixed size: the instruction text below is
-                        // `.fixedSize(vertical: true)` (always gets exactly the height it needs,
-                        // never compressed), so whatever's left over in this VStack goes to the
-                        // image — it grows as large as the current step's content allows, capped
-                        // just so it can't dominate a very short instruction on a tall screen.
-                        StepIllustrationView(step: step, tint: stepTint(for: step))
-                            .frame(maxWidth: .infinity, maxHeight: 380)
-                            .clipped()
-                            .padding(.horizontal, 20)
-
-                        Text(step.instruction)
-                            .font(.system(.title, weight: .semibold))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 32)
-                            // Legibility comes first: the illustration sits above, text is never
-                            // squeezed or overlapped by it.
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(session.progressText). \(step.instruction)")
-                    .accessibilityAddTraits(session.isLastStep ? [] : .isButton)
-                    .accessibilityHint(session.isLastStep ? "" : "Double tap to go to the next step")
-                    .accessibilityAction {
-                        guard !session.isLastStep else { return }
-                        session.advance()
-                        tour.notify("stepAdvance")
-                    }
-                    .accessibilityFocused($stepFocused)
-                    .tourAnchor("stepAdvance")
-
-                    DonenessHintView(checkHint: step.checkHint, expertise: cookExpertise)
-                        .id(step.id)
-
-                    StepTimerControl(step: step, session: session) {
-                        tour.notify("stepTimerButton")
-                    }
+                // At the largest accessibility text sizes a long step plus its illustration can be
+                // taller than the screen and push Back / Finish off it, so only there the step
+                // becomes scrollable. At every other size the layout is exactly as before.
+                if dynamicTypeSize.isAccessibilitySize {
+                    ScrollView { stepContent(step) }
+                } else {
+                    stepContent(step)
                 }
             }
 
@@ -513,6 +475,57 @@ struct StepView: View {
         }
         .padding(.leading, 10)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    @ViewBuilder
+    private func stepContent(_ step: RecipeStep) -> some View {
+        VStack(spacing: 20) {
+            // Grouped into one VoiceOver element (rather than a separately-focusable
+            // image and text) with an explicit "next step" action — the tap-to-advance
+            // gesture below only fires on a real touch, which VoiceOver intercepts for
+            // its own navigation, so without this a VoiceOver user would have no way to
+            // move forward at all.
+            // A real container, not `Group` — `Group` has no frame of its own, so
+            // `.tourAnchor` below would only ever capture whichever child SwiftUI
+            // happens to report last, not the photo+text pair together.
+            VStack(spacing: 20) {
+                // Flexible, not a fixed size: the instruction text below is
+                // `.fixedSize(vertical: true)` (always gets exactly the height it needs,
+                // never compressed), so whatever's left over in this VStack goes to the
+                // image — it grows as large as the current step's content allows, capped
+                // just so it can't dominate a very short instruction on a tall screen.
+                StepIllustrationView(step: step, tint: stepTint(for: step))
+                    .frame(maxWidth: .infinity, maxHeight: 380)
+                    .clipped()
+                    .padding(.horizontal, 20)
+
+                Text(step.instruction)
+                    .font(.system(.title, weight: .semibold))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                    // Legibility comes first: the illustration sits above, text is never
+                    // squeezed or overlapped by it.
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(session.progressText). \(step.instruction)")
+            .accessibilityAddTraits(session.isLastStep ? [] : .isButton)
+            .accessibilityHint(session.isLastStep ? "" : "Double tap to go to the next step")
+            .accessibilityAction {
+                guard !session.isLastStep else { return }
+                session.advance()
+                tour.notify("stepAdvance")
+            }
+            .accessibilityFocused($stepFocused)
+            .tourAnchor("stepAdvance")
+
+            DonenessHintView(checkHint: step.checkHint, expertise: cookExpertise)
+                .id(step.id)
+
+            StepTimerControl(step: step, session: session) {
+                tour.notify("stepTimerButton")
+            }
+        }
     }
 
     private var stepSwipeGesture: some Gesture {
