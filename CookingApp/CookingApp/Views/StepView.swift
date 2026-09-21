@@ -195,9 +195,14 @@ struct StepView: View {
                 NotificationScheduler.cancel(step: step)
             }
             session.onTimerFinished = { step in
-                // Cancel the corresponding notification — we're about to show our own in-app
-                // banner, and reaching this callback at all means the app was foregrounded when
-                // the timer hit zero, so the notification would just be a redundant duplicate.
+                // Only take over from the system notification when the app is actually on screen.
+                // A timer can also reach zero while the app is alive in the background (a debugger
+                // keeps it running, and iOS grants a short grace period after you leave). Then the
+                // scheduled notification is the only thing you can see, so it must be left alone —
+                // cancelling it here used to leave just the in-app sound and no banner.
+                guard UIApplication.shared.applicationState == .active else { return }
+                // On screen: we're about to show our own in-app banner, so the notification would
+                // just be a redundant duplicate.
                 NotificationScheduler.cancel(step: step)
                 let banner = TimerFinishedBanner(instruction: step.instruction)
                 timerFinishedBanners.append(banner)
