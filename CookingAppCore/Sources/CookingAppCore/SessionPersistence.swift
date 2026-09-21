@@ -27,12 +27,15 @@ public struct CookingSessionSnapshot: Codable, Equatable, Sendable {
     public let role: StepAssignee?
     public let currentIndex: Int
     public let timers: [TimerSnapshot]
+    /// Optional so snapshots saved before this existed still decode (they mean "not scaled").
+    public let servingsScaleFactor: Double?
 
-    public init(recipeID: UUID, role: StepAssignee?, currentIndex: Int, timers: [TimerSnapshot]) {
+    public init(recipeID: UUID, role: StepAssignee?, currentIndex: Int, timers: [TimerSnapshot], servingsScaleFactor: Double? = nil) {
         self.recipeID = recipeID
         self.role = role
         self.currentIndex = currentIndex
         self.timers = timers
+        self.servingsScaleFactor = servingsScaleFactor
     }
 }
 

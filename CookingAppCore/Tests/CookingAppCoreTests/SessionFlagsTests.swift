@@ -23,3 +23,21 @@ struct SessionFlagsTests {
         #expect(!session.completionCounted)
     }
 }
+
+@MainActor
+struct ServingsScalePersistenceTests {
+
+    @Test func snapshotsSavedBeforeScalingExistedStillDecodeAsUnscaled() throws {
+        let json = #"{"recipeID":"9E1F0A10-0001-4B7A-9C1A-000000000001","currentIndex":1,"timers":[]}"#
+        let snapshot = try JSONDecoder().decode(CookingSessionSnapshot.self, from: Data(json.utf8))
+        #expect(snapshot.servingsScaleFactor == nil)
+    }
+
+    @Test func aScaledSessionKeepsItsScaleThroughSaveAndRestore() throws {
+        let recipe = SampleRecipes.scrambledEggs
+        let snapshot = CookingSessionSnapshot(recipeID: recipe.id, role: nil, currentIndex: 0, timers: [], servingsScaleFactor: 2)
+        let data = try JSONEncoder().encode(snapshot)
+        let decoded = try JSONDecoder().decode(CookingSessionSnapshot.self, from: data)
+        #expect(decoded.servingsScaleFactor == 2)
+    }
+}

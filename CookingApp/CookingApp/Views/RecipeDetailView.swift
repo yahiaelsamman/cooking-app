@@ -441,6 +441,7 @@ struct RecipeDetailView: View {
             path.append(.peerConnection(recipe))
         } else {
             let session = CookingSessionViewModel(recipe: recipe)
+            session.servingsScaleFactor = servingsScaleFactor
             sessionStore.setActive(session)
             path.append(.steps(session))
         }

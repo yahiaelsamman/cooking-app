@@ -10,6 +10,8 @@ import CookingAppCore
 /// recipes), and "do I have everything for this dish" is the real question this answers regardless.
 struct IngredientChecklistView: View {
     let ingredients: [Ingredient]
+    /// The servings scale chosen on the recipe screen, so amounts match what you planned with.
+    var scaleFactor: Double = 1
     @Binding var checkedIDs: Set<Ingredient.ID>
     @Environment(\.dismiss) private var dismiss
 
@@ -34,7 +36,7 @@ struct IngredientChecklistView: View {
                             .strikethrough(isChecked)
                             .foregroundStyle(isChecked ? .secondary : .primary)
                         Spacer()
-                        Text(ingredient.amount)
+                        Text(ingredient.scaledAmount(by: scaleFactor))
                             .foregroundStyle(.secondary)
                     }
                     // Combines name/amount into one VoiceOver stop instead of three fragments —

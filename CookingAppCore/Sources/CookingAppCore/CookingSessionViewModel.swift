@@ -80,6 +80,10 @@ public final class CookingSessionViewModel {
     /// finishing, going back and finishing again still counts as a single cook-through.
     public var completionCounted = false
 
+    /// The servings scale picked on the recipe screen (1 = the recipe as written), so the
+    /// in-cook ingredient checklist shows the same amounts the recipe screen did.
+    public var servingsScaleFactor: Double = 1
+
     /// Called when the person taps OK on the "partner ended the session" notice, so they can carry
     /// on cooking on their own instead of being sent back to the recipe list.
     public func acknowledgePartnerLeft() {
