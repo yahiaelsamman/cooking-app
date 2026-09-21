@@ -113,6 +113,24 @@ struct RecipeListView: View {
         }
     }
 
+    @ViewBuilder
+    private var emptyResults: some View {
+        let onlyFavorites = showFavoritesOnly && searchText.isEmpty && selectedDietaryTags.isEmpty
+        if !searchText.isEmpty || !selectedDietaryTags.isEmpty || showFavoritesOnly {
+            ContentUnavailableView {
+                Label("No Recipes Match", systemImage: "magnifyingglass")
+            } description: {
+                Text(onlyFavorites ? "You haven't favorited any recipes yet." : "Try a different search or fewer filters.")
+            } actions: {
+                Button("Clear Filters") {
+                    searchText = ""
+                    selectedDietaryTags = []
+                    showFavoritesOnly = false
+                }
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack(path: $path) {
             ZStack(alignment: .bottomTrailing) {
@@ -132,6 +150,9 @@ struct RecipeListView: View {
                 // treatment per row (see `recipeRow`), and `.automatic` risks the system's
                 // grouped/inset chrome fighting that on some size classes.
                 .listStyle(.plain)
+                .overlay {
+                    if displayedRecipes.isEmpty { emptyResults }
+                }
                 .environment(\.editMode, .constant(canReorder ? .active : .inactive))
                 .safeAreaInset(edge: .top, spacing: 0) {
                     VStack(spacing: 0) {
