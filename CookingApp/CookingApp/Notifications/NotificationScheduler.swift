@@ -28,19 +28,34 @@ enum NotificationScheduler {
     }
 
     static func schedule(step: RecipeStep, durationSeconds: Int) {
+        guard durationSeconds > 0 else { return }
         let content = UNMutableNotificationContent()
         content.title = "Timer Finished"
         content.body = step.instruction
         content.sound = .default
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(durationSeconds), repeats: false)
+        // Same identifier per step, so re-scheduling (e.g. as the app goes to the background)
+        // replaces the earlier request rather than stacking a second one.
         let request = UNNotificationRequest(identifier: identifier(for: step), content: content, trigger: trigger)
-        // `add(request)` previously dropped a scheduling failure silently — no `try await`, no
-        // completion handler. A failure here (e.g. denied authorization) means a timer that
-        // finishes while the app is backgrounded gives the user zero signal, so it's worth
-        // knowing about even though there's nothing actionable to do about it in the moment.
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error {
+        let center = UNUserNotificationCenter.current()
+        Task {
+            let settings = await center.notificationSettings()
+            switch settings.authorizationStatus {
+            case .denied:
+                logger.notice("Not scheduling a timer notification: notifications are denied.")
+                return
+            case .notDetermined:
+                // Never asked yet (e.g. the permission prompt was skipped or dismissed): ask now,
+                // so a first-ever timer isn't silently left without a notification.
+                let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+                guard granted else { return }
+            default:
+                break
+            }
+            do {
+                try await center.add(request)
+            } catch {
                 logger.error("Failed to schedule timer notification: \(error, privacy: .public)")
             }
         }

@@ -112,7 +112,7 @@ struct TourSpotlight: View {
                     .foregroundStyle(.black)
                     .accessibilityIdentifier("tourNextButton")
             } else {
-                Label("Tap it to continue", systemImage: "hand.tap.fill")
+                Label("Use it to continue", systemImage: "hand.tap.fill")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.75))
             }
@@ -124,7 +124,7 @@ struct TourSpotlight: View {
         .allowsHitTesting(true)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(step.title): \(step.message)")
-        .accessibilityHint(step.targetID == nil ? "Double tap Next to continue" : "Use the highlighted control to continue")
+        .accessibilityHint(step.targetID == nil ? "Double tap Next to continue" : "Use the control described above to continue")
         .accessibilityFocused($isCalloutFocused)
     }
 
@@ -144,20 +144,33 @@ struct TourSpotlight: View {
         }
     }
 
+    /// The overlay ignores the safe area (so the dimming covers the whole screen), which makes
+    /// the chip's own geometry report a zero inset — read it from the window.
+    private static var bottomSafeInset: CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+            .first?.safeAreaInsets.bottom ?? 0
+    }
+
     private var skipChip: some View {
         VStack {
+            Spacer()
             HStack {
                 Spacer()
                 Button("Skip Walkthrough") { tour.skip() }
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(.thinMaterial, in: Capsule())
+                    .foregroundStyle(.white)
+                    .background(Color.black.opacity(0.85), in: Capsule())
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                     .accessibilityIdentifier("tourSkipButton")
             }
-            .padding(.top, 8)
+            // Bottom, not top: the top of list screens is the nav-bar toolbar, which covers it.
+            // Extra lift clears a bottom search bar.
+            .padding(.bottom, Self.bottomSafeInset + 72)
             .padding(.trailing, 16)
-            Spacer()
         }
     }
 }

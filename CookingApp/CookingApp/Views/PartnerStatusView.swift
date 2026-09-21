@@ -12,6 +12,7 @@ struct PartnerStatusView: View {
     /// there's something worth showing on tap, it still absorbs the tap either way — nothing
     /// about that original purpose changes.
     @State private var showStatusExplanation = false
+    @State private var announceTask: Task<Void, Never>?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -50,7 +51,7 @@ struct PartnerStatusView: View {
             // sighted tap triggers.
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(partnerLabel). \(statusText)")
-            .accessibilityHint("Double tap to learn what the connection status colors mean")
+            .accessibilityHint("Double tap for more about the connection status")
             .accessibilityAction {
                 showStatusExplanation = true
             }
@@ -71,10 +72,33 @@ struct PartnerStatusView: View {
         .sensoryFeedback(.warning, trigger: session.partnerConnectionState) { oldValue, newValue in
             newValue == .disconnected && oldValue != .disconnected
         }
-        .alert("What the Dot Means", isPresented: $showStatusExplanation) {
+        // Status text changes silently otherwise; announce it for VoiceOver. Debounced so a
+        // flapping connection speaks only the state it settles on.
+        .onChange(of: session.partnerConnectionState) { _, _ in announceStatus() }
+        .onChange(of: session.partnerIsAway) { _, _ in announceStatus() }
+        .onDisappear { announceTask?.cancel() }
+        .alert("Connection Status", isPresented: $showStatusExplanation) {
             Button("OK") {}
         } message: {
-            Text("Green means your partner's connected and cooking along with you. Blue means they've stepped away — their progress is saved. Yellow means you're still connecting. Red means you've lost each other, but don't stop: keep cooking, and you'll resync if they reconnect.")
+            Text(
+                "Green (connected): your partner is cooking along with you. "
+                    + "Blue (stepped away): their progress is saved. "
+                    + "Yellow (connecting): still finding each other. "
+                    + "Red (disconnected): you've lost each other, but keep cooking and you'll resync if they reconnect. "
+                    + "Ended: the shared session is over and you're cooking on your own."
+            )
+        }
+    }
+
+    private func announceStatus() {
+        announceTask?.cancel()
+        guard session.partnerConnectionState != .idle else { return }
+        announceTask = Task {
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            var announcement = AttributedString("\(partnerLabel): \(statusText)")
+            announcement.accessibilitySpeechAnnouncementPriority = .high
+            AccessibilityNotification.Announcement(announcement).post()
         }
     }
 
@@ -109,18 +133,20 @@ struct PartnerStatusView: View {
     private var statusText: String {
         switch session.partnerConnectionState {
         case .disconnected:
-            return "Partner disconnected — keep cooking, we'll resync if they reconnect."
+            return "Disconnected — keep cooking, we'll resync if they reconnect."
         case .connected:
             if session.partnerIsAway {
-                return "Partner stepped away — they'll pick back up from where they left off."
+                return "Stepped away — they'll pick back up from where they left off."
             }
             // Check "finished" before falling back to "Getting started…" — `partnerStep` is
             // also nil once they're past their last step, so without this check a partner who's
             // actually done looks indistinguishable from one who hasn't started yet.
             if session.partnerProgressFraction == 1.0 {
-                return "Partner has finished — waiting for you!"
+                return "Finished — waiting for you!"
             }
             return session.partnerStep?.instruction ?? "Getting started…"
+        case .idle:
+            return "Shared session ended. You're cooking on your own."
         default:
             return "Connecting…"
         }

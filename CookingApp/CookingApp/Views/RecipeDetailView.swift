@@ -52,12 +52,12 @@ struct RecipeDetailView: View {
             TourStep(
                 target: "detailFavoriteButton",
                 title: "Favorites",
-                message: "Tap the heart to save this recipe as a favorite."
+                message: "Use the Add to favorites button to save this recipe."
             ),
             TourStep(
                 target: "addToShoppingListButton",
                 title: "Shopping List",
-                message: "Tap the cart to add these ingredients to your shopping list."
+                message: "Use the Add to Shopping List button to add these ingredients."
             )
         ]
         if recipe.supportsTwoPerson {
@@ -74,7 +74,7 @@ struct RecipeDetailView: View {
                 TourStep(
                     target: "servingsStepper",
                     title: "Servings",
-                    message: "Tap + or – to scale the ingredient amounts for more or fewer people."
+                    message: "Use the Fewer servings and More servings buttons to scale the ingredient amounts."
                 )
             )
         }
@@ -216,11 +216,15 @@ struct RecipeDetailView: View {
                 Label("\(recipe.cookTimeMinutes(forTwoPerson: mode == .twoPerson)) min", systemImage: "clock.fill")
                 Text("Cook Time").font(.caption2).foregroundStyle(.secondary)
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Cook time, \(recipe.cookTimeMinutes(forTwoPerson: mode == .twoPerson)) minutes")
             if recipe.servings != nil {
                 VStack(spacing: 4) {
                     Label("\(targetServings)", systemImage: "person.fill")
                     Text("Servings").font(.caption2).foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Servings, \(targetServings)")
             }
         }
         .font(.subheadline.weight(.medium))
@@ -284,7 +288,7 @@ struct RecipeDetailView: View {
     private var ingredientsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Ingredients").font(.title3.bold())
+                Text("Ingredients").font(.title3.bold()).accessibilityAddTraits(.isHeader)
                 Spacer()
                 // Only offered when the recipe declares a base serving count to scale relative
                 // to — same "don't show a control that has nothing sensible to do" stance as
@@ -322,7 +326,7 @@ struct RecipeDetailView: View {
                 .frame(minWidth: 70)
 
             Button {
-                targetServings = min(20, targetServings + 1)
+                targetServings = min(max(20, recipe.servings ?? 20), targetServings + 1)
             } label: {
                 Image(systemName: "plus.circle.fill")
             }
@@ -347,7 +351,7 @@ struct RecipeDetailView: View {
 
     private var stepsOverviewSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Steps").font(.title3.bold())
+            Text("Steps").font(.title3.bold()).accessibilityAddTraits(.isHeader)
 
             if mode == .twoPerson, let twoPersonSteps = recipe.twoPersonSteps {
                 stepsGroup(title: "Together", steps: twoPersonSteps.filter { $0.assignee == .shared }.sorted { $0.order < $1.order })
@@ -386,6 +390,12 @@ struct RecipeDetailView: View {
     // because `body` is, so constructing one here needs this annotation explicitly.
     @MainActor
     private func startCooking() {
+        // Asked here rather than at app launch, where the system prompt landed on top of the
+        // first-launch tour before the user knew what the app was. It's a no-op after the first
+        // answer. UI tests skip it: the system dialog can't be reliably dismissed from XCUITest.
+        if !ProcessInfo.processInfo.arguments.contains("-UITesting") {
+            NotificationScheduler.requestAuthorizationIfNeeded()
+        }
         if mode == .twoPerson {
             path.append(.peerConnection(recipe))
         } else {
@@ -402,6 +412,12 @@ struct RecipeDetailView: View {
     /// no longer part of the active navigation stack by the time the delete actually happens.
     private func deleteRecipeAndPopBack() {
         path = []
+        // A live session for this recipe would otherwise outlive it: timers keep firing and
+        // "Resume Cooking" points at a deleted model.
+        if let session = sessionStore.currentSession, session.recipe.id == recipe.id {
+            for timer in session.activeTimers { session.cancelTimer(for: timer.step) }
+            sessionStore.clear()
+        }
         modelContext.delete(recipe)
         try? modelContext.save()
     }
@@ -416,6 +432,18 @@ struct RecipeDetailView: View {
         for item in newItems { modelContext.insert(item) }
         try? modelContext.save()
 
+        let message = newItems.isEmpty
+            ? "Everything is already on your shopping list"
+            : "Added \(newItems.count) \(newItems.count == 1 ? "ingredient" : "ingredients") to your shopping list"
+        // High priority after a short delay, or VoiceOver's own button feedback cancels it.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+            var announcement = AttributedString(message)
+            announcement.accessibilitySpeechAnnouncementPriority = .high
+            AccessibilityNotification.Announcement(announcement).post()
+        }
+        // No false success checkmark when nothing new was added.
+        guard !newItems.isEmpty else { return }
         justAddedToShoppingList = true
         Task {
             try? await Task.sleep(for: .seconds(1.5))
@@ -435,10 +463,11 @@ private struct MyNotesSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("My Notes").font(.title3.bold())
+            Text("My Notes").font(.title3.bold()).accessibilityAddTraits(.isHeader)
 
             HStack {
                 Text("Rating").font(.subheadline).foregroundStyle(.secondary)
+                    .accessibilityHidden(true) // the adjustable stars are already labelled "Rating"
                 Spacer()
                 StarRatingView(rating: recipe.personalRating) { newValue in
                     recipe.personalRating = newValue
@@ -452,6 +481,7 @@ private struct MyNotesSection: View {
                 Text(cookedSummary)
                     .font(.subheadline.weight(.medium))
             }
+            .accessibilityElement(children: .combine)
 
             TextEditor(text: Binding(
                 get: { recipe.personalNotes },

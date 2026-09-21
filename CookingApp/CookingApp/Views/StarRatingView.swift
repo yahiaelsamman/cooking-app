@@ -31,6 +31,7 @@ struct StarRatingView: View {
         .font(interactive ? .title2 : .caption2)
         .foregroundStyle(.yellow)
         .modifier(NonInteractiveSummary(isApplied: !interactive, summary: ratingSummary))
+        .modifier(InteractiveAdjustable(isApplied: interactive, rating: rating, onSet: onSet))
     }
 
     private var ratingSummary: String {
@@ -53,6 +54,33 @@ private struct NonInteractiveSummary: ViewModifier {
             content
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(summary)
+        } else {
+            content
+        }
+    }
+}
+
+/// Interactive mode: one adjustable "Rating" element (swipe up/down) with a spoken value, instead
+/// of five "N stars" buttons that never say which is selected. Sighted taps are unaffected.
+private struct InteractiveAdjustable: ViewModifier {
+    let isApplied: Bool
+    let rating: Int?
+    let onSet: ((Int?) -> Void)?
+
+    func body(content: Content) -> some View {
+        if isApplied {
+            content
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Rating")
+                .accessibilityValue(rating.map { "\($0) out of 5 stars" } ?? "Not rated")
+                .accessibilityAdjustableAction { direction in
+                    switch direction {
+                    case .increment: onSet?(min(5, (rating ?? 0) + 1))
+                    case .decrement: onSet?(rating.map { $0 <= 1 ? nil : $0 - 1 } ?? nil)
+                    @unknown default: break
+                    }
+                }
+                .accessibilityAction(named: "Clear rating") { onSet?(nil) }
         } else {
             content
         }

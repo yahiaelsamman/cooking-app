@@ -7,6 +7,8 @@ struct DualProgressSliderView: View {
     let myFraction: Double
     let partnerFraction: Double?
 
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
+
     private let markerSize: CGFloat = 16
 
     var body: some View {
@@ -22,7 +24,7 @@ struct DualProgressSliderView: View {
                     .offset(x: usableWidth * myFraction)
 
                 if let partnerFraction {
-                    marker(color: .orange, systemImage: "person.fill")
+                    marker(color: .orange, systemImage: differentiateWithoutColor ? "person.2.fill" : "person.fill")
                         .offset(x: usableWidth * partnerFraction)
                 }
             }

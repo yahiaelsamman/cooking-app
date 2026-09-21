@@ -105,19 +105,66 @@ public struct Ingredient: Identifiable, Codable, Hashable, Sendable {
     /// at all ("A pinch," "To taste," "As needed") come back unchanged: there's nothing in them
     /// to scale, and guessing would silently turn real recipe content into garbage.
     ///
-    /// Deliberately doesn't attempt unit conversion, unicode vulgar fractions (½, ¾), or ranges
-    /// ("2-3") — none of those appear in this app's actual ingredient data (see
-    /// `SampleRecipes.swift`), and adding support for formats nothing uses yet would be exactly
-    /// the kind of speculative complexity this project's conventions steer away from.
+    /// Also handles unicode vulgar fractions ("½", "1½" — rewritten to "1/2", "1 1/2") and
+    /// dash ranges ("2-3 cloves" scales both ends). Deliberately doesn't attempt unit conversion.
     public func scaledAmount(by factor: Double) -> String {
         Ingredient.scale(amount, by: factor)
     }
 
     static func scale(_ amount: String, by factor: Double) -> String {
-        guard factor.isFinite, factor > 0, let quantity = parseLeadingQuantity(amount) else {
-            return amount
+        guard factor.isFinite, factor > 0 else { return amount }
+        return scaleNormalized(normalizeVulgarFractions(amount), by: factor)
+    }
+
+    private static func scaleNormalized(_ amount: String, by factor: Double) -> String {
+        guard let quantity = parseLeadingQuantity(amount) else { return amount }
+        var remainder = quantity.remainder
+        // Hyphenated mixed number "1-1/2 cups" (whole, dash, proper fraction, no spaces) is
+        // 1 1/2, not the range 1 to 1/2.
+        if let dashIndex = amount.firstIndex(of: "-"), dashIndex != amount.startIndex,
+           amount[..<dashIndex].allSatisfy({ $0.isASCII && $0.isNumber }) {
+            let afterDash = amount.index(after: dashIndex)
+            var probe = Substring(amount[afterDash...])
+            if let n = consumeDigits(&probe), probe.first == "/" {
+                probe.removeFirst()
+                if let d = consumeDigits(&probe), let num = Double(n), let den = Double(d), den != 0, num < den {
+                    return scaleNormalized(String(amount[..<dashIndex]) + " " + String(amount[afterDash...]), by: factor)
+                }
+            }
         }
-        return formatQuantity(quantity.value * factor) + quantity.remainder
+        // Range like "2-3 cloves": the remainder starts with a dash then another quantity.
+        var rangeSeparator = Substring(remainder)
+        var separator = ""
+        while let c = rangeSeparator.first, c == " " { separator.append(c); rangeSeparator.removeFirst() }
+        if let dash = rangeSeparator.first, dash == "-" || dash == "\u{2013}" {
+            separator.append(dash)
+            rangeSeparator.removeFirst()
+            while let c = rangeSeparator.first, c == " " { separator.append(c); rangeSeparator.removeFirst() }
+            if let upper = rangeSeparator.first, upper.isASCII, upper.isNumber {
+                remainder = separator + scaleNormalized(String(rangeSeparator), by: factor)
+            }
+        }
+        return formatQuantity(quantity.value * factor) + remainder
+    }
+
+    private static let vulgarFractions: [Character: String] = [
+        "\u{BD}": "1/2", "\u{BC}": "1/4", "\u{BE}": "3/4",
+        "\u{2153}": "1/3", "\u{2154}": "2/3", "\u{215B}": "1/8",
+    ]
+
+    /// "1½" -> "1 1/2", "½ tsp" -> "1/2 tsp".
+    private static func normalizeVulgarFractions(_ amount: String) -> String {
+        guard amount.contains(where: { vulgarFractions[$0] != nil }) else { return amount }
+        var result = ""
+        for character in amount {
+            if let fraction = vulgarFractions[character] {
+                if let last = result.last, last.isASCII, last.isNumber { result.append(" ") }
+                result.append(fraction)
+            } else {
+                result.append(character)
+            }
+        }
+        return result
     }
 
     /// Splits `amount` into a leading numeric value and everything after it, or `nil` if it
@@ -363,8 +410,8 @@ public final class Recipe {
         title = other.title
         summary = other.summary
         servings = other.servings
-        soloSteps = other.soloSteps
-        twoPersonSteps = other.twoPersonSteps
+        soloSteps = Self.preservingStepIDs(of: soloSteps, in: other.soloSteps)
+        twoPersonSteps = other.twoPersonSteps.map { Self.preservingStepIDs(of: twoPersonSteps ?? [], in: $0) }
         iconSystemName = other.iconSystemName
         heroImageName = other.heroImageName
         difficulty = other.difficulty
@@ -373,6 +420,43 @@ public final class Recipe {
         twoPersonCookTimeMinutes = other.twoPersonCookTimeMinutes
         dietaryTags = other.dietaryTags
         ingredients = other.ingredients
+    }
+
+    /// Bundled steps are built with a fresh `UUID()` every launch, but a persisted timer snapshot
+    /// (and its pending notification key) refers to a step by id. Carrying the previously stored
+    /// id over keeps those references resolvable across launches. Old steps are matched by
+    /// identical instruction text first, so an inserted or removed step in a later app version
+    /// can't shift a saved timer onto a different step; only a step whose text changed falls
+    /// back to the same position, and then only if its timer is unchanged. Anything else gets
+    /// the new step's own fresh id.
+    static func preservingStepIDs(of existing: [RecipeStep], in updated: [RecipeStep]) -> [RecipeStep] {
+        var claimed = Set<Int>()
+        var matched = [Int?](repeating: nil, count: updated.count)
+        for (index, step) in updated.enumerated() {
+            if let old = existing.indices.first(where: { !claimed.contains($0) && existing[$0].instruction == step.instruction }) {
+                claimed.insert(old)
+                matched[index] = old
+            }
+        }
+        for (index, step) in updated.enumerated() where matched[index] == nil {
+            if index < existing.count, !claimed.contains(index), existing[index].timerSeconds == step.timerSeconds {
+                claimed.insert(index)
+                matched[index] = index
+            }
+        }
+        return updated.enumerated().map { index, step in
+            guard let old = matched[index] else { return step }
+            return RecipeStep(
+                id: existing[old].id,
+                order: step.order,
+                instruction: step.instruction,
+                assignee: step.assignee,
+                timerSeconds: step.timerSeconds,
+                imageSystemName: step.imageSystemName,
+                stepImageName: step.stepImageName,
+                checkHint: step.checkHint
+            )
+        }
     }
 
     public func cookTimeMinutes(forTwoPerson: Bool) -> Int {

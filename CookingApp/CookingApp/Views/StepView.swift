@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import AudioToolbox
 import CookingAppCore
 
 /// One finished-timer toast — non-blocking (unlike a `.alert`, it never demands a tap before you
@@ -47,17 +48,17 @@ struct StepView: View {
             TourStep(
                 target: "stepAdvance",
                 title: "Move Through the Recipe",
-                message: "Tap the right side of the screen to move on, or the left side to go back. Swiping works too."
+                message: "Tap the right side of the screen for the next step, or the left side to go back. With VoiceOver, double tap the step to go on, or use the Previous step button to go back."
             ),
             TourStep(
                 target: "ingredientChecklistButton",
                 title: "Ingredient Checklist",
-                message: "Tap here anytime to check off ingredients as you use them."
+                message: "Open the Ingredient checklist button anytime to check off ingredients as you use them."
             ),
             TourStep(
                 id: "stepBack",
                 title: "Going Back",
-                message: "Use the arrow in the bottom-left corner anytime you need to go back a step."
+                message: "Use the Previous step button anytime you need to go back."
             )
         ]
     }
@@ -91,7 +92,7 @@ struct StepView: View {
                 TourStep(
                     target: "holdToFinishButton",
                     title: "Finishing Up",
-                    message: "Press and hold the checkmark for a second to finish cooking."
+                    message: "Touch and hold the Finish Recipe button for a second, or double tap it, to finish cooking."
                 )
             ])
         }
@@ -106,6 +107,8 @@ struct StepView: View {
 
     @State private var stepAreaWidth: CGFloat = 0
     @State private var notificationsDenied = false
+    /// Moves VoiceOver straight to the step text on arrival; otherwise focus starts on the toolbar.
+    @AccessibilityFocusState private var stepFocused: Bool
     @State private var notificationHintDismissed = false
 
     var body: some View {
@@ -138,7 +141,7 @@ struct StepView: View {
                     } label: {
                         Image(systemName: "checklist")
                     }
-                    .accessibilityLabel("Ingredients")
+                    .accessibilityLabel("Ingredient checklist")
                     .accessibilityIdentifier("ingredientChecklistButton")
                     .tourAnchor("ingredientChecklistButton")
                 }
@@ -148,7 +151,7 @@ struct StepView: View {
                     Button("End Session", role: .destructive) {
                         showEndSessionConfirm = true
                     }
-                    .font(.caption)
+                    .frame(minHeight: 44)
                 }
             }
         }
@@ -199,9 +202,21 @@ struct StepView: View {
                 let banner = TimerFinishedBanner(instruction: step.instruction)
                 timerFinishedBanners.append(banner)
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
-                Task {
-                    try? await Task.sleep(for: .seconds(4))
-                    timerFinishedBanners.removeAll { $0.id == banner.id }
+                // The system banner and its sound are suppressed while this screen is visible
+                // (see `NotificationDelegate`), so without an audible cue the only signals are a
+                // haptic and a toast — neither reaches a phone propped across the kitchen, or
+                // someone using VoiceOver. Respects the ringer switch like any system sound.
+                AudioServicesPlayAlertSound(SystemSoundID(1005))
+                var announcement = AttributedString("Timer finished: \(step.instruction)")
+                announcement.accessibilitySpeechAnnouncementPriority = .high
+                AccessibilityNotification.Announcement(announcement).post()
+                // Under VoiceOver a 4s toast is easy to miss or lose focus on, so it stays until
+                // dismissed there.
+                if !UIAccessibility.isVoiceOverRunning {
+                    Task {
+                        try? await Task.sleep(for: .seconds(4))
+                        timerFinishedBanners.removeAll { $0.id == banner.id }
+                    }
                 }
             }
             if session.role != nil {
@@ -213,6 +228,13 @@ struct StepView: View {
             UIApplication.shared.isIdleTimerDisabled = true
             if !session.isComplete {
                 beginNextTourIfNeeded()
+            }
+            if UIAccessibility.isVoiceOverRunning, !session.isComplete {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(500))
+                    // The tour callout takes focus itself when it is showing.
+                    if !tour.isActive { stepFocused = true }
+                }
             }
         }
         .onDisappear {
@@ -248,6 +270,40 @@ struct StepView: View {
             session.recipe.lastCookedDate = Date()
             try? modelContext.save()
         }
+        // A focused VoiceOver element doesn't re-speak when its label changes, so advancing,
+        // going back and finishing were silent. Announce from one place so every path (tap zone,
+        // swipe, accessibility action, back button, partner-driven) is covered.
+        .onChange(of: session.currentIndex) { _, _ in
+            guard UIAccessibility.isVoiceOverRunning, !session.isComplete,
+                  let step = session.currentStep else { return }
+            let suffix = session.isLastStep ? " Last step. Use Finish Recipe." : ""
+            let index = session.currentIndex
+            var text = "\(session.progressText). \(step.instruction).\(suffix)"
+            if cookExpertise.prefersVerboseGuidance, let hint = step.checkHint {
+                text += " To check: \(hint)"
+            }
+            // Short delay so the element's own re-read/activation feedback doesn't cancel it, and
+            // high priority so it isn't dropped. Skipped if the step changed again meanwhile.
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(300))
+                guard session.currentIndex == index, !session.isComplete, !tour.isActive else { return }
+                var announcement = AttributedString(text)
+                announcement.accessibilitySpeechAnnouncementPriority = .high
+                AccessibilityNotification.Announcement(announcement).post()
+            }
+        }
+        .onChange(of: session.isComplete) { _, isComplete in
+            guard UIAccessibility.isVoiceOverRunning else { return }
+            if isComplete {
+                AccessibilityNotification.ScreenChanged("Recipe complete").post()
+            } else {
+                // Going back from the completion screen: put focus back on the step.
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(500))
+                    if !session.isComplete, !tour.isActive { stepFocused = true }
+                }
+            }
+        }
         .alert(
             session.isComplete ? "You Both Finished!" : "Partner Ended the Session",
             isPresented: .constant(session.partnerDidLeave)
@@ -260,7 +316,7 @@ struct StepView: View {
             Text(
                 session.isComplete
                     ? "Nice work — head back to the recipe list whenever you're ready."
-                    : "You can keep cooking on your own — the recipe is still right here."
+                    : "Your partner ended the session. Tap OK to go back to your recipes."
             )
         }
     }
@@ -270,6 +326,7 @@ struct StepView: View {
             ForEach(timerFinishedBanners) { banner in
                 HStack(spacing: 10) {
                     Image(systemName: "timer")
+                        .accessibilityHidden(true)
                     Text("Timer finished: \(banner.instruction)")
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(2)
@@ -282,12 +339,15 @@ struct StepView: View {
                 .onTapGesture {
                     timerFinishedBanners.removeAll { $0.id == banner.id }
                 }
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("Double tap to dismiss")
+                .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
             }
         }
         .padding(.horizontal)
         .padding(.top, 8)
-        .animation(.default, value: timerFinishedBanners.map(\.id))
+        .animation(reduceMotion ? nil : .default, value: timerFinishedBanners.map(\.id))
     }
 
     // MARK: - Active step
@@ -365,6 +425,7 @@ struct StepView: View {
                         session.advance()
                         tour.notify("stepAdvance")
                     }
+                    .accessibilityFocused($stepFocused)
                     .tourAnchor("stepAdvance")
 
                     DonenessHintView(checkHint: step.checkHint, expertise: cookExpertise)
@@ -424,6 +485,7 @@ struct StepView: View {
     private var notificationsOffHint: some View {
         HStack(spacing: 10) {
             Image(systemName: "bell.slash")
+                .accessibilityHidden(true)
             Text("Notifications are off, so you won't hear this timer if you leave the app.")
                 .font(.footnote)
             Spacer(minLength: 0)
@@ -433,14 +495,18 @@ struct StepView: View {
                 }
             }
             .font(.footnote.weight(.semibold))
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             Button {
                 notificationHintDismissed = true
             } label: {
                 Image(systemName: "xmark")
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Dismiss")
         }
-        .padding(10)
+        .padding(.leading, 10)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
     }
 
@@ -485,7 +551,7 @@ struct StepView: View {
             } label: {
                 Image(systemName: "chevron.left.circle.fill")
                     .font(.system(size: 44))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.55))
             }
             .padding()
             // An icon-only button synthesizes a poor default VoiceOver label ("chevron left
@@ -507,8 +573,10 @@ struct StepView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 64))
                     .foregroundStyle(.green)
+                    .accessibilityHidden(true)
                 Text("Recipe Complete")
                     .font(.title.bold())
+                    .accessibilityAddTraits(.isHeader)
 
                 VStack(spacing: 12) {
                     Button("Back to Recipes") {
@@ -555,8 +623,8 @@ struct StepView: View {
     /// session's `.solo` steps, which `backgroundColor` doesn't color-code either.
     private var currentStepAssigneeLabel: String? {
         switch session.currentStep?.assignee {
-        case .personA: return "Person A"
-        case .personB: return "Person B"
+        case .personA: return session.role == .personA ? "Your steps (Person A)" : "Your partner's steps (Person A)"
+        case .personB: return session.role == .personB ? "Your steps (Person B)" : "Your partner's steps (Person B)"
         case .shared: return "Together"
         case .solo, nil: return nil
         }

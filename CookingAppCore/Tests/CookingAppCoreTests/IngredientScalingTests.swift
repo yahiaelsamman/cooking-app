@@ -114,4 +114,35 @@ struct IngredientScalingTests {
             }
         }
     }
+
+    // MARK: - Ranges and unicode fractions
+
+    @Test func scalesBothEndsOfARange() {
+        #expect(Ingredient.scale("2-3 cloves", by: 2) == "4-6 cloves")
+        #expect(Ingredient.scale("1\u{2013}2 tbsp", by: 2) == "2\u{2013}4 tbsp")
+        #expect(Ingredient.scale("1 - 2 tbsp", by: 2) == "2 - 4 tbsp")
+    }
+
+    @Test func aDashNotFollowedByANumberIsLeftAlone() {
+        #expect(Ingredient.scale("2-inch piece", by: 2) == "4-inch piece")
+    }
+
+    @Test func hyphenatedMixedNumberIsNotARange() {
+        #expect(Ingredient.scale("1-1/2 cups", by: 2) == "3 cups")
+        #expect(Ingredient.scale("1-1/2 cups", by: 0.5) == "3/4 cups")
+        #expect(Ingredient.scale("1-1/2 cups", by: 1) == "1 1/2 cups")
+        #expect(Ingredient.scale("2-1/4 tsp", by: 2) == "4 1/2 tsp")
+    }
+
+    @Test func rangesWithFractionsStillScaleBothEnds() {
+        #expect(Ingredient.scale("10 \u{2013} 12 g", by: 2) == "20 \u{2013} 24 g")
+        #expect(Ingredient.scale("\u{BD}-1 cup", by: 2) == "1-2 cup")
+        #expect(Ingredient.scale("1/2-3/4 cup", by: 2) == "1-1 1/2 cup")
+    }
+
+    @Test func scalesUnicodeFractions() {
+        #expect(Ingredient.scale("\u{BD} tsp", by: 2) == "1 tsp")
+        #expect(Ingredient.scale("1\u{BD} cups", by: 2) == "3 cups")
+        #expect(Ingredient.scale("\u{BE} cup", by: 2) == "1 1/2 cup")
+    }
 }

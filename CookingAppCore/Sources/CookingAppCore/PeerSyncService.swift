@@ -235,8 +235,11 @@ public final class PeerSyncService: NSObject {
             }
             onConnected?()
         case .connecting:
+            // A stale callback after leaveSession()/stop() must not resurrect a torn-down session.
+            guard role != nil else { return }
             connectionState = .connecting
         case .notConnected:
+            guard role != nil else { return }
             connectionState = .disconnected
             connectedPeerName = nil
             if hasConnectedBefore {

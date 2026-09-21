@@ -88,6 +88,16 @@ struct ShoppingListItemTests {
         #expect(fromB.isEmpty, "the same name+amount already on the list shouldn't be duplicated just because it came from a different recipe")
     }
 
+    @Test func dedupeIgnoresSurroundingWhitespaceInNames() {
+        let recipeA = makeRecipe(title: "Recipe A", ingredients: [Ingredient(name: "Salt ", amount: "1 tsp")])
+        let recipeB = makeRecipe(title: "Recipe B", ingredients: [Ingredient(name: " salt", amount: "1 tsp")])
+
+        let fromA = ShoppingListItem.itemsToAdd(for: recipeA, scaleFactor: 1, existingItems: [])
+        let fromB = ShoppingListItem.itemsToAdd(for: recipeB, scaleFactor: 1, existingItems: fromA)
+
+        #expect(fromB.isEmpty)
+    }
+
     private func makeRecipe(title: String = "Test Recipe", ingredients: [Ingredient]) -> Recipe {
         Recipe(
             title: title,

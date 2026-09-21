@@ -44,6 +44,13 @@ struct PeerConnectionView: View {
             if newState == .connected {
                 viewModel.hostDidConnect()
             }
+            // Connection changes swap the screen's content silently; say them aloud for VoiceOver.
+            switch newState {
+            case .advertising: AccessibilityNotification.Announcement("Waiting for your partner").post()
+            case .connecting: AccessibilityNotification.Announcement("Connecting").post()
+            case .disconnected: AccessibilityNotification.Announcement("Connection lost. Try again to reconnect.").post()
+            default: break
+            }
         }
         .onChange(of: viewModel.didHandshake) { _, didHandshake in
             guard didHandshake, let stepAssignee = viewModel.resolvedStepAssignee else { return }

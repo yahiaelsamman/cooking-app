@@ -7,6 +7,7 @@ import CookingAppCore
 /// otherwise have no way to tell which "3:59 remaining" belongs to which thing on the stove.
 struct TimerStackView: View {
     let timers: [TimerChipInfo]
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
     var body: some View {
         if !timers.isEmpty {
@@ -22,7 +23,8 @@ struct TimerStackView: View {
         HStack(spacing: 8) {
             Image(systemName: "timer")
                 .foregroundStyle(info.isMine ? Color.accentColor : .orange)
-            Text(info.step.instruction)
+            // Color is the only default cue for whose timer this is; add words when asked not to rely on it.
+            Text(differentiateWithoutColor ? "\(info.isMine ? "You" : "Partner"): \(info.step.instruction)" : info.step.instruction)
                 .lineLimit(1)
             Spacer(minLength: 8)
             Text(StepTimerControl.formatted(info.remainingSeconds))
@@ -40,7 +42,8 @@ struct TimerStackView: View {
         // Otherwise reads as three disconnected fragments ("timer" image, instruction, digits) —
         // one label makes it clear whose timer it is and how much time is left.
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(info.isMine ? "Your timer" : "Partner's timer"): \(info.step.instruction), \(StepTimerControl.formatted(info.remainingSeconds)) remaining")
+        .accessibilityLabel("\(info.isMine ? "Your timer" : "Partner's timer"): \(info.step.instruction)")
+        .accessibilityValue("\(StepTimerControl.spoken(info.remainingSeconds)) remaining")
     }
 
     // Opaque-ish on purpose: these sit over a tinted step background and must stay readable at a
@@ -59,5 +62,5 @@ struct TimerChipInfo: Identifiable {
     let step: RecipeStep
     let remainingSeconds: Int
     let isMine: Bool
-    var id: UUID { step.id }
+    var id: String { "\(isMine ? "me" : "partner")-\(step.id.uuidString)" }
 }

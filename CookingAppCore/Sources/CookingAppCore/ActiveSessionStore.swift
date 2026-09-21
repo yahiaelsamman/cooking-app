@@ -28,6 +28,7 @@ public final class ActiveSessionStore {
     public var hasActiveSession: Bool { currentSession != nil }
 
     public func setActive(_ session: CookingSessionViewModel) {
+        if let old = currentSession, old !== session { old.onMutated = nil }
         currentSession = session
         guard session.role == nil else { return }
         session.onMutated = { [weak self, weak session] in
@@ -44,11 +45,16 @@ public final class ActiveSessionStore {
     }
 
     private func persist(_ session: CookingSessionViewModel) {
+        // A finished recipe has nothing to resume — don't bring it back as a Resume Cooking banner.
+        if session.isComplete {
+            SessionPersistence.clear()
+            return
+        }
         let timers = session.activeTimers.map { timer in
             TimerSnapshot(
                 stepID: timer.step.id,
                 totalSeconds: timer.totalSeconds,
-                endDate: Date().addingTimeInterval(TimeInterval(timer.remainingSeconds))
+                endDate: timer.endDate
             )
         }
         let snapshot = CookingSessionSnapshot(
@@ -81,7 +87,7 @@ public final class ActiveSessionStore {
         let timers: [ActiveTimer] = snapshot.timers.compactMap { timerSnapshot in
             let remaining = Int(timerSnapshot.endDate.timeIntervalSinceNow.rounded())
             guard remaining > 0, let step = soloTrack.first(where: { $0.id == timerSnapshot.stepID }) else { return nil }
-            return ActiveTimer(step: step, totalSeconds: timerSnapshot.totalSeconds, remainingSeconds: remaining)
+            return ActiveTimer(step: step, totalSeconds: timerSnapshot.totalSeconds, remainingSeconds: remaining, endDate: timerSnapshot.endDate)
         }
 
         let session = CookingSessionViewModel(recipe: recipe)

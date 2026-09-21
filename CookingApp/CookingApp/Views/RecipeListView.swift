@@ -60,17 +60,17 @@ struct RecipeListView: View {
             TourStep(
                 target: "favoritesFilterButton",
                 title: "Favorites",
-                message: "Tap the heart to show just the recipes you've favorited."
+                message: "Use the Show favorites only button to see just the recipes you've favorited."
             ),
             TourStep(
                 target: "shoppingListButton",
                 title: "Shopping List",
-                message: "Tap the cart to see everything you've added to your shopping list."
+                message: "Use the Shopping List button to see everything you've added."
             ),
             TourStep(
                 target: "cookingProfileButton",
                 title: "Your Profile",
-                message: "Tap here anytime to change your name or how comfortable you are in the kitchen."
+                message: "Use the Your Profile button anytime to change your name or how comfortable you are in the kitchen."
             ),
             TourStep(
                 id: "search",
@@ -80,7 +80,7 @@ struct RecipeListView: View {
             TourStep(
                 target: "addRecipeButton",
                 title: "Write Your Own",
-                message: "Tap + to add one of your own recipes."
+                message: "Use the Add Recipe button to add one of your own recipes."
             )
         ]
         if let firstRecipe = displayedRecipes.first {
@@ -133,17 +133,17 @@ struct RecipeListView: View {
                 // grouped/inset chrome fighting that on some size classes.
                 .listStyle(.plain)
                 .environment(\.editMode, .constant(canReorder ? .active : .inactive))
-                .safeAreaInset(edge: .top) {
-                    dietaryFilterChips
-                }
-
-                if sessionStore.hasActiveSession {
-                    ResumeSessionButton {
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    VStack(spacing: 0) {
+                        // At the top, not floating at the bottom: on iOS 26 the search field sits
+                        // along the bottom edge and covered the old bottom-right button entirely.
                         if let session = sessionStore.currentSession {
-                            path.append(.steps(session))
+                            ResumeSessionButton(session: session) {
+                                path.append(.steps(session))
+                            }
                         }
+                        dietaryFilterChips
                     }
-                    .padding(20)
                 }
             }
             .navigationTitle("Recipes")
@@ -179,7 +179,7 @@ struct RecipeListView: View {
                     } label: {
                         Image(systemName: "person.crop.circle")
                     }
-                    .accessibilityLabel("Cooking Profile")
+                    .accessibilityLabel("Your Profile")
                     .accessibilityIdentifier("cookingProfileButton")
                     .tourAnchor("cookingProfileButton")
                 }
@@ -207,14 +207,6 @@ struct RecipeListView: View {
                 TourSpotlight(tour: tour, anchors: anchors)
             }
             .onAppear {
-                // The system notification permission dialog can't be reliably dismissed from
-                // XCUITest, so UI tests skip requesting it entirely — CookingAppUITests always
-                // launches with this flag.
-                if !ProcessInfo.processInfo.arguments.contains("-UITesting") {
-                    // Requested once, right at app start — not the first time you happen to
-                    // start a timer — so the permission prompt doesn't ambush you mid-cook.
-                    NotificationScheduler.requestAuthorizationIfNeeded()
-                }
                 if cookName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     showWelcomeName = true
                 } else if !hasSeenRecipeListTour {
@@ -279,6 +271,8 @@ struct RecipeListView: View {
                             .padding(.vertical, 6)
                             .background(isSelected ? Color.green : Color.green.opacity(0.12), in: Capsule())
                             .foregroundStyle(isSelected ? .white : .green)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(isSelected ? [.isSelected] : [])
@@ -286,7 +280,7 @@ struct RecipeListView: View {
                 }
             }
             .padding(.horizontal)
-            .padding(.vertical, 8)
+            // 44pt chip hit areas already provide the vertical breathing room.
         }
         .background(.bar)
     }
@@ -310,7 +304,7 @@ struct RecipeListView: View {
                 recipe.isFavorite.toggle()
                 try? modelContext.save()
             } label: {
-                Label(recipe.isFavorite ? "Unfavorite" : "Favorite", systemImage: recipe.isFavorite ? "heart.slash" : "heart")
+                Label(recipe.isFavorite ? "Remove from favorites" : "Add to favorites", systemImage: recipe.isFavorite ? "heart.slash" : "heart")
             }
             .accessibilityIdentifier("swipeFavoriteButton_\(recipe.title)")
             .tint(.pink)
@@ -330,23 +324,36 @@ struct RecipeListView: View {
     }
 }
 
-/// Bottom-right floating button that jumps straight back into whatever session is currently
-/// active — skipping the recipe/connect flow entirely, which is what preserves Person A/B roles
-/// on a two-person session: it re-enters the *same* `CookingSessionViewModel`, it never asks you
-/// to choose Host or Join again.
+/// Full-width row at the top of the list that jumps straight back into whatever session is
+/// currently active — skipping the recipe/connect flow entirely, which is what preserves Person A/B
+/// roles on a two-person session: it re-enters the *same* `CookingSessionViewModel`, it never asks
+/// you to choose Host or Join again. Names the recipe and step so it's clear what you'd resume.
 private struct ResumeSessionButton: View {
+    let session: CookingSessionViewModel
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Label("Resume Cooking", systemImage: "flame.fill")
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.accentColor, in: Capsule())
-                .foregroundStyle(.white)
-                .shadow(radius: 4, y: 2)
+            HStack(spacing: 12) {
+                Image(systemName: "flame.fill")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Resume Cooking")
+                        .font(.headline)
+                    Text("\(session.recipe.title) · \(session.progressText)")
+                        .font(.subheadline)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .padding(.horizontal)
+        .padding(.top, 8)
+        .accessibilityLabel("Resume cooking \(session.recipe.title)")
+        .accessibilityValue(session.progressText)
     }
 }
 
@@ -389,6 +396,7 @@ private struct RecipeRow: View {
                         }
                         if recipe.timesCooked > 0 {
                             Label("Cooked \(recipe.timesCooked)×", systemImage: "checkmark.circle.fill")
+                                .accessibilityLabel(recipe.timesCooked == 1 ? "Cooked once" : "Cooked \(recipe.timesCooked) times")
                                 .font(.caption2.weight(.medium))
                                 .foregroundStyle(.secondary)
                         }
@@ -402,8 +410,10 @@ private struct RecipeRow: View {
                         SpiceLevelView(spiceLevel: recipe.spiceLevel)
                     }
                     Label("\(recipe.soloCookTimeMinutes) min", systemImage: "clock.fill")
+                        .accessibilityLabel(recipe.soloCookTimeMinutes == 1 ? "1 minute" : "\(recipe.soloCookTimeMinutes) minutes")
                     if recipe.supportsTwoPerson {
                         Label("Also for two", systemImage: "person.2.fill")
+                            .accessibilityLabel("Also works for two people")
                             .foregroundStyle(.blue)
                     }
                 }
