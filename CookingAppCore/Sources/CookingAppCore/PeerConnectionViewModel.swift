@@ -15,6 +15,9 @@ public final class PeerConnectionViewModel {
 
     public private(set) var didHandshake = false
     public private(set) var role: PeerRole?
+    /// True when, as the joiner, we connected to a host who is cooking a *different* recipe.
+    /// Without this the joiner waited on "Connecting…" forever.
+    public private(set) var recipeMismatch = false
 
     // No default for `peerSync` (there used to be one, `= PeerSyncService()`): a default
     // argument's value expression is type-checked in its own, always-nonisolated context, not
@@ -33,8 +36,12 @@ public final class PeerConnectionViewModel {
         // methods already did — see PeerConnectionViewModelTests for what that redundant defer
         // cost in test coverage.)
         peerSync.onRecipeSync = { [weak self] receivedRecipeID in
-            guard let self, self.role == .joiner, receivedRecipeID == self.recipe.id else { return }
-            self.didHandshake = true
+            guard let self, self.role == .joiner else { return }
+            if receivedRecipeID == self.recipe.id {
+                self.didHandshake = true
+            } else {
+                self.recipeMismatch = true
+            }
         }
     }
 
@@ -74,6 +81,7 @@ public final class PeerConnectionViewModel {
     }
 
     public func cancel() {
+        recipeMismatch = false
         peerSync.stop()
     }
 }

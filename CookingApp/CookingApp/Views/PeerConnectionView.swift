@@ -52,6 +52,11 @@ struct PeerConnectionView: View {
             default: break
             }
         }
+        .onChange(of: viewModel.recipeMismatch) { _, mismatch in
+            if mismatch {
+                AccessibilityNotification.Announcement("You and your partner picked different recipes.").post()
+            }
+        }
         .onChange(of: viewModel.didHandshake) { _, didHandshake in
             guard didHandshake, let stepAssignee = viewModel.resolvedStepAssignee else { return }
             let session = CookingSessionViewModel(
@@ -129,10 +134,22 @@ struct PeerConnectionView: View {
             }
 
         case .connecting, .connected:
-            VStack(spacing: 12) {
-                ProgressView()
-                Text("Connecting…")
-                    .foregroundStyle(.secondary)
+            if viewModel.recipeMismatch {
+                VStack(spacing: 12) {
+                    Text("Different recipes")
+                        .font(.headline)
+                    Text("You and your partner picked different recipes. Go back, choose the same recipe, and join again.")
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                    Button("Try Again") { viewModel.cancel() }
+                        .buttonStyle(.borderedProminent)
+                }
+            } else {
+                VStack(spacing: 12) {
+                    ProgressView()
+                    Text("Connecting…")
+                        .foregroundStyle(.secondary)
+                }
             }
 
         case .disconnected:
