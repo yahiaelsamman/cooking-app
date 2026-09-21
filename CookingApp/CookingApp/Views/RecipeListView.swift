@@ -133,17 +133,17 @@ struct RecipeListView: View {
                 // grouped/inset chrome fighting that on some size classes.
                 .listStyle(.plain)
                 .environment(\.editMode, .constant(canReorder ? .active : .inactive))
-                .safeAreaInset(edge: .top) {
-                    dietaryFilterChips
-                }
-
-                if sessionStore.hasActiveSession {
-                    ResumeSessionButton {
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    VStack(spacing: 0) {
+                        // At the top, not floating at the bottom: on iOS 26 the search field sits
+                        // along the bottom edge and covered the old bottom-right button entirely.
                         if let session = sessionStore.currentSession {
-                            path.append(.steps(session))
+                            ResumeSessionButton(session: session) {
+                                path.append(.steps(session))
+                            }
                         }
+                        dietaryFilterChips
                     }
-                    .padding(20)
                 }
             }
             .navigationTitle("Recipes")
@@ -324,23 +324,36 @@ struct RecipeListView: View {
     }
 }
 
-/// Bottom-right floating button that jumps straight back into whatever session is currently
-/// active — skipping the recipe/connect flow entirely, which is what preserves Person A/B roles
-/// on a two-person session: it re-enters the *same* `CookingSessionViewModel`, it never asks you
-/// to choose Host or Join again.
+/// Full-width row at the top of the list that jumps straight back into whatever session is
+/// currently active — skipping the recipe/connect flow entirely, which is what preserves Person A/B
+/// roles on a two-person session: it re-enters the *same* `CookingSessionViewModel`, it never asks
+/// you to choose Host or Join again. Names the recipe and step so it's clear what you'd resume.
 private struct ResumeSessionButton: View {
+    let session: CookingSessionViewModel
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Label("Resume Cooking", systemImage: "flame.fill")
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.accentColor, in: Capsule())
-                .foregroundStyle(.white)
-                .shadow(radius: 4, y: 2)
+            HStack(spacing: 12) {
+                Image(systemName: "flame.fill")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Resume Cooking")
+                        .font(.headline)
+                    Text("\(session.recipe.title) · \(session.progressText)")
+                        .font(.subheadline)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .padding(.horizontal)
+        .padding(.top, 8)
+        .accessibilityLabel("Resume cooking \(session.recipe.title)")
+        .accessibilityValue(session.progressText)
     }
 }
 
