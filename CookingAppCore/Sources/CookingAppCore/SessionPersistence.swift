@@ -29,13 +29,16 @@ public struct CookingSessionSnapshot: Codable, Equatable, Sendable {
     public let timers: [TimerSnapshot]
     /// Optional so snapshots saved before this existed still decode (they mean "not scaled").
     public let servingsScaleFactor: Double?
+    /// Optional for the same reason: older snapshots have no ticked ingredients.
+    public let checkedIngredientNames: [String]?
 
-    public init(recipeID: UUID, role: StepAssignee?, currentIndex: Int, timers: [TimerSnapshot], servingsScaleFactor: Double? = nil) {
+    public init(recipeID: UUID, role: StepAssignee?, currentIndex: Int, timers: [TimerSnapshot], servingsScaleFactor: Double? = nil, checkedIngredientNames: [String]? = nil) {
         self.recipeID = recipeID
         self.role = role
         self.currentIndex = currentIndex
         self.timers = timers
         self.servingsScaleFactor = servingsScaleFactor
+        self.checkedIngredientNames = checkedIngredientNames
     }
 }
 

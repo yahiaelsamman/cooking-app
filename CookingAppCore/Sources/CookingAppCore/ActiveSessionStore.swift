@@ -62,7 +62,8 @@ public final class ActiveSessionStore {
             role: session.role,
             currentIndex: session.currentIndex,
             timers: timers,
-            servingsScaleFactor: session.servingsScaleFactor
+            servingsScaleFactor: session.servingsScaleFactor,
+            checkedIngredientNames: session.checkedIngredientNames.sorted()
         )
         SessionPersistence.save(snapshot)
     }
@@ -93,6 +94,7 @@ public final class ActiveSessionStore {
 
         let session = CookingSessionViewModel(recipe: recipe)
         session.servingsScaleFactor = snapshot.servingsScaleFactor ?? 1
+        session.restoreCheckedIngredients(Set(snapshot.checkedIngredientNames ?? []))
         session.restoreState(currentIndex: snapshot.currentIndex, timers: timers)
         setActive(session)
     }

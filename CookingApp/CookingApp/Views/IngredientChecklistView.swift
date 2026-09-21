@@ -12,18 +12,18 @@ struct IngredientChecklistView: View {
     let ingredients: [Ingredient]
     /// The servings scale chosen on the recipe screen, so amounts match what you planned with.
     var scaleFactor: Double = 1
-    @Binding var checkedIDs: Set<Ingredient.ID>
+    @Binding var checkedNames: Set<String>
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             List(ingredients) { ingredient in
-                let isChecked = checkedIDs.contains(ingredient.id)
+                let isChecked = checkedNames.contains(ingredient.name)
                 Button {
                     if isChecked {
-                        checkedIDs.remove(ingredient.id)
+                        checkedNames.remove(ingredient.name)
                     } else {
-                        checkedIDs.insert(ingredient.id)
+                        checkedNames.insert(ingredient.name)
                     }
                 } label: {
                     HStack(spacing: 12) {

@@ -41,3 +41,40 @@ struct ServingsScalePersistenceTests {
         #expect(decoded.servingsScaleFactor == 2)
     }
 }
+
+@MainActor
+struct CheckedIngredientsAndMismatchTests {
+
+    @Test func tickedIngredientsSurviveSaveAndRestoreAndOldSnapshotsDecode() throws {
+        let snapshot = CookingSessionSnapshot(recipeID: SampleRecipes.scrambledEggs.id, role: nil, currentIndex: 0, timers: [], checkedIngredientNames: ["Eggs", "Butter"])
+        let decoded = try JSONDecoder().decode(CookingSessionSnapshot.self, from: JSONEncoder().encode(snapshot))
+        #expect(decoded.checkedIngredientNames == ["Eggs", "Butter"])
+
+        let old = #"{"recipeID":"9E1F0A10-0001-4B7A-9C1A-000000000001","currentIndex":1,"timers":[]}"#
+        #expect(try JSONDecoder().decode(CookingSessionSnapshot.self, from: Data(old.utf8)).checkedIngredientNames == nil)
+    }
+
+    @Test func tickingAnIngredientNotifiesSoItIsPersisted() {
+        let session = CookingSessionViewModel(recipe: SampleRecipes.scrambledEggs)
+        var mutations = 0
+        session.onMutated = { mutations += 1 }
+        session.setCheckedIngredients(["Eggs"])
+        #expect(session.checkedIngredientNames == ["Eggs"])
+        #expect(mutations == 1)
+    }
+
+    @Test func aJoinerOnADifferentRecipeIsToldInsteadOfWaitingForever() {
+        let mine = SampleRecipes.scrambledEggs
+        let hosts = SampleRecipes.pastaForTwo
+        let peerSync = PeerSyncService(displayName: "me")
+        let viewModel = PeerConnectionViewModel(recipe: mine, peerSync: peerSync)
+        viewModel.join()
+
+        peerSync.handleReceivedMessage(.recipeSync(recipeID: hosts.id, hostRole: .personA, senderName: "Alex"))
+
+        #expect(viewModel.recipeMismatch)
+        #expect(!viewModel.didHandshake)
+        viewModel.cancel()
+        #expect(!viewModel.recipeMismatch)
+    }
+}

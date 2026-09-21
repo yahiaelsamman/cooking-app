@@ -84,6 +84,20 @@ public final class CookingSessionViewModel {
     /// in-cook ingredient checklist shows the same amounts the recipe screen did.
     public var servingsScaleFactor: Double = 1
 
+    /// Ingredients ticked off in the in-cook checklist, by name (ingredient ids are regenerated
+    /// on every launch, names are stable). Lives with the session, so ticks survive leaving the
+    /// step screen and, for a solo session, a relaunch.
+    public private(set) var checkedIngredientNames: Set<String> = []
+
+    public func setCheckedIngredients(_ names: Set<String>) {
+        checkedIngredientNames = names
+        onMutated?()
+    }
+
+    func restoreCheckedIngredients(_ names: Set<String>) {
+        checkedIngredientNames = names
+    }
+
     /// Called when the person taps OK on the "partner ended the session" notice, so they can carry
     /// on cooking on their own instead of being sent back to the recipe list.
     public func acknowledgePartnerLeft() {

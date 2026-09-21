@@ -23,7 +23,6 @@ struct StepView: View {
     @State private var timerFinishedBanners: [TimerFinishedBanner] = []
     @State private var showEndSessionConfirm = false
     @State private var showIngredientChecklist = false
-    @State private var checkedIngredientIDs: Set<Ingredient.ID> = []
     @AppStorage("cookExpertise") private var cookExpertiseRaw: String = CookExpertise.intermediate.rawValue
     @AppStorage("hasSeenStepTour") private var hasSeenStepTour = false
     @AppStorage("hasSeenTimerTourTip") private var hasSeenTimerTourTip = false
@@ -170,7 +169,10 @@ struct StepView: View {
             beginNextTourIfNeeded()
         }
         .sheet(isPresented: $showIngredientChecklist) {
-            IngredientChecklistView(ingredients: session.recipe.ingredients, scaleFactor: session.servingsScaleFactor, checkedIDs: $checkedIngredientIDs)
+            IngredientChecklistView(ingredients: session.recipe.ingredients, scaleFactor: session.servingsScaleFactor, checkedNames: Binding(
+                get: { session.checkedIngredientNames },
+                set: { session.setCheckedIngredients($0) }
+            ))
         }
         .confirmationDialog(
             "End the shared session?",
