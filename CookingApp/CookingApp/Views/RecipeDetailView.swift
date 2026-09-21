@@ -18,6 +18,7 @@ struct RecipeDetailView: View {
 
     @State private var mode: CookingMode = .solo
     @State private var showEditRecipe = false
+    @State private var showReplaceSessionDialog = false
     /// Starts at the recipe's own `servings` (or 1 for a recipe that doesn't declare one — the
     /// scaling controls simply aren't shown in that case, see `ingredientsSection`). Purely
     /// ephemeral view state, the same as `mode` above: it resets to the recipe's base serving
@@ -136,6 +137,24 @@ struct RecipeDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog(
+            "You're still cooking \(sessionStore.currentSession?.recipe.title ?? "another recipe")",
+            isPresented: $showReplaceSessionDialog,
+            titleVisibility: .visible
+        ) {
+            if let existing = sessionStore.currentSession {
+                Button("Resume \(existing.recipe.title)") {
+                    path.append(.steps(existing))
+                }
+            }
+            Button("Start \(recipe.title) Instead", role: .destructive) {
+                discardCurrentSession()
+                beginSession()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Starting a different recipe ends the one in progress, including its running timers.")
+        }
         .toolbar {
             if recipe.isUserCreated {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -390,6 +409,28 @@ struct RecipeDetailView: View {
     // because `body` is, so constructing one here needs this annotation explicitly.
     @MainActor
     private func startCooking() {
+        if let existing = sessionStore.currentSession {
+            if existing.recipe.id == recipe.id, existing.role == nil, mode == .solo {
+                // Same recipe, solo: just pick up where you left off.
+                path.append(.steps(existing))
+            } else {
+                showReplaceSessionDialog = true
+            }
+            return
+        }
+        beginSession()
+    }
+
+    /// Ends the session in progress: cancels its timers (and their notifications) and, for a shared
+    /// one, leaves the connection.
+    private func discardCurrentSession() {
+        guard let existing = sessionStore.currentSession else { return }
+        for timer in existing.activeTimers { existing.cancelTimer(for: timer.step) }
+        if existing.role != nil { existing.endSharedSession() }
+        sessionStore.clear()
+    }
+
+    private func beginSession() {
         // Asked here rather than at app launch, where the system prompt landed on top of the
         // first-launch tour before the user knew what the app was. It's a no-op after the first
         // answer. UI tests skip it: the system dialog can't be reliably dismissed from XCUITest.
