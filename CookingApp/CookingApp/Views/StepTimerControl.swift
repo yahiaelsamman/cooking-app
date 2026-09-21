@@ -12,25 +12,8 @@ struct StepTimerControl: View {
     /// leaf view needing to know anything about `AppTour` itself.
     var onInteract: (() -> Void)? = nil
 
-    /// Start and cancel share one on-screen spot, so a double-tap (or a wet-handed second tap)
-    /// used to start a timer and instantly kill it. Cancelling now needs a confirmation.
-    @State private var confirmCancel = false
-
     var body: some View {
         timerButton
-            // Attached to the always-present wrapper, not the running-state button: if the timer
-            // finishes while the dialog is open that button leaves the hierarchy, and a stale
-            // `confirmCancel` would re-present the dialog on the next Start.
-            .confirmationDialog("Cancel this timer?", isPresented: $confirmCancel, titleVisibility: .visible) {
-                Button("Cancel Timer", role: .destructive) {
-                    session.cancelTimer(for: step)
-                    onInteract?()
-                }
-                Button("Keep Running", role: .cancel) {}
-            }
-            .onChange(of: session.activeTimer(for: step) == nil) { _, gone in
-                if gone { confirmCancel = false }
-            }
     }
 
     @ViewBuilder
@@ -38,7 +21,8 @@ struct StepTimerControl: View {
         if let seconds = step.timerSeconds {
             if let running = session.activeTimer(for: step) {
                 Button {
-                    confirmCancel = true
+                    session.cancelTimer(for: step)
+                    onInteract?()
                 } label: {
                     Label(Self.formatted(running.remainingSeconds), systemImage: "timer")
                         .font(.title3.monospacedDigit().weight(.semibold))
