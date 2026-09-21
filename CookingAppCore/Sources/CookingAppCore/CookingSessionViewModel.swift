@@ -7,7 +7,18 @@ public struct ActiveTimer: Identifiable, Hashable, Sendable {
     public let step: RecipeStep
     public let totalSeconds: Int
     public var remainingSeconds: Int
+    /// The moment this timer reaches zero. Remaining time is always derived from this, never from
+    /// counting ticks: the one-second ticker stops while iOS suspends the app, so a tick count
+    /// falls behind real time whenever you leave the app.
+    public var endDate: Date
     public var id: UUID { step.id }
+
+    public init(step: RecipeStep, totalSeconds: Int, remainingSeconds: Int, endDate: Date? = nil) {
+        self.step = step
+        self.totalSeconds = totalSeconds
+        self.remainingSeconds = remainingSeconds
+        self.endDate = endDate ?? Date().addingTimeInterval(TimeInterval(remainingSeconds))
+    }
 }
 
 /// Drives the step-through experience for one cooking session. Works identically for solo
@@ -55,6 +66,9 @@ public final class CookingSessionViewModel {
     /// partner's state is ever persisted (see `ActiveSessionStore`'s doc comment on why two-person
     /// sessions aren't snapshotted at all).
     public var onMutated: (() -> Void)?
+
+    /// The clock timers are measured against. Tests replace it to move time forward.
+    var nowProvider: () -> Date = { Date() }
 
     // MARK: - Partner session lifecycle
 
@@ -232,10 +246,12 @@ public final class CookingSessionViewModel {
 
     public func startTimer(for step: RecipeStep) {
         guard let duration = step.timerSeconds else { return }
+        let end = nowProvider().addingTimeInterval(TimeInterval(duration))
         if let idx = activeTimers.firstIndex(where: { $0.step.id == step.id }) {
             activeTimers[idx].remainingSeconds = duration
+            activeTimers[idx].endDate = end
         } else {
-            activeTimers.append(ActiveTimer(step: step, totalSeconds: duration, remainingSeconds: duration))
+            activeTimers.append(ActiveTimer(step: step, totalSeconds: duration, remainingSeconds: duration, endDate: end))
         }
         ensureTicking()
         if let index = track.firstIndex(where: { $0.id == step.id }) {
@@ -261,10 +277,12 @@ public final class CookingSessionViewModel {
         let partnerTrack = recipe.track(for: partnerRole)
         guard stepIndex >= 0, stepIndex < partnerTrack.count else { return }
         let step = partnerTrack[stepIndex]
+        let end = nowProvider().addingTimeInterval(TimeInterval(duration))
         if let idx = partnerActiveTimers.firstIndex(where: { $0.step.id == step.id }) {
             partnerActiveTimers[idx].remainingSeconds = duration
+            partnerActiveTimers[idx].endDate = end
         } else {
-            partnerActiveTimers.append(ActiveTimer(step: step, totalSeconds: duration, remainingSeconds: duration))
+            partnerActiveTimers.append(ActiveTimer(step: step, totalSeconds: duration, remainingSeconds: duration, endDate: end))
         }
         ensureTicking()
     }
@@ -297,12 +315,29 @@ public final class CookingSessionViewModel {
         ticker = nil
     }
 
+    /// Brings every timer up to date with the real clock, finishing any that have run out. Called
+    /// by the one-second ticker and, importantly, when the app returns to the foreground — the
+    /// ticker doesn't run while iOS has the app suspended.
+    public func refreshTimers() {
+        tick()
+    }
+
+    /// Re-registers a system notification for every running timer, sized to the time actually left.
+    /// Called as the app goes to the background so a timer always has a notification waiting for its
+    /// real end time, however it was started.
+    public func rescheduleTimerNotifications() {
+        for timer in activeTimers where timer.remainingSeconds > 0 {
+            onTimerScheduled?(timer.step, timer.remainingSeconds)
+        }
+    }
+
     private func tick() {
+        let now = nowProvider()
         var finished: [RecipeStep] = []
         for i in activeTimers.indices.reversed() {
-            guard activeTimers[i].remainingSeconds > 0 else { continue }
-            activeTimers[i].remainingSeconds -= 1
-            if activeTimers[i].remainingSeconds == 0 {
+            let remaining = max(0, Int(activeTimers[i].endDate.timeIntervalSince(now).rounded(.up)))
+            activeTimers[i].remainingSeconds = remaining
+            if remaining == 0 {
                 let step = activeTimers[i].step
                 finished.append(step)
                 activeTimers.remove(at: i)
@@ -312,9 +347,9 @@ public final class CookingSessionViewModel {
             }
         }
         for i in partnerActiveTimers.indices.reversed() {
-            guard partnerActiveTimers[i].remainingSeconds > 0 else { continue }
-            partnerActiveTimers[i].remainingSeconds -= 1
-            if partnerActiveTimers[i].remainingSeconds == 0 {
+            let remaining = max(0, Int(partnerActiveTimers[i].endDate.timeIntervalSince(now).rounded(.up)))
+            partnerActiveTimers[i].remainingSeconds = remaining
+            if remaining == 0 {
                 partnerActiveTimers.remove(at: i)
             }
         }
