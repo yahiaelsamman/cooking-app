@@ -76,6 +76,16 @@ public final class CookingSessionViewModel {
     /// of range, which triggers `PeerSyncService`'s own auto-reconnect instead).
     public private(set) var partnerDidLeave = false
 
+    /// Set once this session's completion has been counted toward the recipe's `timesCooked`, so
+    /// finishing, going back and finishing again still counts as a single cook-through.
+    public var completionCounted = false
+
+    /// Called when the person taps OK on the "partner ended the session" notice, so they can carry
+    /// on cooking on their own instead of being sent back to the recipe list.
+    public func acknowledgePartnerLeft() {
+        partnerDidLeave = false
+    }
+
     public init(recipe: Recipe, role: StepAssignee? = nil, peerSync: PeerSyncService? = nil) {
         self.recipe = recipe
         self.role = role

@@ -206,6 +206,7 @@ struct StepView: View {
                 NotificationScheduler.cancel(step: step)
                 let banner = TimerFinishedBanner(instruction: step.instruction)
                 timerFinishedBanners.append(banner)
+                if timerFinishedBanners.count > 3 { timerFinishedBanners.removeFirst() }
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
                 // The system banner and its sound are suppressed while this screen is visible
                 // (see `NotificationDelegate`), so without an audible cue the only signals are a
@@ -215,14 +216,8 @@ struct StepView: View {
                 var announcement = AttributedString("Timer finished: \(step.instruction)")
                 announcement.accessibilitySpeechAnnouncementPriority = .high
                 AccessibilityNotification.Announcement(announcement).post()
-                // Under VoiceOver a 4s toast is easy to miss or lose focus on, so it stays until
-                // dismissed there.
-                if !UIAccessibility.isVoiceOverRunning {
-                    Task {
-                        try? await Task.sleep(for: .seconds(4))
-                        timerFinishedBanners.removeAll { $0.id == banner.id }
-                    }
-                }
+                // The toast stays until tapped: a few seconds is easy to miss from across the
+                // kitchen, and under VoiceOver it can lose focus. At most three stack up.
             }
             if session.role != nil {
                 session.announcePresence(isAway: false)
@@ -265,12 +260,12 @@ struct StepView: View {
             sessionStore.clear()
         }
         .onChange(of: session.isComplete) { _, isComplete in
-            // My own track reached its end — counts as "I cooked this" regardless of mode, so
-            // this fires once whether solo or two-person, independent of `bothFinished` above
-            // (which only handles tearing down the shared connection). Going back from the
-            // completion screen and finishing again is a genuine re-completion, so it's allowed
-            // to fire again rather than being suppressed after the first time.
-            guard isComplete else { return }
+            // My own track reached its end — counts as "I cooked this" regardless of mode,
+            // independent of `bothFinished` above (which only handles tearing down the shared
+            // connection). Counted once per session: going back from the completion screen and
+            // finishing again is the same cook-through, not a second one.
+            guard isComplete, !session.completionCounted else { return }
+            session.completionCounted = true
             session.recipe.timesCooked += 1
             session.recipe.lastCookedDate = Date()
             try? modelContext.save()
@@ -314,14 +309,19 @@ struct StepView: View {
             isPresented: .constant(session.partnerDidLeave)
         ) {
             Button("OK") {
-                sessionStore.clear()
-                path = []
+                if session.isComplete {
+                    sessionStore.clear()
+                    path = []
+                } else {
+                    // The partner ended it mid-recipe: stay on this step and carry on solo.
+                    session.acknowledgePartnerLeft()
+                }
             }
         } message: {
             Text(
                 session.isComplete
                     ? "Nice work — head back to the recipe list whenever you're ready."
-                    : "Your partner ended the session. Tap OK to go back to your recipes."
+                    : "Your partner ended the session. You can keep cooking on your own."
             )
         }
     }
