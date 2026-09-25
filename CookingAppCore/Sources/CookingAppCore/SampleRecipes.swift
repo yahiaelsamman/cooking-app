@@ -132,9 +132,7 @@ public enum SampleRecipes {
             RecipeStep(order: 5, instruction: "Crack the egg into the pan and fry until the white is set.", assignee: .solo, timerSeconds: 180, imageSystemName: "timer", stepImageName: "recipe-step-avocado-toast-5"),
             RecipeStep(order: 6, instruction: "Spread the mashed avocado over the toast.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath", stepImageName: "recipe-step-avocado-toast-6"),
             RecipeStep(order: 7, instruction: "Top with the fried egg, red pepper flakes, and a pinch of salt.", assignee: .solo, imageSystemName: "sparkles", stepImageName: "recipe-step-avocado-toast-7"),
-            RecipeStep(order: 8, instruction: "Serve immediately.", assignee: .solo, imageSystemName: "fork.knife", stepImageName: "recipe-step-avocado-toast-8"),
-            // TEMPORARY: a 5-second timer for quickly testing timers. Remove before release.
-            RecipeStep(order: 9, instruction: "Test step: start the 5-second timer.", assignee: .solo, timerSeconds: 5, imageSystemName: "timer")
+            RecipeStep(order: 8, instruction: "Serve immediately.", assignee: .solo, imageSystemName: "fork.knife", stepImageName: "recipe-step-avocado-toast-8")
         ],
         iconSystemName: "leaf.fill",
         heroImageName: "recipe-photo-avocado-toast",

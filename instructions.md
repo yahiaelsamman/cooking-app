@@ -110,23 +110,22 @@ cd CookingAppCore && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer sw
 cd CookingApp && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -scheme CookingApp -destination 'platform=iOS Simulator,name=iPhone 17' build
 ```
 
-If `swift test` reports a failure with 0 tests actually failing, it's iCloud Desktop-sync
-interfering with `.build/` mid-compile (this repo lives under `~/Desktop`) — rerun, or use
-`swift test --scratch-path /tmp/some-path` to build outside the synced folder entirely.
+If `swift test` reports a failure with 0 tests actually failing, it's usually stale `.build/`
+artifacts (e.g. after moving the repo, or a cloud-sync tool touching files mid-compile) — rerun,
+or use `swift test --scratch-path /tmp/some-path` to build in a clean location.
 
-Avoid `xcodebuild test` (full UI-automation test run) in an unattended/background session — it can
-stall indefinitely at Simulator accessibility bootstrap and has caused real memory pressure on this
-machine before. `build` and `build-for-testing` (compiles the UI test target without running it)
-are safe; save an actual `test` run for an interactive session where you can watch it.
+Avoid running `xcodebuild test` (the full UI-automation suite) as a non-interactive/background
+step — it can stall indefinitely at Simulator accessibility bootstrap. `build` and
+`build-for-testing` (compiles the UI test target without running it) are safe either way; save an
+actual `test` run for when you're at the machine and can watch it.
 
 ## Testing
 
-- `CookingAppCoreTests` (`swift test`): the real test suite — 210 tests as of the last pass,
+- `CookingAppCoreTests` (`swift test`): the real test suite — 222 tests as of the last pass,
   covering every Core file. Run this after any Core change.
-- `CookingAppUITests` (XCUITest, in the app target): exists, builds, and links, but has never
-  successfully *run* in this sandboxed environment — `xcodebuild test` stalls at "loading
-  Accessibility" before any test executes. Looks like a headless-Simulator limitation, not a test
-  bug. Try it from an interactive Mac (Xcode ⌘U) if you want to actually run it.
+- `CookingAppUITests` (XCUITest, in the app target): exists, builds, and links, but hasn't been run
+  in CI — `xcodebuild test` stalls at "loading Accessibility" in headless environments. Run it from
+  Xcode (⌘U) on an interactive Mac instead.
 - View-layer behavior with no Core equivalent (notification delivery, VoiceOver, real touch
   gestures like drag-to-reorder or swipe-to-favorite, the idle-timer/screen-awake behavior) has no
   automated coverage here — verify by hand on a device/Simulator.
@@ -149,12 +148,11 @@ are safe; save an actual `test` run for an interactive session where you can wat
 - **VoiceOver accessibility has been audited across every screen** (`StepView`,
   `PartnerStatusView`, `DualProgressSliderView`, `RecipeListView`, `ShoppingListView`,
   `PeerConnectionView`, `WelcomeNameView`, `RecipeEditorView`) — combined-element treatment for
-  list rows, decorative icons hidden, icon-only buttons labeled, step-change/timer-finish/partner-state announcements, an adjustable star rating, and Voice Control input labels. Not verified with a real
-  VoiceOver run (see the sandbox limitation below); if you add a new row/card-style view, follow
-  the same pattern (`.accessibilityElement(children: .combine)` + hide purely decorative icons).
+  list rows, decorative icons hidden, icon-only buttons labeled, step-change/timer-finish/partner-state announcements, an adjustable star rating, and Voice Control input labels. Not yet verified
+  with a real VoiceOver run on device; if you add a new row/card-style view, follow the same
+  pattern (`.accessibilityElement(children: .combine)` + hide purely decorative icons).
 - **Swipe-to-favorite, drag-to-reorder, and the recipe editor's dynamic rows** have never been
-  exercised with a real touch in this environment (no accessibility automation here) — only
-  confirmed to render and compile.
+  exercised with a real touch — only confirmed to render and compile; verify by hand on device.
 - **The interactive tour (`TourSpotlight`) has basic accessibility, not the same audited rigor**
   as the rest of the app: the ring is hidden (`accessibilityHidden`) and each callout is one
   combined element with a label/hint, but a step that waits on a real control being used has no
@@ -170,11 +168,6 @@ are safe; save an actual `test` run for an interactive session where you can wat
 - CloudKit/iCloud sync — for two-person over the internet and cross-device recipe sync.
 - Verify the VoiceOver audit with a real screen-reader run on a device (never done — see Testing).
 - Actually get `CookingAppUITests` running (on an interactive Mac) and expand its coverage.
-
-## Git / repo
-
-Private GitHub repo, `git init`-ed scoped to `cooking_app/` itself (the outer `~/` directory has
-its own unrelated repo that ignores `Desktop/` entirely — don't confuse the two).
 
 ---
 
@@ -217,30 +210,3 @@ If you're picking this up fresh, read in this order:
   "reference vs. snapshot" — anywhere a feature described as "add X to Y" shows up; it's usually a
   deliberate choice, not an oversight, and the choice usually hinges on whether Y should track
   future edits to X or not.
-
-## Working on this project with Claude Code
-
-- **Treat `instructions.md` as living documentation, not a running log.** It should always
-  describe *only* what's true right now. When you finish a feature, update the relevant section
-  (architecture table, pitfalls, next-steps) in place — don't append a "pass N" narrative here.
-  Detailed reasoning belongs in the commit message; this file should stay small enough to read in
-  one sitting.
-- **Commit messages are the changelog.** This project's history is a sequence of descriptive
-  commits (`git log`), each explaining what changed and why. That's the right place for "what was
-  tried and rejected," not this file.
-- **Verification discipline, in order of cost:** `swift test` (Core) after any logic change →
-  `xcodebuild build`/`build-for-testing` (full app) after any view/wiring change → manual
-  Simulator/device check for anything view-layer-only. Don't skip straight to "looks right" for a
-  Core change — the test suite is fast and exists precisely so you don't have to.
-- **Don't run `xcodebuild test` unattended.** It can hang or strain this machine — safe to run
-  interactively where you'll notice a stall, not as a background/overnight step.
-- **When working autonomously for an extended stretch,** pick small, independent, reversible
-  changes; verify each one fully (build + test) before moving to the next; and stop to update
-  `instructions.md` and commit at natural boundaries rather than batching a huge diff. Concrete,
-  low-risk gaps (an untested edge case, a missing accessibility label, a UX convention every
-  competitor app has) are better use of unsupervised time than a single large, hard-to-verify
-  feature.
-- **If you're about to add complexity, look for the existing pattern first.** This codebase
-  consistently favors small, explicit, additive changes over generic/configurable ones (see the
-  architectural notes above) — matching that style is usually more valuable than a more "elegant"
-  abstraction.

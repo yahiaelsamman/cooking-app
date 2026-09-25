@@ -1,8 +1,8 @@
 # Recipe Illustration Prompts
 
 First-draft pass at replacing the stock hero photos (see `Scripts/fetch_recipe_photos.py`,
-`Scripts/install_recipe_photo.py`) with a consistent hand-drawn illustration set, using the
-locked style guide from `~/Downloads/illustration-style-guide.md`.
+`Scripts/install_recipe_photo.py`) with a consistent hand-drawn illustration set, using a locked
+style guide (kept outside this repo).
 
 Three recipes to start, picked because they're the simplest (fewest, clearest steps) and already
 have working hero photos to compare against: **Scrambled Eggs**, **Avocado Toast**,
