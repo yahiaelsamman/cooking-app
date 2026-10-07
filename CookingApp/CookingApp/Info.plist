@@ -29,5 +29,9 @@
 	<string>Cooking App uses your local network to sync cooking progress with your partner's iPhone during a two-person recipe.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
 </dict>
 </plist>

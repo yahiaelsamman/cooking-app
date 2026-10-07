@@ -1,12 +1,10 @@
 import XCTest
 
-/// Real touch-driven UI coverage — the thing every earlier pass's "verified via screenshot" notes
-/// in instructions.md explicitly couldn't do, since this sandbox had no accessibility automation
-/// and no XCUITest target until now. Launches with `-UITesting`, which the app checks for in two
+/// Real touch-driven UI coverage. Launches with `-UITesting`, which the app checks for in two
 /// places: `CookingAppApp` uses an in-memory SwiftData store instead of the real on-device one (so
 /// every run starts from exactly the 20 bundled recipes, isolated from a real user's data), and
-/// `RecipeListView` skips requesting the system notification permission (that dialog can't be
-/// reliably dismissed from XCUITest).
+/// `RecipeDetailView` skips requesting the system notification permission on Start Cooking (that
+/// dialog can't be reliably dismissed from XCUITest).
 final class CookingAppUITests: XCTestCase {
     var app: XCUIApplication!
 

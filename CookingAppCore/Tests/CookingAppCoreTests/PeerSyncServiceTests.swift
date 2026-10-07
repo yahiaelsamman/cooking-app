@@ -345,6 +345,58 @@ struct PeerSyncServiceTests {
         #expect(service.connectionState == .browsing)
     }
 
+    @Test func browsingForARecipeHidesHostsAdvertisingADifferentOne() {
+        let service = makeService()
+        let recipeID = UUID()
+        let sameRecipeHost = MCPeerID(displayName: "same")
+        let otherRecipeHost = MCPeerID(displayName: "other")
+        let olderBuildHost = MCPeerID(displayName: "older")
+        service.startBrowsing(recipeID: recipeID)
+
+        service.handleFoundPeer(sameRecipeHost, discoveryInfo: ["recipe": recipeID.uuidString])
+        service.handleFoundPeer(otherRecipeHost, discoveryInfo: ["recipe": UUID().uuidString])
+        service.handleFoundPeer(olderBuildHost, discoveryInfo: nil)
+
+        #expect(service.discoveredPeers == [sameRecipeHost, olderBuildHost])
+    }
+
+    @Test func aDropFromSomeoneOtherThanThePartnerIsIgnored() {
+        let service = makeService()
+        let partner = MCPeerID(displayName: "partner-device")
+        let stranger = MCPeerID(displayName: "stranger")
+        service.startHosting(recipeID: UUID(), hostRole: .personA)
+        service.handleSessionStateChange(.connected, peerID: partner)
+
+        service.handleSessionStateChange(.notConnected, peerID: stranger)
+
+        #expect(service.connectionState == .connected)
+    }
+
+    @Test func autoReconnectOnlyReinvitesThePartner() {
+        let service = makeService()
+        let partner = MCPeerID(displayName: "partner-device")
+        let stranger = MCPeerID(displayName: "stranger")
+        service.startBrowsing()
+        service.handleSessionStateChange(.connected, peerID: partner)
+        service.handleSessionStateChange(.notConnected, peerID: partner)
+
+        service.handleFoundPeer(stranger)
+        #expect(service.connectionState == .disconnected)
+
+        service.handleFoundPeer(partner)
+        #expect(service.connectionState == .connecting)
+    }
+
+    @Test func overlongDisplayNamesAreTrimmedToWhatMCPeerIDAccepts() {
+        let name = PeerSyncService.peerDisplayName(String(repeating: "🍳", count: 40))
+        #expect(name.utf8.count <= 63)
+        #expect(!name.isEmpty)
+        #expect(PeerSyncService.peerDisplayName("Sam") == "Sam")
+        #expect(PeerSyncService.peerDisplayName("") == "Cook")
+        // Constructing the service with a long name must not trap.
+        _ = PeerSyncService(displayName: String(repeating: "a", count: 200))
+    }
+
     // MARK: - Real delegate entry points
     //
     // Every test above calls the synchronous `handle*`/internal methods directly, exercising the

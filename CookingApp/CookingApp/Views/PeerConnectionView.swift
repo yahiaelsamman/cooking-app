@@ -11,12 +11,14 @@ struct PeerConnectionView: View {
     /// Only meaningful if the user proceeds to host — the joiner is assigned whatever the host
     /// didn't pick, so there's nothing for the joiner to choose here.
     @State private var chosenRole: StepAssignee = .personA
+    private let servingsScaleFactor: Double
 
     // `@MainActor`: `PeerConnectionViewModel`/`PeerSyncService` are both `@MainActor` now (see
     // their doc comments in CookingAppCore) — a plain View `init` isn't implicitly MainActor
     // just because `body` is, so constructing them here needs this annotation explicitly.
     @MainActor
-    init(recipe: Recipe, path: Binding<[Route]>) {
+    init(recipe: Recipe, servingsScaleFactor: Double = 1, path: Binding<[Route]>) {
+        self.servingsScaleFactor = servingsScaleFactor
         let cookName = UserDefaults.standard.string(forKey: "cookName")
         _viewModel = State(initialValue: PeerConnectionViewModel(
             recipe: recipe,
@@ -64,6 +66,7 @@ struct PeerConnectionView: View {
                 role: stepAssignee,
                 peerSync: viewModel.peerSync
             )
+            session.servingsScaleFactor = servingsScaleFactor
             sessionStore.setActive(session)
             // Replace this connect screen in the stack rather than pushing on top of it, so
             // stepping back from the step screen later lands on the recipe overview, not here.

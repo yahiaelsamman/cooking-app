@@ -75,8 +75,25 @@ public final class PeerSyncService: NSObject {
     /// in the (no longer visible) peer list — set only once we're trying to recover a session
     /// that had already succeeded before.
     private var autoReconnecting = false
+    /// The one phone this session is paired with, set on the first `.connected`. State changes from
+    /// any other peer are ignored, and auto-reconnect only re-invites this partner.
+    private var partnerPeerID: MCPeerID?
+    /// The recipe the joiner is cooking. Hosts advertise theirs in `discoveryInfo`, so a joiner
+    /// only lists hosts cooking the same recipe.
+    private var browseRecipeID: UUID?
+
+    /// `MCPeerID` traps on a display name over 63 UTF-8 bytes, and the cook's name has no length limit.
+    static func peerDisplayName(_ name: String) -> String {
+        var result = ""
+        for character in name {
+            guard result.utf8.count + String(character).utf8.count <= 63 else { break }
+            result.append(character)
+        }
+        return result.isEmpty ? "Cook" : result
+    }
 
     public init(displayName: String = ProcessInfo.processInfo.hostName) {
+        let displayName = Self.peerDisplayName(displayName)
         self.myPeerID = MCPeerID(displayName: displayName)
         self.myDisplayName = displayName
         // `.none` is deliberate: the only payload is a recipe's steps and progress indices over a
@@ -97,7 +114,7 @@ public final class PeerSyncService: NSObject {
         hostChosenRole = hostRole
         resolvedStepAssignee = hostRole
         partnerRecipeID = recipeID
-        let advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: nil, serviceType: serviceType)
+        let advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: [Self.recipeInfoKey: recipeID.uuidString], serviceType: serviceType)
         advertiser.delegate = self
         advertiser.startAdvertisingPeer()
         self.advertiser = advertiser
@@ -106,8 +123,12 @@ public final class PeerSyncService: NSObject {
 
     // MARK: - Joining
 
-    public func startBrowsing() {
+    static let recipeInfoKey = "recipe"
+
+    /// - Parameter recipeID: when set, hosts advertising a different recipe aren't listed.
+    public func startBrowsing(recipeID: UUID? = nil) {
         role = .joiner
+        browseRecipeID = recipeID
         let browser = MCNearbyServiceBrowser(peer: myPeerID, serviceType: serviceType)
         browser.delegate = self
         browser.startBrowsingForPeers()
@@ -179,6 +200,8 @@ public final class PeerSyncService: NSObject {
         connectedPeerName = nil
         hasConnectedBefore = false
         autoReconnecting = false
+        partnerPeerID = nil
+        browseRecipeID = nil
         role = nil
         hostChosenRole = nil
         resolvedStepAssignee = nil
@@ -223,6 +246,11 @@ public final class PeerSyncService: NSObject {
                 session.disconnect()
                 return
             }
+            if partnerPeerID == nil { partnerPeerID = peerID }
+            // Paired: stop being discoverable / looking, so a third phone can't join in.
+            // `attemptAutoReconnect` restarts whichever one this side uses if the link drops.
+            advertiser?.stopAdvertisingPeer()
+            browser?.stopBrowsingForPeers()
             connectionState = .connected
             connectedPeerName = peerID.displayName
             hasConnectedBefore = true
@@ -239,7 +267,7 @@ public final class PeerSyncService: NSObject {
             guard role != nil else { return }
             connectionState = .connecting
         case .notConnected:
-            guard role != nil else { return }
+            guard role != nil, isPartner(peerID) else { return }
             connectionState = .disconnected
             connectedPeerName = nil
             if hasConnectedBefore {
@@ -290,13 +318,26 @@ public final class PeerSyncService: NSObject {
         }
     }
 
-    func handleFoundPeer(_ peerID: MCPeerID) {
+    func handleFoundPeer(_ peerID: MCPeerID, discoveryInfo: [String: String]? = nil) {
+        // Hosts on an older build advertise no recipe — still listed, and the recipeSync
+        // check in `PeerConnectionViewModel` catches a mismatch after connecting.
+        if let browseRecipeID, let advertised = discoveryInfo?[Self.recipeInfoKey],
+           advertised != browseRecipeID.uuidString {
+            return
+        }
         if !discoveredPeers.contains(peerID) {
             discoveredPeers.append(peerID)
         }
-        if autoReconnecting {
+        if autoReconnecting, isPartner(peerID) {
             invite(peer: peerID)
         }
+    }
+
+    /// True for the paired partner, or for anyone before pairing. Rediscovered peers are also
+    /// matched by display name, in case the framework hands back a different `MCPeerID` instance.
+    private func isPartner(_ peerID: MCPeerID) -> Bool {
+        guard let partnerPeerID else { return true }
+        return peerID == partnerPeerID || peerID.displayName == partnerPeerID.displayName
     }
 
     func handleLostPeer(_ peerID: MCPeerID) {
@@ -334,8 +375,10 @@ extension PeerSyncService: MCNearbyServiceAdvertiserDelegate {
         // rather than synchronously from this method, so deferring the accept by one run-loop
         // turn onto the main actor is within the API's contract, not a behavior change that
         // matters here.
+        // Already paired with someone (or, after a drop, invited by anyone but that partner):
+        // decline, so a session never grows past two phones.
         Task { @MainActor in
-            invitationHandler(true, self.session)
+            invitationHandler(self.session.connectedPeers.isEmpty && self.isPartner(peerID), self.session)
         }
     }
 }
@@ -345,7 +388,7 @@ extension PeerSyncService: MCNearbyServiceAdvertiserDelegate {
 extension PeerSyncService: MCNearbyServiceBrowserDelegate {
     public nonisolated func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID, withDiscoveryInfo info: [String: String]?) {
         Task { @MainActor in
-            self.handleFoundPeer(peerID)
+            self.handleFoundPeer(peerID, discoveryInfo: info)
         }
     }
 

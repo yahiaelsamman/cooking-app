@@ -44,7 +44,7 @@ public enum SampleRecipes {
             RecipeStep(order: 1, instruction: "Pat the steak dry and season generously with salt and pepper on both sides.", assignee: .solo, imageSystemName: "sparkles"),
             RecipeStep(order: 2, instruction: "Heat a heavy skillet over high heat until it's smoking hot.", assignee: .solo, imageSystemName: "flame.fill"),
             RecipeStep(order: 3, instruction: "Add a high-smoke-point oil and lay the steak away from you.", assignee: .solo, imageSystemName: "drop.fill"),
-            RecipeStep(order: 4, instruction: "Sear undisturbed, 3 minutes per side (6 minutes total, flipping halfway), checking with a meat thermometer for your desired doneness (about 130°F for medium-rare, 145°F for medium).", assignee: .solo, timerSeconds: 360, imageSystemName: "timer", checkHint: "No thermometer? Press the center with your finger — medium-rare gives like the fleshy base of your thumb when your thumb and index finger touch. If it still feels squishy and soft, keep searing."),
+            RecipeStep(order: 4, instruction: "Sear without moving it for 3 minutes, flip, and sear 3 minutes more, checking with a meat thermometer for your desired doneness (about 130°F for medium-rare, 145°F for medium).", assignee: .solo, timerSeconds: 360, imageSystemName: "timer", checkHint: "No thermometer? Press the center with your finger — medium-rare gives like the fleshy base of your thumb when your thumb and index finger touch. If it still feels squishy and soft, keep searing."),
             RecipeStep(order: 5, instruction: "Add butter, garlic, and thyme to the pan.", assignee: .solo, imageSystemName: "basket.fill"),
             RecipeStep(order: 6, instruction: "Tilt the pan and continuously spoon the butter over the steak for 1 minute.", assignee: .solo, timerSeconds: 60, imageSystemName: "timer"),
             RecipeStep(order: 7, instruction: "Remove from the pan and let it rest.", assignee: .solo, timerSeconds: 300, imageSystemName: "clock.fill"),
@@ -53,7 +53,7 @@ public enum SampleRecipes {
         iconSystemName: "flame.fill",
         heroImageName: "recipe-photo-seared-steak",
         difficulty: 2,
-        soloCookTimeMinutes: 25,
+        soloCookTimeMinutes: 45,
         dietaryTags: [.glutenFree],
         ingredients: [
             Ingredient(name: "Ribeye or NY strip steak", amount: "1"),
@@ -113,6 +113,7 @@ public enum SampleRecipes {
             Ingredient(name: "Olive oil", amount: "2 tbsp"),
             Ingredient(name: "Sugar", amount: "A pinch"),
             Ingredient(name: "Fresh basil", amount: "A few leaves"),
+            Ingredient(name: "Salt and pepper", amount: "To taste"),
             Ingredient(name: "Garlic bread", amount: "1 loaf"),
             Ingredient(name: "Salad greens", amount: "A handful")
         ]
@@ -260,6 +261,7 @@ public enum SampleRecipes {
             Ingredient(name: "Mozzarella", amount: "200g"),
             Ingredient(name: "Fresh basil", amount: "A handful"),
             Ingredient(name: "Toppings of choice", amount: "To taste"),
+            Ingredient(name: "Salt", amount: "A pinch"),
             Ingredient(name: "Flour, for dusting", amount: "As needed")
         ]
     )
@@ -331,7 +333,7 @@ public enum SampleRecipes {
             RecipeStep(order: 7, instruction: "Serve over rice.", assignee: .solo, imageSystemName: "fork.knife")
         ],
         twoPersonSteps: [
-            RecipeStep(order: 0, instruction: "Both: put rice on to cook and gather ingredients.", assignee: .shared, imageSystemName: "flame.fill"),
+            RecipeStep(order: 0, instruction: "Both: gather ingredients and warm the cooked rice.", assignee: .shared, imageSystemName: "flame.fill"),
 
             RecipeStep(order: 1, instruction: "Whisk soy sauce, garlic, ginger, and cornstarch into a stir-fry sauce.", assignee: .personA, imageSystemName: "drop.fill"),
             RecipeStep(order: 2, instruction: "Slice the bell pepper, broccoli, and carrot into thin pieces.", assignee: .personA, imageSystemName: "scissors"),
@@ -384,7 +386,7 @@ public enum SampleRecipes {
             RecipeStep(order: 2, instruction: "Add the onion, bell pepper, and garlic, and cook until softened.", assignee: .personA, timerSeconds: 300, imageSystemName: "timer"),
             RecipeStep(order: 3, instruction: "Stir in the spices, then add crushed tomatoes, beans, and stock, and simmer.", assignee: .personA, timerSeconds: 1500, imageSystemName: "timer"),
 
-            RecipeStep(order: 4, instruction: "Shred the cheese and chop the scallions.", assignee: .personB, imageSystemName: "scissors"),
+            RecipeStep(order: 4, instruction: "Set out the shredded cheese and chop the scallions.", assignee: .personB, imageSystemName: "scissors"),
             RecipeStep(order: 5, instruction: "Set out sour cream and any other toppings you like.", assignee: .personB, imageSystemName: "basket.fill"),
             RecipeStep(order: 6, instruction: "Warm cornbread or tortilla chips to serve alongside.", assignee: .personB, imageSystemName: "flame.fill"),
 
@@ -407,6 +409,7 @@ public enum SampleRecipes {
             Ingredient(name: "Crushed tomatoes", amount: "1 can"),
             Ingredient(name: "Kidney beans, drained", amount: "1 can"),
             Ingredient(name: "Beef stock", amount: "1 cup"),
+            Ingredient(name: "Salt and pepper", amount: "To taste"),
             Ingredient(name: "Shredded cheese", amount: "To taste"),
             Ingredient(name: "Sour cream", amount: "To taste"),
             Ingredient(name: "Scallions", amount: "A handful"),
@@ -663,7 +666,7 @@ public enum SampleRecipes {
             RecipeStep(order: 4, instruction: "Sprinkle in flour and stir to coat the onions.", assignee: .solo, imageSystemName: "sparkles"),
             RecipeStep(order: 5, instruction: "Pour in beef stock and a splash of sherry, and simmer.", assignee: .solo, timerSeconds: 900, imageSystemName: "timer"),
             RecipeStep(order: 6, instruction: "Season with salt, pepper, and thyme.", assignee: .solo, imageSystemName: "sparkles"),
-            RecipeStep(order: 7, instruction: "Ladle into oven-safe bowls and top with baguette slices and gruyère.", assignee: .solo, imageSystemName: "basket.fill"),
+            RecipeStep(order: 7, instruction: "Toast the baguette slices, then ladle the soup into oven-safe bowls and top with the toast and gruyère.", assignee: .solo, imageSystemName: "basket.fill"),
             RecipeStep(order: 8, instruction: "Broil until the cheese is bubbling and golden.", assignee: .solo, timerSeconds: 180, imageSystemName: "timer")
         ],
         twoPersonSteps: [
@@ -713,14 +716,14 @@ public enum SampleRecipes {
             RecipeStep(order: 8, instruction: "Serve over rice.", assignee: .solo, imageSystemName: "fork.knife")
         ],
         twoPersonSteps: [
-            RecipeStep(order: 0, instruction: "Both: gather ingredients and put rice on to cook.", assignee: .shared, imageSystemName: "flame.fill"),
+            RecipeStep(order: 0, instruction: "Both: gather ingredients and warm the cooked rice.", assignee: .shared, imageSystemName: "flame.fill"),
 
             RecipeStep(order: 1, instruction: "Thinly slice the beef against the grain.", assignee: .personA, imageSystemName: "scissors"),
             RecipeStep(order: 2, instruction: "Whisk soy sauce, oyster sauce, brown sugar, and cornstarch into a sauce.", assignee: .personA, imageSystemName: "drop.fill"),
             RecipeStep(order: 3, instruction: "Heat oil in a wok and sear the beef in batches until browned.", assignee: .personA, timerSeconds: 180, imageSystemName: "timer"),
 
             RecipeStep(order: 4, instruction: "Blanch the broccoli florets until bright green and just tender.", assignee: .personB, timerSeconds: 120, imageSystemName: "timer"),
-            RecipeStep(order: 5, instruction: "Mince the garlic and ginger.", assignee: .personB, imageSystemName: "scissors"),
+            RecipeStep(order: 5, instruction: "Mince the garlic and grate the ginger.", assignee: .personB, imageSystemName: "scissors"),
 
             RecipeStep(order: 6, instruction: "Both: add garlic, ginger, broccoli, and sauce to the wok and toss until glossy.", assignee: .shared, timerSeconds: 150, imageSystemName: "timer"),
             RecipeStep(order: 7, instruction: "Both: serve over rice.", assignee: .shared, imageSystemName: "fork.knife")
@@ -796,14 +799,15 @@ public enum SampleRecipes {
         title: "Chocolate Chip Cookies",
         summary: "Classic chewy-in-the-middle, crisp-at-the-edges chocolate chip cookies.",
         soloSteps: [
-            RecipeStep(order: 0, instruction: "Cream together softened butter, brown sugar, and white sugar.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath"),
-            RecipeStep(order: 1, instruction: "Beat in the egg and vanilla extract.", assignee: .solo, imageSystemName: "drop.fill"),
-            RecipeStep(order: 2, instruction: "In a separate bowl, whisk flour, baking soda, and salt.", assignee: .solo, imageSystemName: "sparkles"),
-            RecipeStep(order: 3, instruction: "Fold the dry ingredients into the wet ingredients until just combined.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath"),
-            RecipeStep(order: 4, instruction: "Fold in the chocolate chips.", assignee: .solo, imageSystemName: "basket.fill"),
-            RecipeStep(order: 5, instruction: "Scoop rounded portions of dough onto a lined baking sheet.", assignee: .solo, imageSystemName: "basket.fill"),
-            RecipeStep(order: 6, instruction: "Bake at 375°F until the edges are golden but the centers still look slightly underdone.", assignee: .solo, timerSeconds: 600, imageSystemName: "timer"),
-            RecipeStep(order: 7, instruction: "Let cool on the pan for a few minutes before transferring to a rack.", assignee: .solo, imageSystemName: "clock.fill")
+            RecipeStep(order: 0, instruction: "Preheat the oven to 375°F and line a baking sheet with parchment paper.", assignee: .solo, imageSystemName: "flame.fill"),
+            RecipeStep(order: 1, instruction: "Cream together softened butter, brown sugar, and white sugar.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath"),
+            RecipeStep(order: 2, instruction: "Beat in the egg and vanilla extract.", assignee: .solo, imageSystemName: "drop.fill"),
+            RecipeStep(order: 3, instruction: "In a separate bowl, whisk flour, baking soda, and salt.", assignee: .solo, imageSystemName: "sparkles"),
+            RecipeStep(order: 4, instruction: "Fold the dry ingredients into the wet ingredients until just combined.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath"),
+            RecipeStep(order: 5, instruction: "Fold in the chocolate chips.", assignee: .solo, imageSystemName: "basket.fill"),
+            RecipeStep(order: 6, instruction: "Scoop rounded portions of dough onto the lined baking sheet.", assignee: .solo, imageSystemName: "basket.fill"),
+            RecipeStep(order: 7, instruction: "Bake until the edges are golden but the centers still look slightly underdone.", assignee: .solo, timerSeconds: 600, imageSystemName: "timer"),
+            RecipeStep(order: 8, instruction: "Let cool on the pan for a few minutes before transferring to a rack.", assignee: .solo, imageSystemName: "clock.fill")
         ],
         twoPersonSteps: [
             RecipeStep(order: 0, instruction: "Both: preheat the oven to 375°F and gather ingredients.", assignee: .shared, imageSystemName: "flame.fill"),

@@ -63,7 +63,7 @@
 		6B9C1345C29B06EECE42B12F /* CookingApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CookingApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6C5DCABA51CBF434711F5600 /* RecipeListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeListView.swift; sourceTree = "<group>"; };
 		6D0CF09CFC045EE522BF01A7 /* CookingAppCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CookingAppCore; path = ../CookingAppCore; sourceTree = SOURCE_ROOT; };
-		70EE4FF6EFFF9FDC8CCDF93A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		70EE4FF6EFFF9FDC8CCDF93A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		77EFAA155D72E4A52788EE1D /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
 		7E734B1A92691038CB0B3D88 /* DualProgressSliderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualProgressSliderView.swift; sourceTree = "<group>"; };
 		8240C363AF44973B72F87E00 /* PartnerStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartnerStatusView.swift; sourceTree = "<group>"; };

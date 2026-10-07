@@ -18,3 +18,10 @@ CookingAppCore/.swiftpm/
 # something to keep in the repo once a winner's been picked and installed via
 # Scripts/install_recipe_photo.py (that writes the real, cropped asset into Assets.xcassets).
 Scripts/recipe_photo_candidates/
+
+# Python
+__pycache__/
+*.pyc
+
+# Local Claude Code state (agent worktrees, settings)
+.claude/

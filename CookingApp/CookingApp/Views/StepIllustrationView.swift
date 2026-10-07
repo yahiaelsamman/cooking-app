@@ -11,11 +11,7 @@ struct StepIllustrationView: View {
 
     var body: some View {
         if let stepImageName = step.stepImageName {
-            Image(stepImageName)
-                .resizable()
-                .scaledToFill()
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+            RoundedPhoto(imageName: stepImageName)
         } else {
             PlaceholderPhotoView(systemImage: step.imageSystemName, tint: tint)
         }

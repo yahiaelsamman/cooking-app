@@ -396,10 +396,10 @@ struct StepView: View {
             Spacer()
 
             if let step = session.currentStep {
-                // At the largest accessibility text sizes a long step plus its illustration can be
-                // taller than the screen and push Back / Finish off it, so only there the step
-                // becomes scrollable. At every other size the layout is exactly as before.
-                if dynamicTypeSize.isAccessibilitySize {
+                // At the largest accessibility text sizes, or for a long user-written step, the
+                // step plus its illustration can be taller than the screen and push Back / Finish
+                // off it, so only then the step becomes scrollable. Otherwise the layout is fixed.
+                if dynamicTypeSize.isAccessibilitySize || step.instruction.count > 200 {
                     ScrollView { stepContent(step) }
                 } else {
                     stepContent(step)

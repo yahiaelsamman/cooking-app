@@ -5,6 +5,8 @@ import CookingAppCore
 /// completes) a one-line `path = []` regardless of how deep the stack is.
 enum Route: Hashable {
     case detail(Recipe)
-    case peerConnection(Recipe)
+    /// The servings scale picked on the recipe screen rides along so the two-person session's
+    /// ingredient checklist matches it, same as a solo session.
+    case peerConnection(Recipe, servingsScaleFactor: Double)
     case steps(CookingSessionViewModel)
 }

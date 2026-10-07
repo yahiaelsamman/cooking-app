@@ -330,11 +330,13 @@ struct RecipeDetailView: View {
     }
 
     private var servingsStepper: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 2) {
             Button {
                 targetServings = max(1, targetServings - 1)
             } label: {
                 Image(systemName: "minus.circle.fill")
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Fewer servings")
             .accessibilityIdentifier("decreaseServingsButton")
@@ -348,6 +350,8 @@ struct RecipeDetailView: View {
                 targetServings = min(max(20, recipe.servings ?? 20), targetServings + 1)
             } label: {
                 Image(systemName: "plus.circle.fill")
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("More servings")
             .accessibilityIdentifier("increaseServingsButton")
@@ -438,7 +442,7 @@ struct RecipeDetailView: View {
             NotificationScheduler.requestAuthorizationIfNeeded()
         }
         if mode == .twoPerson {
-            path.append(.peerConnection(recipe))
+            path.append(.peerConnection(recipe, servingsScaleFactor: servingsScaleFactor))
         } else {
             let session = CookingSessionViewModel(recipe: recipe)
             session.servingsScaleFactor = servingsScaleFactor
@@ -530,6 +534,7 @@ private struct MyNotesSection: View {
                 set: { recipe.personalNotes = $0 }
             ))
             .frame(minHeight: 80)
+            .scrollContentBackground(.hidden)
             .overlay(alignment: .topLeading) {
                 if recipe.personalNotes.isEmpty {
                     Text("What did you change? How did it turn out?")

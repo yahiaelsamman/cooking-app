@@ -23,7 +23,7 @@ struct RecipeListView: View {
     @State private var showWelcomeName = false
     @AppStorage("hasSeenRecipeListTour") private var hasSeenRecipeListTour = false
     @State private var tour = AppTour()
-    @State private var sortMode: RecipeSortMode = .alphabetical
+    @AppStorage("recipeSortMode") private var sortMode: RecipeSortMode = .alphabetical
     @State private var showFavoritesOnly = false
     @State private var showAddRecipe = false
     @State private var showShoppingList = false
@@ -60,7 +60,7 @@ struct RecipeListView: View {
             TourStep(
                 target: "favoritesFilterButton",
                 title: "Favorites",
-                message: "Use the Show favorites only button to see just the recipes you've favorited."
+                message: "The Show favorites only button narrows the list to recipes you've favorited. Tap it to continue."
             ),
             TourStep(
                 target: "shoppingListButton",
@@ -172,8 +172,13 @@ struct RecipeListView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        showFavoritesOnly.toggle()
-                        tour.notify("favoritesFilterButton")
+                        // During the walkthrough this tap only advances it: a new user has no
+                        // favorites yet, so filtering would empty the list under the rest of the tour.
+                        if tour.currentStep?.targetID == "favoritesFilterButton" {
+                            tour.notify("favoritesFilterButton")
+                        } else {
+                            showFavoritesOnly.toggle()
+                        }
                     } label: {
                         Image(systemName: showFavoritesOnly ? "heart.fill" : "heart")
                             .foregroundStyle(.pink)
@@ -243,8 +248,8 @@ struct RecipeListView: View {
                 switch route {
                 case .detail(let recipe):
                     RecipeDetailView(recipe: recipe, path: $path)
-                case .peerConnection(let recipe):
-                    PeerConnectionView(recipe: recipe, path: $path)
+                case .peerConnection(let recipe, let servingsScaleFactor):
+                    PeerConnectionView(recipe: recipe, servingsScaleFactor: servingsScaleFactor, path: $path)
                 case .steps(let session):
                     StepView(session: session, path: $path)
                 }
@@ -277,7 +282,10 @@ struct RecipeListView: View {
     private var dietaryFilterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(DietaryTag.allCases, id: \.self) { tag in
+                // Only tags some recipe actually has (plus any already selected, so a chip never
+                // vanishes out from under the user) — a chip that can only ever match nothing
+                // reads as broken.
+                ForEach(DietaryTag.allCases.filter { tag in selectedDietaryTags.contains(tag) || recipes.contains { $0.dietaryTags.contains(tag) } }, id: \.self) { tag in
                     let isSelected = selectedDietaryTags.contains(tag)
                     Button {
                         if isSelected {
