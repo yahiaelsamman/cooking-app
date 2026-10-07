@@ -14,6 +14,7 @@ struct CookingAppApp: App {
     init() {
         UNUserNotificationCenter.current().delegate = notificationDelegate
 
+        let container: ModelContainer
         do {
             if ProcessInfo.processInfo.arguments.contains("-UITesting") {
                 // XCUITest launches with this flag — an in-memory store means every test run
@@ -21,13 +22,22 @@ struct CookingAppApp: App {
                 // custom recipes/favorites/ratings/shopping-list items from a previous run), and
                 // never touches the real on-device store a person actually cooks from.
                 let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-                modelContainer = try ModelContainer(for: Recipe.self, ShoppingListItem.self, configurations: configuration)
+                container = try ModelContainer(for: Recipe.self, ShoppingListItem.self, configurations: configuration)
             } else {
-                modelContainer = try ModelContainer(for: Recipe.self, ShoppingListItem.self)
+                container = try ModelContainer(for: Recipe.self, ShoppingListItem.self)
             }
         } catch {
-            fatalError("Could not create the recipe store: \(error)")
+            // Don't crash-loop on launch: fall back to a temporary in-memory store (bundled
+            // recipes still seed; changes made this session won't persist).
+            NSLog("Could not open the recipe store, using in-memory fallback: \(error)")
+            let fallback = ModelConfiguration(isStoredInMemoryOnly: true)
+            do {
+                container = try ModelContainer(for: Recipe.self, ShoppingListItem.self, configurations: fallback)
+            } catch {
+                fatalError("Could not create even an in-memory recipe store: \(error)")
+            }
         }
+        modelContainer = container
         RecipeSeeder.seedIfNeeded(context: modelContainer.mainContext)
         // Restore into a local store and hand *that exact instance* to `@State`. Reading a
         // `@State` property from `init` (before the app is installed) doesn't reliably give back

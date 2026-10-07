@@ -299,7 +299,7 @@ struct RecipeListView: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(isSelected ? Color.green : Color.green.opacity(0.12), in: Capsule())
-                            .foregroundStyle(isSelected ? .white : .green)
+                            .foregroundStyle(isSelected ? Color.white : Color.dietaryGreenText)
                             .frame(minHeight: 44)
                             .contentShape(Rectangle())
                     }
@@ -393,6 +393,7 @@ private struct ResumeSessionButton: View {
 /// justice to real recipe photos/illustrations, and this app is squarely about the images now.
 private struct RecipeRow: View {
     let recipe: Recipe
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -433,7 +434,8 @@ private struct RecipeRow: View {
                     .padding(.top, 1)
                 }
 
-                HStack(spacing: 10) {
+                let metaLayout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(spacing: 10))
+                metaLayout {
                     DifficultyStarsView(difficulty: recipe.difficulty)
                     if recipe.spiceLevel > 0 {
                         SpiceLevelView(spiceLevel: recipe.spiceLevel)
@@ -451,11 +453,12 @@ private struct RecipeRow: View {
                 .padding(.top, 2)
 
                 if !recipe.dietaryTags.isEmpty {
-                    HStack(spacing: 6) {
+                    let tagLayout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(spacing: 6))
+                    tagLayout {
                         ForEach(recipe.dietaryTags, id: \.self) { tag in
                             Label(tag.label, systemImage: tag.systemImage)
                                 .font(.caption2.weight(.medium))
-                                .foregroundStyle(.green)
+                                .foregroundStyle(Color.dietaryGreenText)
                         }
                     }
                     .padding(.top, 2)

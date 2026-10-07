@@ -11,6 +11,7 @@ private enum CookingMode: String, CaseIterable {
 /// every step) so you can decide whether to actually cook it before committing to "Start
 /// Cooking" and losing the wall-of-text view in favor of the one-step-at-a-time screen.
 struct RecipeDetailView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Bindable var recipe: Recipe
     @Binding var path: [Route]
     @Environment(ActiveSessionStore.self) private var sessionStore
@@ -220,7 +221,8 @@ struct RecipeDetailView: View {
     }
 
     private var metadataRow: some View {
-        HStack(spacing: 20) {
+        let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 20))
+        return layout {
             VStack(spacing: 4) {
                 DifficultyStarsView(difficulty: recipe.difficulty)
                 Text("Difficulty").font(.caption2).foregroundStyle(.secondary)
@@ -252,11 +254,12 @@ struct RecipeDetailView: View {
     }
 
     private var dietaryTagsRow: some View {
-        HStack(spacing: 8) {
+        let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+        return layout {
             ForEach(recipe.dietaryTags, id: \.self) { tag in
                 Label(tag.label, systemImage: tag.systemImage)
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color.dietaryGreenText)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .background(Color.green.opacity(0.12), in: Capsule())
@@ -574,4 +577,9 @@ private struct MyNotesSection: View {
         }
         return times
     }
+}
+
+extension Color {
+    /// Darker green for text on a pale-green capsule; system green is ~2.3:1 on white.
+    static let dietaryGreenText = Color(red: 0.05, green: 0.40, blue: 0.15)
 }
