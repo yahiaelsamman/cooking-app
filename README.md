@@ -49,7 +49,7 @@ tracks, like starting your onions now so they finish when your partner's sauce r
 
 - **A two-package layout** (`CookingAppCore` + `CookingApp`) so all business logic — recipe
   scaling, session/timer state, the sync protocol — is a plain Swift package with zero
-  UIKit/SwiftUI, fully unit-testable without booting a simulator. 222 tests run in a few
+  UIKit/SwiftUI, fully unit-testable without booting a simulator. The full test suite runs in a few
   seconds with `swift test`.
 - **A tested networking layer.** `PeerSyncService` wraps `MultipeerConnectivity` so every
   delegate callback is a thin pass-through to an internal, synchronous handler — the two-person
@@ -89,8 +89,8 @@ describe features.
 cd CookingAppCore && swift test
 ```
 
-`CookingAppCoreTests` is the real test suite — 222 tests covering the Core package's logic. A
-separate `CookingAppUITests` target (XCUITest) exercises real touch-driven flows against the running app.
+`CookingAppCoreTests` is the real test suite, covering the Core package's logic. A
+separate `CookingAppUITests` target (XCUITest) exercises real touch-driven flows against the running app. It is not run in CI (it stalls on headless machines); run it from Xcode with Cmd+U.
 
 ## Tech
 

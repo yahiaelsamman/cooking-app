@@ -124,7 +124,7 @@ actual `test` run for when you're at the machine and can watch it.
 
 ## Testing
 
-- `CookingAppCoreTests` (`swift test`): the real test suite — 222 tests covering the Core
+- `CookingAppCoreTests` (`swift test`): the real test suite, covering the Core
   package's logic. Run this after any Core change.
 - `CookingAppUITests` (XCUITest, in the app target): exists, builds, and links, but isn't run in CI
   (`.github/workflows/ci.yml` runs `swift test` and an app build only) — `xcodebuild test` stalls at "loading Accessibility" in headless environments. Run it from
@@ -197,7 +197,7 @@ If you're picking this up fresh, read in this order:
 **Architectural decisions worth noticing, not just the code itself:**
 
 - **Package boundary as a testability boundary.** `CookingAppCore` has zero UIKit/SwiftUI imports.
-  This isn't just "clean architecture" for its own sake — it's the concrete reason 222 tests run in
+  This isn't just "clean architecture" for its own sake — it's the concrete reason the full test suite runs in
   a few seconds with `swift test`, no simulator needed, while the app target's view code is
   verified by compiling + eyeballing it. When you add a feature, ask "does this belong in Core?"
   before reaching for a View — if the answer is logic/state/decisions, it almost always does.
