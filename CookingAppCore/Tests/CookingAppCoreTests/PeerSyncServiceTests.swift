@@ -489,6 +489,21 @@ struct PeerSyncServiceTests {
         #expect(service.startFailure == nil)
     }
 
+    @Test func startFailureStaysVisibleInIdleStateForPicker() {
+        let service = makeService()
+        service.startBrowsing()
+        service.handleStartFailure(NSError(domain: "test", code: 2), hosting: false)
+        // The view renders startFailure in the idle (picker) state, so it must survive there.
+        #expect(service.connectionState == .idle)
+        #expect(service.startFailure?.contains("look for nearby") == true)
+    }
+
+    @Test func startFailureIgnoredWhenNotStarted() {
+        let service = makeService()
+        service.handleStartFailure(NSError(domain: "test", code: 3), hosting: true)
+        #expect(service.startFailure == nil)
+    }
+
     @Test func failedInviteAsHostGoesBackToAdvertising() {
         let service = makeService()
         let peer = MCPeerID(displayName: "partner-device")

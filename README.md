@@ -90,7 +90,7 @@ cd CookingAppCore && swift test
 ```
 
 `CookingAppCoreTests` is the real test suite, covering the Core package's logic. A
-separate `CookingAppUITests` target (XCUITest) exercises real touch-driven flows against the running app. It is not run in CI (it stalls on headless machines); run it from Xcode with Cmd+U.
+separate `CookingAppUITests` target (XCUITest) exercises real touch-driven flows against the running app. It is not run in CI; run it from Xcode with Cmd+U or via `xcodebuild test` (see instructions.md for the exact command and the no-`timeout` note).
 
 ## Tech
 

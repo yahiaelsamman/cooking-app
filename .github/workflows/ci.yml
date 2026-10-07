@@ -31,8 +31,8 @@ jobs:
         working-directory: CookingAppCore
         run: swift test
 
-      # UI tests are left out on purpose: they stall at Simulator accessibility bootstrap on
-      # headless machines (see instructions.md).
+      # UI tests are left out on purpose: they take ~5 minutes and need a booted Simulator
+      # (see instructions.md for how to run them locally).
       - name: Build the app for the Simulator (unsigned)
         run: |
           xcodebuild build \

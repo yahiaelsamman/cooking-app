@@ -161,6 +161,13 @@ public struct Ingredient: Identifiable, Codable, Hashable, Sendable {
         return out
     }
 
+    /// Units allowed before a range dash ("1 cup - 2 cups", "200g-300g"). Other words must not
+    /// match, or "1 can - 400g" would be misread as a range and its 400g scaled.
+    private static let knownRangeUnits: Set<String> = [
+        "g", "kg", "mg", "ml", "l", "cl", "dl", "oz", "lb", "lbs", "cup", "cups",
+        "tsp", "tbsp", "tbs", "pt", "qt", "gal", "cm", "mm", "inch",
+    ]
+
     private static func scaleNormalized(_ amount: String, by factor: Double) -> String {
         guard let quantity = parseLeadingQuantity(amount) else { return amount }
         var remainder = quantity.remainder
@@ -188,7 +195,7 @@ public struct Ingredient: Identifiable, Codable, Hashable, Sendable {
             while let c = probe.first, c == " " { unit.append(c); probe.removeFirst() }
             var letters = 0
             while let c = probe.first, c.isLetter, letters < 8 { unit.append(c); probe.removeFirst(); letters += 1 }
-            if letters > 0 {
+            if letters > 0, knownRangeUnits.contains(String(unit.drop(while: { $0 == " " })).lowercased()) {
                 var after = probe
                 while let c = after.first, c == " " { after.removeFirst() }
                 if let d = after.first, d == "-" || d == "\u{2013}" {
@@ -299,8 +306,12 @@ public struct Ingredient: Identifiable, Codable, Hashable, Sendable {
         let whole = value.rounded(.down)
         let fractional = value - whole
 
-        // Tiny amounts ("0.06 cup"): nothing smaller than 1/16 is useful in a kitchen.
-        if whole == 0, value < 0.1 { return "1/16" }
+        // Tiny amounts ("0.06 cup"): show 1/16 only when the value really is about 1/16; anything
+        // smaller stays a decimal (never inflated), floored at 0.01 so it doesn't read "0".
+        if whole == 0, value < 0.1 {
+            if abs(value - 0.0625) < 0.02 { return "1/16" }
+            return trimmedDecimal(max(value, 0.01))
+        }
 
         if fractional < 0.02 { return formatWhole(whole) }
         if fractional > 0.98 { return formatWhole(whole + 1) }

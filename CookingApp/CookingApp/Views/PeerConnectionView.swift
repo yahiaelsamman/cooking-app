@@ -117,6 +117,11 @@ struct PeerConnectionView: View {
         switch viewModel.connectionState {
         case .idle:
             VStack(spacing: 20) {
+                // A start failure drops the service back to idle; keep the explanation visible
+                // above the Host/Join picker so the user knows why they're back here.
+                if let failure = viewModel.peerSync.startFailure {
+                    localNetworkProblem(failure)
+                }
                 VStack(alignment: .leading, spacing: 6) {
                     Text("If you host, you'll be:")
                         .font(.subheadline)

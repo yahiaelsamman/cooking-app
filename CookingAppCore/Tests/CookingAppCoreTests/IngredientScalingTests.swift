@@ -96,6 +96,18 @@ struct IngredientScalingTests {
         #expect(Ingredient.scale(amount, by: .infinity) == amount)
     }
 
+    @Test func tinyScaledAmountsAreNotInflatedToOneSixteenth() {
+        #expect(Ingredient.scale("0.1 tsp", by: 0.1) == "0.01 tsp")
+        #expect(Ingredient.scale("1/16 tsp", by: 1) == "1/16 tsp")
+        #expect(Ingredient.scale("1 tsp", by: 0.06) == "1/16 tsp")
+        #expect(Ingredient.scale("1 tsp", by: 0.03) == "0.03 tsp")
+    }
+
+    @Test func nonUnitWordBeforeDashIsNotTreatedAsARange() {
+        #expect(Ingredient.scale("1 can - 400g", by: 2) == "2 can - 400g")
+        #expect(Ingredient.scale("1 cup - 2 cups", by: 2) == "2 cup - 4 cups")
+    }
+
     @Test func scaledAmountInstanceMethodDelegatesToTheStaticParser() {
         let ingredient = Ingredient(name: "Flour", amount: "1 cup")
         #expect(ingredient.scaledAmount(by: 2) == "2 cup")

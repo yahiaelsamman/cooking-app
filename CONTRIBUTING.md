@@ -11,4 +11,4 @@ Thanks for taking a look. Development is paused-ish, but issues and PRs are welc
 - `cd CookingAppCore && swift test` must pass.
 - Keep business logic in `CookingAppCore` (no SwiftUI/UIKit there) and add unit tests with it.
 - Build the app: `xcodebuild build -project CookingApp/CookingApp.xcodeproj -scheme CookingApp -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO`.
-- UI tests (`CookingAppUITests`) are run manually from Xcode (Cmd+U); they aren't run in CI.
+- UI tests (`CookingAppUITests`) are run manually from Xcode (Cmd+U) or with `xcodebuild test` (command and caveats in instructions.md); they aren't run in CI.

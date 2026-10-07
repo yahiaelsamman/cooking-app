@@ -295,6 +295,10 @@ struct RecipeEditorView: View {
         do {
             try modelContext.save()
         } catch {
+            // Undo the half-applied save: drops a newly inserted recipe (so Retry can't create a
+            // duplicate) and reverts edits to an existing one (so Discard really discards).
+            // The editor's own @State fields still hold what the user typed.
+            modelContext.rollback()
             saveError = error.localizedDescription
             return
         }

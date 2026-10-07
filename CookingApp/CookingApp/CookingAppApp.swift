@@ -10,11 +10,13 @@ struct CookingAppApp: App {
     // Held strongly for the app's lifetime — UNUserNotificationCenter.delegate is `weak`.
     private let notificationDelegate = NotificationDelegate()
     private let modelContainer: ModelContainer
+    @State private var storeFallbackNotice: Bool
 
     init() {
         UNUserNotificationCenter.current().delegate = notificationDelegate
 
         let container: ModelContainer
+        var usedFallback = false
         do {
             if ProcessInfo.processInfo.arguments.contains("-UITesting") {
                 // XCUITest launches with this flag — an in-memory store means every test run
@@ -30,6 +32,7 @@ struct CookingAppApp: App {
             // Don't crash-loop on launch: fall back to a temporary in-memory store (bundled
             // recipes still seed; changes made this session won't persist).
             NSLog("Could not open the recipe store, using in-memory fallback: \(error)")
+            usedFallback = true
             let fallback = ModelConfiguration(isStoredInMemoryOnly: true)
             do {
                 container = try ModelContainer(for: Recipe.self, ShoppingListItem.self, configurations: fallback)
@@ -38,6 +41,7 @@ struct CookingAppApp: App {
             }
         }
         modelContainer = container
+        _storeFallbackNotice = State(initialValue: usedFallback)
         RecipeSeeder.seedIfNeeded(context: modelContainer.mainContext)
         // Restore into a local store and hand *that exact instance* to `@State`. Reading a
         // `@State` property from `init` (before the app is installed) doesn't reliably give back
@@ -52,6 +56,11 @@ struct CookingAppApp: App {
             RecipeListView()
                 .environment(sessionStore)
                 .environment(\.notificationPresentationState, notificationDelegate.presentationState)
+                .alert("Saved recipes couldn't be opened", isPresented: $storeFallbackNotice) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text("Your custom recipes, favorites and ratings couldn't be loaded. Anything you change in this session won't be saved. Restarting the app may help.")
+                }
         }
         .modelContainer(modelContainer)
         .onChange(of: scenePhase) { _, phase in

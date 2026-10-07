@@ -84,6 +84,7 @@ struct WelcomeNameView: View {
         // Pinned above the keyboard so Continue is never hidden by it.
         .safeAreaInset(edge: .bottom) {
             Button("Continue") { save() }
+                .accessibilityIdentifier("welcomeContinueButton")
                 .buttonStyle(.borderedProminent)
                 .disabled(trimmedDraft.isEmpty)
                 .padding(.vertical, 12)

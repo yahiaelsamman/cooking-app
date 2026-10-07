@@ -25,7 +25,8 @@ final class CookingAppUITests: XCTestCase {
         if nameField.waitForExistence(timeout: 3) {
             nameField.tap()
             nameField.typeText("Tester")
-            app.buttons["Continue"].tap()
+            // The keyboard's Return key is also labelled "Continue", so match by identifier.
+            app.buttons["welcomeContinueButton"].tap()
         }
     }
 
@@ -33,25 +34,34 @@ final class CookingAppUITests: XCTestCase {
     /// element actually exists in the accessibility hierarchy, or gives up after `maxSwipes`.
     private func scrollUntilVisible(_ element: XCUIElement, maxSwipes: Int = 12) {
         var attempts = 0
-        while !element.exists && attempts < maxSwipes {
+        while (!element.exists || !element.isHittable) && attempts < maxSwipes {
             app.swipeUp()
             attempts += 1
         }
     }
 
+    /// The list defaults to A-Z and its rows are tall, so most recipes aren't realized until
+    /// scrolled into view. Returns the row once it exists.
+    private func recipeRow(_ title: String) -> XCUIElement {
+        let row = app.buttons["recipeRow_\(title)"]
+        _ = row.waitForExistence(timeout: 3)
+        scrollUntilVisible(row, maxSwipes: 20)
+        return row
+    }
+
     func testRecipeListShowsBundledRecipesAndOpensDetail() throws {
         XCTAssertTrue(app.navigationBars["Recipes"].waitForExistence(timeout: 5))
 
-        let firstRow = app.buttons["recipeRow_Classic Scrambled Eggs"]
-        XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
+        let firstRow = recipeRow("Classic Scrambled Eggs")
+        XCTAssertTrue(firstRow.isHittable)
         firstRow.tap()
 
         XCTAssertTrue(app.buttons["Start Cooking"].waitForExistence(timeout: 5))
     }
 
     func testFavoritingFromDetailTogglesImmediately() throws {
-        let firstRow = app.buttons["recipeRow_Classic Scrambled Eggs"]
-        XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
+        let firstRow = recipeRow("Classic Scrambled Eggs")
+        XCTAssertTrue(firstRow.isHittable)
         firstRow.tap()
 
         let favoriteButton = app.buttons["detailFavoriteButton"]
@@ -66,8 +76,8 @@ final class CookingAppUITests: XCTestCase {
     }
 
     func testSwipeToFavoriteFromListPersistsToDetail() throws {
-        let row = app.buttons["recipeRow_Homemade Pizza"]
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        let row = recipeRow("Homemade Pizza")
+        XCTAssertTrue(row.isHittable)
         row.swipeRight()
 
         let swipeFavoriteButton = app.buttons["swipeFavoriteButton_Homemade Pizza"]
@@ -94,15 +104,19 @@ final class CookingAppUITests: XCTestCase {
         app.textFields["editorCookTimeField"].tap()
         app.typeText("5")
 
-        let ingredientNameField = app.textFields.matching(identifier: "ingredientNameField").element(boundBy: 0)
+        // The editor is a long Form: lazily realized rows below the fold need a scroll first.
+        let ingredientNameField = app.descendants(matching: .any).matching(identifier: "ingredientNameField").element(boundBy: 0)
+        scrollUntilVisible(ingredientNameField, maxSwipes: 8)
         ingredientNameField.tap()
         ingredientNameField.typeText("Eggs")
 
-        let ingredientAmountField = app.textFields.matching(identifier: "ingredientAmountField").element(boundBy: 0)
+        let ingredientAmountField = app.descendants(matching: .any).matching(identifier: "ingredientAmountField").element(boundBy: 0)
         ingredientAmountField.tap()
         ingredientAmountField.typeText("2")
 
-        let stepField = app.textFields.matching(identifier: "stepInstructionField").element(boundBy: 0)
+        // Axis-vertical TextField surfaces as a text view, so match by identifier on any type.
+        let stepField = app.descendants(matching: .any).matching(identifier: "stepInstructionField").element(boundBy: 0)
+        scrollUntilVisible(stepField, maxSwipes: 8)
         stepField.tap()
         stepField.typeText("Whisk and cook.")
 
@@ -111,10 +125,11 @@ final class CookingAppUITests: XCTestCase {
         saveButton.tap()
 
         let newRow = app.buttons["recipeRow_Test Omelette"]
-        scrollUntilVisible(newRow)
-        XCTAssertTrue(newRow.exists, "the newly-created recipe should appear in the list (it sorts last in My Order)")
+        scrollUntilVisible(newRow, maxSwipes: 30)
+        XCTAssertTrue(newRow.exists, "the newly-created recipe should appear in the list (A-Z puts it near the end)")
 
         newRow.tap()
+        XCTAssertTrue(app.buttons["Start Cooking"].waitForExistence(timeout: 5), "tapping the new row should open its detail")
         XCTAssertTrue(app.buttons["editRecipeButton"].waitForExistence(timeout: 5), "a user-created recipe should show an Edit button")
     }
 
@@ -136,8 +151,8 @@ final class CookingAppUITests: XCTestCase {
     }
 
     func testServingsStepperScalesIngredientAmountsLive() throws {
-        let row = app.buttons["recipeRow_Classic Scrambled Eggs"]
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        let row = recipeRow("Classic Scrambled Eggs")
+        XCTAssertTrue(row.isHittable)
         row.tap()
 
         // Classic Scrambled Eggs is `servings: 1` with "3" large eggs — doubling servings should
@@ -155,23 +170,33 @@ final class CookingAppUITests: XCTestCase {
     }
 
     func testDietaryFilterChipHidesRecipesMissingTheTag() throws {
-        // Classic Scrambled Eggs is vegetarian; Pan-Seared Steak with Garlic Butter is not —
-        // selecting the Vegetarian chip should keep the former and hide the latter.
-        XCTAssertTrue(app.buttons["recipeRow_Pan-Seared Steak with Garlic Butter"].waitForExistence(timeout: 5))
+        // Classic Scrambled Eggs is vegetarian; Pan-Seared Steak with Garlic Butter is not.
+        // Rows are tall and lazily realized, so narrow the list with search to keep each
+        // recipe on screen while the Vegetarian chip is toggled.
+        let chip = app.buttons["dietaryFilterChip_vegetarian"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 5))
+        chip.tap()
 
-        app.buttons["dietaryFilterChip_vegetarian"].tap()
-
+        let searchField = app.searchFields.firstMatch
+        searchField.tap()
+        searchField.typeText("Scrambled")
         XCTAssertTrue(app.buttons["recipeRow_Classic Scrambled Eggs"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["recipeRow_Pan-Seared Steak with Garlic Butter"].exists, "a non-vegetarian recipe should be hidden while the Vegetarian filter is active")
 
-        // Tapping it again clears the filter.
-        app.buttons["dietaryFilterChip_vegetarian"].tap()
-        XCTAssertTrue(app.buttons["recipeRow_Pan-Seared Steak with Garlic Butter"].waitForExistence(timeout: 5))
+        searchField.buttons["Clear text"].tap()
+        searchField.typeText("Pan-Seared")
+        let steak = app.buttons["recipeRow_Pan-Seared Steak with Garlic Butter"]
+        XCTAssertTrue(app.buttons["recipeRow_Classic Scrambled Eggs"].waitForNonExistence(timeout: 5))
+        XCTAssertFalse(steak.exists, "a non-vegetarian recipe should be hidden while the Vegetarian filter is active")
+
+        // Tapping the chip again clears the filter.
+        XCTAssertTrue(chip.waitForExistence(timeout: 5))
+        chip.tap()
+        XCTAssertTrue(steak.waitForExistence(timeout: 5))
     }
 
     func testAddToShoppingListAddsIngredientsAndClearingChecksThemOff() throws {
-        let row = app.buttons["recipeRow_Classic Scrambled Eggs"]
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        let row = recipeRow("Classic Scrambled Eggs")
+        XCTAssertTrue(row.isHittable)
         row.tap()
 
         app.buttons["addToShoppingListButton"].tap()

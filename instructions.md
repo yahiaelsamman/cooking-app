@@ -117,18 +117,26 @@ If `swift test` reports a failure with 0 tests actually failing, it's usually st
 artifacts (e.g. after moving the repo, or a cloud-sync tool touching files mid-compile) — rerun,
 or use `swift test --scratch-path /tmp/some-path` to build in a clean location.
 
-Avoid running `xcodebuild test` (the full UI-automation suite) as a non-interactive/background
-step — it can stall indefinitely at Simulator accessibility bootstrap. `build` and
-`build-for-testing` (compiles the UI test target without running it) are safe either way; save an
-actual `test` run for when you're at the machine and can watch it.
+UI tests (`CookingAppUITests`, 8 tests, ~4-5 minutes) do run headless on Xcode 27 with an iPhone 17
+simulator; use a device id, since a name like "iPhone 17 Pro" can be ambiguous across runtimes
+(`xcrun simctl list devices` shows the ids):
+
+```
+xcodebuild test -project CookingApp/CookingApp.xcodeproj -scheme CookingApp \
+  -destination 'platform=iOS Simulator,id=<DEVICE_ID>' CODE_SIGNING_ALLOWED=NO
+```
+
+Two quirks: macOS has no `timeout` binary, so bound a run with
+`perl -e 'alarm 900; exec @ARGV' -- xcodebuild test ...`; and `xcodebuild` can hang after the tests
+finish, so when scripting, run it in the background logging to a file, wait for `TEST SUCCEEDED`,
+`TEST FAILED` or `Executed N tests`, then `pkill -f xcodebuild; xcrun simctl shutdown all`.
 
 ## Testing
 
 - `CookingAppCoreTests` (`swift test`): the real test suite, covering the Core
   package's logic. Run this after any Core change.
-- `CookingAppUITests` (XCUITest, in the app target): exists, builds, and links, but isn't run in CI
-  (`.github/workflows/ci.yml` runs `swift test` and an app build only) — `xcodebuild test` stalls at "loading Accessibility" in headless environments. Run it from
-  Xcode (⌘U) on an interactive Mac instead.
+- `CookingAppUITests` (XCUITest, in the app target): passes locally (see the command above or ⌘U in Xcode), but isn't
+  run in CI (`.github/workflows/ci.yml` runs `swift test` and an app build only).
 - View-layer behavior with no Core equivalent (notification delivery, VoiceOver, real touch
   gestures like drag-to-reorder or swipe-to-favorite, the idle-timer/screen-awake behavior) has no
   automated coverage here — verify by hand on a device/Simulator.
