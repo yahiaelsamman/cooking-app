@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		022A269FD1F8C44CAB9C683B /* IngredientChecklistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE2EA36CFE2CD28832A3B1AB /* IngredientChecklistView.swift */; };
+		1902768E920D8E7EEEAEBBB5 /* CookingJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4144E38D5EBA45D82E414760 /* CookingJourneyUITests.swift */; };
 		1FC948E317237C2CDAB63AE6 /* ProgressIndicatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65964C22CF33B65D56FF3D60 /* ProgressIndicatorView.swift */; };
 		21E83B9EDC145E0793AE156B /* HoldToFinishButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84258AC035B366A85050DD04 /* HoldToFinishButton.swift */; };
 		294F44AC71AEFAB387D1382D /* DualProgressSliderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E734B1A92691038CB0B3D88 /* DualProgressSliderView.swift */; };
@@ -59,6 +60,7 @@
 		3EE50CE27846BC5D33F6763B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		408EDD803379F0BD1AE89C05 /* StarRatingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarRatingView.swift; sourceTree = "<group>"; };
 		40DF8B9A7F761D592E0A3C74 /* PeerConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerConnectionView.swift; sourceTree = "<group>"; };
+		4144E38D5EBA45D82E414760 /* CookingJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CookingJourneyUITests.swift; sourceTree = "<group>"; };
 		65964C22CF33B65D56FF3D60 /* ProgressIndicatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressIndicatorView.swift; sourceTree = "<group>"; };
 		6B9C1345C29B06EECE42B12F /* CookingApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CookingApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6C5DCABA51CBF434711F5600 /* RecipeListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeListView.swift; sourceTree = "<group>"; };
@@ -139,6 +141,7 @@
 			isa = PBXGroup;
 			children = (
 				F5AE9561BB441CD8001DB21D /* CookingAppUITests.swift */,
+				4144E38D5EBA45D82E414760 /* CookingJourneyUITests.swift */,
 			);
 			path = CookingAppUITests;
 			sourceTree = "<group>";
@@ -297,6 +300,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E2FAE194E61F0A93F7481601 /* CookingAppUITests.swift in Sources */,
+				1902768E920D8E7EEEAEBBB5 /* CookingJourneyUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

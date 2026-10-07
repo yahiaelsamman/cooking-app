@@ -596,6 +596,7 @@ struct StepView: View {
                     .accessibilityHidden(true)
                 Text("Recipe Complete")
                     .font(.title.bold())
+                    .multilineTextAlignment(.center)
                     .accessibilityAddTraits(.isHeader)
 
                 VStack(spacing: 12) {
@@ -604,6 +605,8 @@ struct StepView: View {
                         path = []
                     }
                     .buttonStyle(.borderedProminent)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
 
                     // In case the last tap/hold past the final step was an accident and you're
                     // not actually done cooking yet.
@@ -611,7 +614,10 @@ struct StepView: View {
                         session.goBack()
                     }
                     .buttonStyle(.bordered)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
+                .padding(.horizontal, 24)
             }
         }
         // The enclosing ZStack aligns to .top, so without this the card hugs the top of the

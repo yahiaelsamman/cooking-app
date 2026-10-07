@@ -15,6 +15,13 @@ struct CookingAppApp: App {
     init() {
         UNUserNotificationCenter.current().delegate = notificationDelegate
 
+        // UI tests start from a clean persisted session (no stale "Resume Cooking") unless a
+        // test passes -UITestKeepSession (e.g. to verify resume after a relaunch).
+        let launchArgs = ProcessInfo.processInfo.arguments
+        if launchArgs.contains("-UITesting") && !launchArgs.contains("-UITestKeepSession") {
+            SessionPersistence.clear()
+        }
+
         let container: ModelContainer
         var usedFallback = false
         do {

@@ -33,6 +33,9 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         CFBundleDisplayName: "Cooking App"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        ITSAppUsesNonExemptEncryption: false
         NSLocalNetworkUsageDescription: "Cooking App uses your local network to sync cooking progress with your partner's iPhone during a two-person recipe."
         NSBonjourServices:
           - "_cook-sync._tcp"

@@ -581,5 +581,10 @@ private struct MyNotesSection: View {
 
 extension Color {
     /// Darker green for text on a pale-green capsule; system green is ~2.3:1 on white.
-    static let dietaryGreenText = Color(red: 0.05, green: 0.40, blue: 0.15)
+    /// Adaptive: lighter green in dark mode so it stays readable on dark backgrounds.
+    static let dietaryGreenText = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.45, green: 0.87, blue: 0.55, alpha: 1)
+            : UIColor(red: 0.05, green: 0.40, blue: 0.15, alpha: 1)
+    })
 }
