@@ -45,7 +45,8 @@ struct PeerSyncServiceTests {
 
         service.handleSessionStateChange(.notConnected, peerID: peer)
 
-        #expect(service.connectionState == .disconnected)
+        // A failed invite leaves us browsing, not "disconnected".
+        #expect(service.connectionState == .browsing)
         // No prior successful connection, so this should be a plain disconnect, not a recovery
         // attempt — `discoveredPeers` should be untouched (auto-reconnect resets it to []).
         #expect(service.discoveredPeers.isEmpty)
@@ -474,5 +475,57 @@ struct PeerSyncServiceTests {
         try? await Task.sleep(for: .milliseconds(100))
 
         #expect(!service.discoveredPeers.contains(peer))
+    }
+
+    // MARK: - Failure, teardown and snapshot handling
+
+    @Test func startFailureIsExposedAndClearedOnRestart() {
+        let service = makeService()
+        service.startHosting(recipeID: UUID(), hostRole: .personA)
+        service.handleStartFailure(NSError(domain: "test", code: 1), hosting: true)
+        #expect(service.startFailure != nil)
+        #expect(service.connectionState == .idle)
+        service.startBrowsing()
+        #expect(service.startFailure == nil)
+    }
+
+    @Test func failedInviteAsHostGoesBackToAdvertising() {
+        let service = makeService()
+        let peer = MCPeerID(displayName: "partner-device")
+        service.startHosting(recipeID: UUID(), hostRole: .personA)
+        service.handleSessionStateChange(.notConnected, peerID: peer)
+        #expect(service.connectionState == .advertising)
+    }
+
+    @Test func messagesAfterStopAreIgnored() {
+        let service = makeService()
+        service.startBrowsing()
+        service.stop()
+        service.handleReceivedMessage(.progressUpdate(stepIndex: 3))
+        #expect(service.partnerStepIndex == nil)
+    }
+
+    @Test func timerSnapshotMessageReachesCallbackEvenWhenEmpty() {
+        let service = makeService()
+        service.startBrowsing()
+        var received: [TimerSnapshotEntry]?
+        service.onPartnerTimerSnapshot = { received = $0 }
+        service.handleReceivedMessage(.timerSnapshot([]))
+        #expect(received == [])
+    }
+
+    @Test func leaveSessionResetsStateImmediately() {
+        let service = makeService()
+        let peer = MCPeerID(displayName: "partner-device")
+        service.startBrowsing()
+        service.handleSessionStateChange(.connected, peerID: peer)
+        service.leaveSession()
+        #expect(service.connectionState == .idle)
+    }
+
+    @Test func timerSnapshotMessageRoundTrips() throws {
+        let message = SyncMessage.timerSnapshot([TimerSnapshotEntry(stepIndex: 2, totalSeconds: 300, remainingSeconds: 120)])
+        let decoded = try JSONDecoder().decode(SyncMessage.self, from: JSONEncoder().encode(message))
+        #expect(decoded == message)
     }
 }

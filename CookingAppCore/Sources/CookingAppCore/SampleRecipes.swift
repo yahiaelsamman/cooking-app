@@ -13,7 +13,7 @@ public enum SampleRecipes {
         summary: "Soft, creamy scrambled eggs in under 5 minutes.",
         servings: 1,
         soloSteps: [
-            RecipeStep(order: 0, instruction: "Crack 3 eggs into a bowl.", assignee: .solo, imageSystemName: "basket.fill", stepImageName: "recipe-step-scrambled-eggs-0"),
+            RecipeStep(order: 0, instruction: "Crack the eggs into a bowl.", assignee: .solo, imageSystemName: "basket.fill", stepImageName: "recipe-step-scrambled-eggs-0"),
             RecipeStep(order: 1, instruction: "Add a splash of milk and a pinch of salt.", assignee: .solo, imageSystemName: "sparkles", stepImageName: "recipe-step-scrambled-eggs-1"),
             RecipeStep(order: 2, instruction: "Whisk until fully combined and slightly frothy.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath", stepImageName: "recipe-step-scrambled-eggs-2"),
             RecipeStep(order: 3, instruction: "Heat a non-stick pan over low-medium heat with a knob of butter.", assignee: .solo, imageSystemName: "flame.fill", stepImageName: "recipe-step-scrambled-eggs-3"),
@@ -798,10 +798,11 @@ public enum SampleRecipes {
         id: UUID(uuidString: "9E1F0A10-0020-4B7A-9C1A-000000000020")!,
         title: "Chocolate Chip Cookies",
         summary: "Classic chewy-in-the-middle, crisp-at-the-edges chocolate chip cookies.",
+        servings: 2,
         soloSteps: [
             RecipeStep(order: 0, instruction: "Preheat the oven to 375°F and line a baking sheet with parchment paper.", assignee: .solo, imageSystemName: "flame.fill"),
             RecipeStep(order: 1, instruction: "Cream together softened butter, brown sugar, and white sugar.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath"),
-            RecipeStep(order: 2, instruction: "Beat in the egg and vanilla extract.", assignee: .solo, imageSystemName: "drop.fill"),
+            RecipeStep(order: 2, instruction: "Beat in the eggs and vanilla extract.", assignee: .solo, imageSystemName: "drop.fill"),
             RecipeStep(order: 3, instruction: "In a separate bowl, whisk flour, baking soda, and salt.", assignee: .solo, imageSystemName: "sparkles"),
             RecipeStep(order: 4, instruction: "Fold the dry ingredients into the wet ingredients until just combined.", assignee: .solo, imageSystemName: "arrow.triangle.2.circlepath"),
             RecipeStep(order: 5, instruction: "Fold in the chocolate chips.", assignee: .solo, imageSystemName: "basket.fill"),
@@ -813,7 +814,7 @@ public enum SampleRecipes {
             RecipeStep(order: 0, instruction: "Both: preheat the oven to 375°F and gather ingredients.", assignee: .shared, imageSystemName: "flame.fill"),
 
             RecipeStep(order: 1, instruction: "Cream together softened butter, brown sugar, and white sugar.", assignee: .personA, imageSystemName: "arrow.triangle.2.circlepath"),
-            RecipeStep(order: 2, instruction: "Beat in the egg and vanilla extract.", assignee: .personA, imageSystemName: "drop.fill"),
+            RecipeStep(order: 2, instruction: "Beat in the eggs and vanilla extract.", assignee: .personA, imageSystemName: "drop.fill"),
 
             RecipeStep(order: 3, instruction: "Whisk flour, baking soda, and salt in a separate bowl.", assignee: .personB, imageSystemName: "sparkles"),
             RecipeStep(order: 4, instruction: "Line baking sheets with parchment paper.", assignee: .personB, imageSystemName: "basket.fill"),
@@ -831,7 +832,7 @@ public enum SampleRecipes {
             Ingredient(name: "Butter, softened", amount: "1 cup"),
             Ingredient(name: "Brown sugar", amount: "3/4 cup"),
             Ingredient(name: "White sugar", amount: "3/4 cup"),
-            Ingredient(name: "Egg", amount: "1"),
+            Ingredient(name: "Eggs", amount: "2"),
             Ingredient(name: "Vanilla extract", amount: "1 tsp"),
             Ingredient(name: "Flour", amount: "2.25 cups"),
             Ingredient(name: "Baking soda", amount: "1 tsp"),

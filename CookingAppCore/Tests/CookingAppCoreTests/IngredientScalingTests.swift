@@ -145,4 +145,22 @@ struct IngredientScalingTests {
         #expect(Ingredient.scale("1\u{BD} cups", by: 2) == "3 cups")
         #expect(Ingredient.scale("\u{BE} cup", by: 2) == "1 1/2 cup")
     }
+
+    @Test func scalesRangeWithUnitBeforeDash() {
+        #expect(Ingredient.scale("200g-300g", by: 2) == "400g-600g")
+        #expect(Ingredient.scale("1 cup - 2 cups", by: 2) == "2 cup - 4 cups")
+    }
+
+    @Test func scalesThousandsSeparator() {
+        #expect(Ingredient.scale("1,000 g", by: 1.5) == "1,500 g")
+        #expect(Ingredient.scale("1,000 g", by: 0.5) == "500 g")
+    }
+
+    @Test func tinyAmountsStaySensible() {
+        #expect(Ingredient.scale("1/4 cup", by: 0.25) == "1/16 cup")
+    }
+
+    @Test func hugeAmountsAreWholeNumbers() {
+        #expect(Ingredient.scale("400g", by: 6.67) == "2668g")
+    }
 }

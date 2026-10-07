@@ -435,4 +435,29 @@ struct CookingSessionViewModelTests {
         #expect(!store.hasActiveSession)
         #expect(store.currentSession == nil)
     }
+
+    @Test func partnerTimerSnapshotReplacesMirrorAndLeaveClearsIt() {
+        let recipe = SampleRecipes.pastaForTwo
+        let peerSync = PeerSyncService(displayName: "me")
+        peerSync.startBrowsing()
+        let session = CookingSessionViewModel(recipe: recipe, role: .personA, peerSync: peerSync)
+
+        peerSync.handleReceivedMessage(.timerStarted(stepIndex: 0, durationSeconds: 60))
+        #expect(session.partnerActiveTimers.count == 1)
+
+        // Snapshot with a different timer replaces the old mirror and keeps total vs remaining.
+        peerSync.handleReceivedMessage(.timerSnapshot([TimerSnapshotEntry(stepIndex: 1, totalSeconds: 300, remainingSeconds: 120)]))
+        #expect(session.partnerActiveTimers.count == 1)
+        #expect(session.partnerActiveTimers[0].totalSeconds == 300)
+        #expect(session.partnerActiveTimers[0].remainingSeconds == 120)
+
+        // Empty snapshot (partner cancelled while we were apart) clears it.
+        peerSync.handleReceivedMessage(.timerSnapshot([]))
+        #expect(session.partnerActiveTimers.isEmpty)
+
+        peerSync.handleReceivedMessage(.timerSnapshot([TimerSnapshotEntry(stepIndex: 1, totalSeconds: 300, remainingSeconds: 120)]))
+        peerSync.handleReceivedMessage(.leaveSession())
+        #expect(session.partnerActiveTimers.isEmpty)
+        #expect(session.partnerDidLeave)
+    }
 }
