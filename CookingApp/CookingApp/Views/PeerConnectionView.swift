@@ -16,6 +16,11 @@ struct PeerConnectionView: View {
     /// Only meaningful if the user proceeds to host — the joiner is assigned whatever the host
     /// didn't pick, so there's nothing for the joiner to choose here.
     @State private var chosenRole: StepAssignee = .personA
+    /// Set once the person has seen the pre-permission explanation; the system Local Network
+    /// prompt appears the first time hosting/browsing starts, so that must come after this.
+    @AppStorage("hasSeenLocalNetworkExplainer") private var hasSeenExplainer = false
+    @State private var pendingStart: (() -> Void)?
+    @State private var showExplainer = false
     private let servingsScaleFactor: Double
 
     // `@MainActor`: `PeerConnectionViewModel`/`PeerSyncService` are both `@MainActor` now (see
@@ -64,6 +69,21 @@ struct PeerConnectionView: View {
         .padding()
         .navigationTitle("Connect")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showExplainer) {
+            LocalNetworkExplainerView(
+                onContinue: {
+                    hasSeenExplainer = true
+                    showExplainer = false
+                    let start = pendingStart
+                    pendingStart = nil
+                    start?()
+                },
+                onCancel: {
+                    pendingStart = nil
+                    showExplainer = false
+                }
+            )
+        }
         .onChange(of: viewModel.connectionState) { _, newState in
             // The host has no recipeSync message to wait on — it sends that message, it
             // doesn't receive one — so its own connection reaching .connected is the signal.
@@ -139,10 +159,12 @@ struct PeerConnectionView: View {
                     }
                 }
 
-                Button("Host a two-person session") { viewModel.host(as: chosenRole) }
+                Button("Host a two-person session") { startAfterExplainer { viewModel.host(as: chosenRole) } }
                     .buttonStyle(.borderedProminent)
-                Button("Join a nearby session") { viewModel.join() }
+                    .accessibilityIdentifier("hostSessionButton")
+                Button("Join a nearby session") { startAfterExplainer { viewModel.join() } }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("joinSessionButton")
             }
 
         case .advertising:
@@ -213,6 +235,17 @@ struct PeerConnectionView: View {
                 Button("Try Again") { viewModel.cancel() }
                     .buttonStyle(.borderedProminent)
             }
+        }
+    }
+
+    /// Runs `start` immediately once the explainer has been acknowledged; the first time, shows it
+    /// first and runs `start` only when the person taps Continue.
+    private func startAfterExplainer(_ start: @escaping () -> Void) {
+        if hasSeenExplainer {
+            start()
+        } else {
+            pendingStart = start
+            showExplainer = true
         }
     }
 

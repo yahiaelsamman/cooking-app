@@ -232,4 +232,40 @@ final class CookingJourneyUITests: XCTestCase {
         XCTAssertTrue(app.buttons["shoppingListItem_Large eggs"].waitForExistence(timeout: 5))
         shot("darkax5-shopping")
     }
+
+    func testAboutScreenShowsVersionPrivacyAndRepoLink() throws {
+        launch()
+        let about = app.buttons["aboutButton"]
+        XCTAssertTrue(about.waitForExistence(timeout: 5))
+        about.tap()
+        let version = app.descendants(matching: .any)["aboutVersion"].firstMatch
+        XCTAssertTrue(version.waitForExistence(timeout: 5))
+        XCTAssertTrue(version.label.contains("Version "))
+        XCTAssertTrue(app.descendants(matching: .any)["aboutPrivacyText"].firstMatch.exists)
+        shot("about")
+        // The repo link sits below the fold in the list; a lazy List only realizes it once scrolled.
+        let repo = app.descendants(matching: .any)["aboutRepoLink"].firstMatch
+        var swipes = 0
+        while !repo.exists && swipes < 5 { app.swipeUp(); swipes += 1 }
+        XCTAssertTrue(repo.exists)
+        app.buttons["aboutDoneButton"].tap()
+        XCTAssertTrue(app.navigationBars["Recipes"].waitForExistence(timeout: 5))
+    }
+
+    func testLocalNetworkExplainerShownBeforeHosting() throws {
+        launch()
+        openRecipe("Weeknight Pasta")
+        app.buttons["Two-Person"].tap()
+        app.buttons["Start Cooking"].tap()
+        let host = app.buttons["hostSessionButton"]
+        XCTAssertTrue(host.waitForExistence(timeout: 5))
+        host.tap()
+        // The explainer comes first; nothing has started hosting yet.
+        let cont = app.buttons["localNetworkContinueButton"]
+        XCTAssertTrue(cont.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Waiting for your partner to join…"].exists)
+        shot("local-network-explainer")
+        cont.tap()
+        XCTAssertFalse(cont.waitForExistence(timeout: 1))
+    }
 }

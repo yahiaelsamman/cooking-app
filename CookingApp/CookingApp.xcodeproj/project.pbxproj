@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		022A269FD1F8C44CAB9C683B /* IngredientChecklistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE2EA36CFE2CD28832A3B1AB /* IngredientChecklistView.swift */; };
+		144D4D0D1F84844854D15001 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6F3CA5E260AC71E2B044696 /* AboutView.swift */; };
 		1902768E920D8E7EEEAEBBB5 /* CookingJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4144E38D5EBA45D82E414760 /* CookingJourneyUITests.swift */; };
 		1FC948E317237C2CDAB63AE6 /* ProgressIndicatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65964C22CF33B65D56FF3D60 /* ProgressIndicatorView.swift */; };
 		21E83B9EDC145E0793AE156B /* HoldToFinishButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84258AC035B366A85050DD04 /* HoldToFinishButton.swift */; };
@@ -32,6 +33,7 @@
 		7C3DFE6D8F2F194B3EBBB9DF /* CookingAppCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5BE69C3E90BECDA78A54164F /* CookingAppCore */; };
 		811183032AB7E933175C828D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DE42026A708D5E1A24DCC2C8 /* Assets.xcassets */; };
 		83A45A22422E532DB08488BF /* RecipeListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C5DCABA51CBF434711F5600 /* RecipeListView.swift */; };
+		A0792B09D5ADCD76C8D1A34D /* LocalNetworkExplainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76DA1EFC7D849A1F76318568 /* LocalNetworkExplainerView.swift */; };
 		AD5DD68BF085FB34A5848B14 /* ConfettiView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB20DEF07BDA9BA901582B35 /* ConfettiView.swift */; };
 		C1FAFBDF97BC3D0B45118FCE /* TimerStackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F302626E0E7A54321241F02 /* TimerStackView.swift */; };
 		D238F347F209B9E592B4EA08 /* RecipeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5CE3AAE0769F97B36AE2AC1 /* RecipeDetailView.swift */; };
@@ -66,12 +68,14 @@
 		6C5DCABA51CBF434711F5600 /* RecipeListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeListView.swift; sourceTree = "<group>"; };
 		6D0CF09CFC045EE522BF01A7 /* CookingAppCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CookingAppCore; path = ../CookingAppCore; sourceTree = SOURCE_ROOT; };
 		70EE4FF6EFFF9FDC8CCDF93A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		76DA1EFC7D849A1F76318568 /* LocalNetworkExplainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNetworkExplainerView.swift; sourceTree = "<group>"; };
 		77EFAA155D72E4A52788EE1D /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
 		7E734B1A92691038CB0B3D88 /* DualProgressSliderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualProgressSliderView.swift; sourceTree = "<group>"; };
 		8240C363AF44973B72F87E00 /* PartnerStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartnerStatusView.swift; sourceTree = "<group>"; };
 		84258AC035B366A85050DD04 /* HoldToFinishButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldToFinishButton.swift; sourceTree = "<group>"; };
 		94975B8B83C5E9BC918DE2C9 /* PlaceholderPhotoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderPhotoView.swift; sourceTree = "<group>"; };
 		99765317138B0B5A5B087DE8 /* RecipeHeroImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeHeroImageView.swift; sourceTree = "<group>"; };
+		A6F3CA5E260AC71E2B044696 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		B10CFFBC5D27AEF7FF68DF2E /* DonenessHintView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DonenessHintView.swift; sourceTree = "<group>"; };
 		B87FD145C4C65B185CEFDEEF /* CookingAppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CookingAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB9F5A880E4FEC0EB01711B6 /* RecipeEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeEditorView.swift; sourceTree = "<group>"; };
@@ -162,12 +166,14 @@
 		C645524A79FAE8C246198C50 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A6F3CA5E260AC71E2B044696 /* AboutView.swift */,
 				DD91F33CBCC2E924FAFBF0B6 /* AppTour.swift */,
 				EB20DEF07BDA9BA901582B35 /* ConfettiView.swift */,
 				B10CFFBC5D27AEF7FF68DF2E /* DonenessHintView.swift */,
 				7E734B1A92691038CB0B3D88 /* DualProgressSliderView.swift */,
 				84258AC035B366A85050DD04 /* HoldToFinishButton.swift */,
 				DE2EA36CFE2CD28832A3B1AB /* IngredientChecklistView.swift */,
+				76DA1EFC7D849A1F76318568 /* LocalNetworkExplainerView.swift */,
 				8240C363AF44973B72F87E00 /* PartnerStatusView.swift */,
 				40DF8B9A7F761D592E0A3C74 /* PeerConnectionView.swift */,
 				94975B8B83C5E9BC918DE2C9 /* PlaceholderPhotoView.swift */,
@@ -308,6 +314,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				144D4D0D1F84844854D15001 /* AboutView.swift in Sources */,
 				35E4B20385E0CB27D340437C /* AppTour.swift in Sources */,
 				AD5DD68BF085FB34A5848B14 /* ConfettiView.swift in Sources */,
 				36E905D5386D0188746AAE0C /* CookingAppApp.swift in Sources */,
@@ -315,6 +322,7 @@
 				294F44AC71AEFAB387D1382D /* DualProgressSliderView.swift in Sources */,
 				21E83B9EDC145E0793AE156B /* HoldToFinishButton.swift in Sources */,
 				022A269FD1F8C44CAB9C683B /* IngredientChecklistView.swift in Sources */,
+				A0792B09D5ADCD76C8D1A34D /* LocalNetworkExplainerView.swift in Sources */,
 				4CFF0C6B115C75BABA093AE3 /* NotificationDelegate.swift in Sources */,
 				689F5100E9AFFACE1941209C /* NotificationScheduler.swift in Sources */,
 				65AAC2A6A92D9359736A7096 /* PartnerStatusView.swift in Sources */,

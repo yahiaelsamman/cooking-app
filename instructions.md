@@ -117,7 +117,7 @@ If `swift test` reports a failure with 0 tests actually failing, it's usually st
 artifacts (e.g. after moving the repo, or a cloud-sync tool touching files mid-compile) — rerun,
 or use `swift test --scratch-path /tmp/some-path` to build in a clean location.
 
-UI tests (`CookingAppUITests`, 8 tests, ~4-5 minutes) do run headless on Xcode 27 with an iPhone 17
+UI tests (`CookingAppUITests` and `CookingJourneyUITests`, 17 tests, ~10 minutes) do run headless on Xcode 27 with an iPhone 17
 simulator; use a device id, since a name like "iPhone 17 Pro" can be ambiguous across runtimes
 (`xcrun simctl list devices` shows the ids):
 

@@ -38,6 +38,8 @@ tracks, like starting your onions now so they finish when your partner's sauce r
   and timer state.
 - **A real first-run walkthrough** — an interactive spotlight tour that only advances once you've
   actually used the control it's pointing at, not a static set of onboarding slides.
+- **An About screen** (info button in the recipe list) with the app version, a plain-language
+  privacy statement, and credits. Two-person mode explains the Local Network prompt before iOS shows it.
 - **Accessibility built in from the start:** VoiceOver labels, combined rows, and announcements
   for step, timer, and partner changes; Dynamic Type; Voice Control input labels; Reduce Motion.
   Checked in code and the Simulator, not yet with VoiceOver on a physical device.
@@ -106,5 +108,5 @@ remaining recipes, CloudKit sync) if you're curious where it was headed.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Recipe photos are from [Pexels](https://www.pexels.com/license/)
+MIT — see [LICENSE](LICENSE) and [CREDITS.md](CREDITS.md). Recipe photos are from [Pexels](https://www.pexels.com/license/)
 and the illustrations were AI-generated; neither is covered by the MIT license.

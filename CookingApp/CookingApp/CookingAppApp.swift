@@ -22,6 +22,12 @@ struct CookingAppApp: App {
             SessionPersistence.clear()
         }
 
+        // The Local Network explainer is shown once per install; UI tests see it every run unless
+        // a test passes -UITestSkipExplainer.
+        if launchArgs.contains("-UITesting") && !launchArgs.contains("-UITestSkipExplainer") {
+            UserDefaults.standard.removeObject(forKey: "hasSeenLocalNetworkExplainer")
+        }
+
         let container: ModelContainer
         var usedFallback = false
         do {

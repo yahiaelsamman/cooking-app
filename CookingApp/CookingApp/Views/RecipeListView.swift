@@ -27,6 +27,7 @@ struct RecipeListView: View {
     @State private var showFavoritesOnly = false
     @State private var showAddRecipe = false
     @State private var showShoppingList = false
+    @State private var showAbout = false
     @State private var searchText = ""
     @State private var selectedDietaryTags: Set<DietaryTag> = []
 
@@ -209,6 +210,15 @@ struct RecipeListView: View {
                     .accessibilityIdentifier("cookingProfileButton")
                     .tourAnchor("cookingProfileButton")
                 }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showAbout = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .accessibilityLabel("About")
+                    .accessibilityIdentifier("aboutButton")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Picker("Sort", selection: $sortMode) {
                         ForEach(RecipeSortMode.allCases) { mode in
@@ -272,6 +282,9 @@ struct RecipeListView: View {
             }
             .sheet(isPresented: $showShoppingList) {
                 ShoppingListView()
+            }
+            .sheet(isPresented: $showAbout) {
+                AboutView()
             }
         }
     }
