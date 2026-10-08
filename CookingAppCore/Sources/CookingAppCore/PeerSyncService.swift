@@ -99,7 +99,7 @@ public final class PeerSyncService: NSObject {
         return result.isEmpty ? "Cook" : result
     }
 
-    public init(displayName: String = ProcessInfo.processInfo.hostName) {
+    public init(displayName: String = "Cook") {
         let displayName = Self.peerDisplayName(displayName)
         self.myPeerID = MCPeerID(displayName: displayName)
         self.myDisplayName = displayName

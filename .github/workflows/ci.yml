@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Xcode 26+ is required: Swift 6.2 (`isolated deinit`), the iOS 26 SDK, and full Xcode for
+      # Needs Swift 6.2 (`isolated deinit`), the iOS 26 SDK, and full Xcode for
       # SwiftData's macros.
       - uses: maxim-lobanov/setup-xcode@v1
         with:

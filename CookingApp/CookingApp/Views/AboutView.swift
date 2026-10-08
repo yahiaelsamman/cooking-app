@@ -51,7 +51,7 @@ struct AboutView: View {
                 }
 
                 Section("Open source") {
-                    Text("Released under the MIT license.")
+                    Text("The source code is released under the MIT license. The recipe photos and illustrations are not covered by it.")
                         .font(.callout)
                     Link("Source code on GitHub", destination: Self.repoURL)
                         .accessibilityIdentifier("aboutRepoLink")

@@ -32,7 +32,7 @@ simulator:
 | `ActiveSessionStore.swift` | Holds the in-memory `CookingSessionViewModel` currently in progress, independent of navigation — powers "Resume Cooking" and calls `SessionPersistence`. |
 | `CookingSessionViewModel.swift` | Step navigation (`advance`/`goBack`), the timer engine, and (for two-person) partner progress/presence mirroring. |
 | `CookExpertise.swift` | Beginner/intermediate/experienced — a presentation-only lever for how much hand-holding the step screen shows. |
-| `SyncMessage.swift` | The wire protocol for two-person sync — a `Codable` enum, 7 message types. |
+| `SyncMessage.swift` | The wire protocol for two-person sync — a `Codable` enum, 8 message types. |
 | `PeerSyncService.swift` | Wraps `MCSession`/advertiser/browser. Every delegate callback is a thin wrapper around an `internal` synchronous handler — that's what makes it unit-testable without real networking. Late connecting/notConnected callbacks after leave/stop are ignored (state stays `.idle`). |
 | `PeerConnectionViewModel.swift` | Host/join connect-screen logic. |
 | `ConnectionState.swift` | The peer connection's states (idle, connecting, connected, reconnecting, …). |
@@ -135,7 +135,7 @@ finish, so when scripting, run it in the background logging to a file, wait for 
 
 - `CookingAppCoreTests` (`swift test`): the real test suite, covering the Core
   package's logic. Run this after any Core change.
-- `CookingAppUITests` (XCUITest, in the app target): passes locally (see the command above or ⌘U in Xcode), but isn't
+- `CookingAppUITests` and `CookingJourneyUITests` (XCUITest, in the app target): pass locally (see the command above or ⌘U in Xcode), but isn't
   run in CI (`.github/workflows/ci.yml` runs `swift test` and an app build only).
 - View-layer behavior with no Core equivalent (notification delivery, VoiceOver, real touch
   gestures like drag-to-reorder or swipe-to-favorite, the idle-timer/screen-awake behavior) has no
@@ -179,7 +179,7 @@ finish, so when scripting, run it in the background logging to a file, wait for 
 - True background reconnection for two-person mode (declared background modes).
 - CloudKit/iCloud sync — for two-person over the internet and cross-device recipe sync.
 - Verify the VoiceOver audit with a real screen-reader run on a device (never done — see Testing).
-- Actually get `CookingAppUITests` running (on an interactive Mac) and expand its coverage.
+- Expand UI-test coverage (it runs headless today; see Building/testing from the CLI).
 
 ---
 

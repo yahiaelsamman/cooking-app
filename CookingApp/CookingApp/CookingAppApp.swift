@@ -17,21 +17,20 @@ struct CookingAppApp: App {
 
         // UI tests start from a clean persisted session (no stale "Resume Cooking") unless a
         // test passes -UITestKeepSession (e.g. to verify resume after a relaunch).
-        let launchArgs = ProcessInfo.processInfo.arguments
-        if launchArgs.contains("-UITesting") && !launchArgs.contains("-UITestKeepSession") {
+        if LaunchFlags.uiTesting && !LaunchFlags.keepSession {
             SessionPersistence.clear()
         }
 
         // The Local Network explainer is shown once per install; UI tests see it every run unless
         // a test passes -UITestSkipExplainer.
-        if launchArgs.contains("-UITesting") && !launchArgs.contains("-UITestSkipExplainer") {
+        if LaunchFlags.uiTesting && !LaunchFlags.skipExplainer {
             UserDefaults.standard.removeObject(forKey: "hasSeenLocalNetworkExplainer")
         }
 
         let container: ModelContainer
         var usedFallback = false
         do {
-            if ProcessInfo.processInfo.arguments.contains("-UITesting") {
+            if LaunchFlags.uiTesting {
                 // XCUITest launches with this flag — an in-memory store means every test run
                 // starts from exactly the 20 bundled recipes and nothing else (no leftover
                 // custom recipes/favorites/ratings/shopping-list items from a previous run), and

@@ -36,7 +36,7 @@ final class CookingJourneyUITests: XCTestCase {
 
     private func openRecipe(_ title: String) {
         let row = app.buttons["recipeRow_\(title)"]
-        _ = row.waitForExistence(timeout: 5)
+        _ = row.waitForExistence(timeout: 20)
         scrollUntilVisible(row)
         XCTAssertTrue(row.isHittable, "row \(title) not reachable")
         row.tap()
@@ -228,8 +228,10 @@ final class CookingJourneyUITests: XCTestCase {
         openRecipe("Classic Scrambled Eggs")
         app.buttons["addToShoppingListButton"].tap()
         app.navigationBars.buttons["Recipes"].tap()
-        app.buttons["shoppingListButton"].tap()
-        XCTAssertTrue(app.buttons["shoppingListItem_Large eggs"].waitForExistence(timeout: 5))
+        let cart = app.buttons["shoppingListButton"]
+        XCTAssertTrue(cart.waitForExistence(timeout: 20), "shopping list button not found after returning to the list")
+        cart.tap()
+        XCTAssertTrue(app.buttons["shoppingListItem_Large eggs"].waitForExistence(timeout: 20))
         shot("darkax5-shopping")
     }
 

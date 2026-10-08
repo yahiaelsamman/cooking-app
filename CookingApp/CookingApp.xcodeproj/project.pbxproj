@@ -36,6 +36,7 @@
 		A0792B09D5ADCD76C8D1A34D /* LocalNetworkExplainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76DA1EFC7D849A1F76318568 /* LocalNetworkExplainerView.swift */; };
 		AD5DD68BF085FB34A5848B14 /* ConfettiView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB20DEF07BDA9BA901582B35 /* ConfettiView.swift */; };
 		C1FAFBDF97BC3D0B45118FCE /* TimerStackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F302626E0E7A54321241F02 /* TimerStackView.swift */; };
+		CD9F751CFC5D5686C8AD0B10 /* LaunchFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8417DD71C19216227EDC430B /* LaunchFlags.swift */; };
 		D238F347F209B9E592B4EA08 /* RecipeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5CE3AAE0769F97B36AE2AC1 /* RecipeDetailView.swift */; };
 		D4C740D370DB039CFB00985D /* SwipeBackDisabler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 026E933AEE860E9A9F85765F /* SwipeBackDisabler.swift */; };
 		D5DA8B8D455E45C5EAE26602 /* WelcomeNameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2730D3CBC8D016680255AA /* WelcomeNameView.swift */; };
@@ -72,6 +73,7 @@
 		77EFAA155D72E4A52788EE1D /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
 		7E734B1A92691038CB0B3D88 /* DualProgressSliderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualProgressSliderView.swift; sourceTree = "<group>"; };
 		8240C363AF44973B72F87E00 /* PartnerStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartnerStatusView.swift; sourceTree = "<group>"; };
+		8417DD71C19216227EDC430B /* LaunchFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchFlags.swift; sourceTree = "<group>"; };
 		84258AC035B366A85050DD04 /* HoldToFinishButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldToFinishButton.swift; sourceTree = "<group>"; };
 		94975B8B83C5E9BC918DE2C9 /* PlaceholderPhotoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderPhotoView.swift; sourceTree = "<group>"; };
 		99765317138B0B5A5B087DE8 /* RecipeHeroImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeHeroImageView.swift; sourceTree = "<group>"; };
@@ -155,6 +157,7 @@
 			children = (
 				C9FB5013BDA30E016170360A /* CookingAppApp.swift */,
 				3EE50CE27846BC5D33F6763B /* Info.plist */,
+				8417DD71C19216227EDC430B /* LaunchFlags.swift */,
 				70EE4FF6EFFF9FDC8CCDF93A /* PrivacyInfo.xcprivacy */,
 				2D9879C14516143EB4BAAB5A /* Notifications */,
 				32DBE39E5CADB8E63E56BCBF /* Resources */,
@@ -322,6 +325,7 @@
 				294F44AC71AEFAB387D1382D /* DualProgressSliderView.swift in Sources */,
 				21E83B9EDC145E0793AE156B /* HoldToFinishButton.swift in Sources */,
 				022A269FD1F8C44CAB9C683B /* IngredientChecklistView.swift in Sources */,
+				CD9F751CFC5D5686C8AD0B10 /* LaunchFlags.swift in Sources */,
 				A0792B09D5ADCD76C8D1A34D /* LocalNetworkExplainerView.swift in Sources */,
 				4CFF0C6B115C75BABA093AE3 /* NotificationDelegate.swift in Sources */,
 				689F5100E9AFFACE1941209C /* NotificationScheduler.swift in Sources */,

@@ -4,6 +4,7 @@ CookingApp/CookingApp.xcodeproj/project.xcworkspace/xcuserdata/
 CookingApp/CookingApp.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
 *.xcuserstate
 DerivedData/
+build/
 
 # Swift Package Manager
 .build/

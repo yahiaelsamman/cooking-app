@@ -66,7 +66,7 @@ describe features.
 
 ## Requirements
 
-- Xcode 26 or later (Swift 6.2, iOS 26 SDK). The app's deployment target is iOS 17.
+- Xcode with Swift 6.2 and the iOS 26 SDK or later (built and tested with Xcode 27; Xcode 26 should work but is unverified). The app's deployment target is iOS 17.
 - Full Xcode must be the active developer directory (`sudo xcode-select -s /Applications/Xcode.app`)
   — Command Line Tools alone can't load SwiftData's macros, so `swift test` fails.
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) only if you add or remove source files.

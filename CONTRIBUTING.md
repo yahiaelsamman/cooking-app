@@ -3,7 +3,7 @@
 Thanks for taking a look. Development is paused-ish, but issues and PRs are welcome.
 
 ## Setup
-- Full **Xcode 26+** must be the active developer directory (`sudo xcode-select -s /Applications/Xcode.app`), otherwise `swift test` fails on SwiftData macros.
+- Full **Xcode** (built and tested with Xcode 27; Xcode 26 should work but is unverified) must be the active developer directory (`sudo xcode-select -s /Applications/Xcode.app`), otherwise `swift test` fails on SwiftData macros.
 - `brew install xcodegen`. The `.xcodeproj` is generated from `CookingApp/project.yml`; run `xcodegen generate` inside `CookingApp/` after adding or removing files.
 - Set your own `DEVELOPMENT_TEAM` and bundle id in `project.yml` to run on a device. Simulator builds don't need signing.
 
