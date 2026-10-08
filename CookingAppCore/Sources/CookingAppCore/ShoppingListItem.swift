@@ -38,9 +38,10 @@ public final class ShoppingListItem {
     /// Ingredient amounts are scaled by `scaleFactor` first (see `Ingredient.scaledAmount(by:)`)
     /// so the list reflects whatever serving count was selected when you tapped the button, not
     /// always the recipe's base amount. An ingredient is skipped, not re-added, if the list
-    /// already has an *unchecked* item with the same name and amount (case-insensitive on name) —
-    /// re-tapping the button on the same recipe at the same scale is idempotent rather than
-    /// piling up duplicate rows. Checked-off items don't block a re-add: once you've bought and
+    /// already has an *unchecked* item from the same recipe with the same name and amount
+    /// (case-insensitive on name) — re-tapping the button on the same recipe at the same scale is
+    /// idempotent rather than piling up duplicate rows. The same ingredient from a *different*
+    /// recipe is always added: two recipes that each need "2 garlic cloves" need four. Checked-off items don't block a re-add: once you've bought and
     /// checked something off, cooking the recipe again should let you add it back for next time.
     ///
     /// Deliberately doesn't merge quantities across recipes or amount formats ("2 tbsp" from one
@@ -51,7 +52,7 @@ public final class ShoppingListItem {
     public static func itemsToAdd(for recipe: Recipe, scaleFactor: Double, existingItems: [ShoppingListItem]) -> [ShoppingListItem] {
         let existingUnchecked = Set(
             existingItems
-                .filter { !$0.isChecked }
+                .filter { !$0.isChecked && $0.sourceRecipeTitle == recipe.title }
                 .map { dedupeKey(name: $0.name, amount: $0.amount) }
         )
         return recipe.ingredients.compactMap { ingredient in

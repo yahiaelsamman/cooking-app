@@ -64,7 +64,7 @@ public final class PeerConnectionViewModel {
 
     public func join() {
         role = .joiner
-        peerSync.startBrowsing()
+        peerSync.startBrowsing(recipeID: recipe.id)
     }
 
     public func connect(to peer: MCPeerID) {

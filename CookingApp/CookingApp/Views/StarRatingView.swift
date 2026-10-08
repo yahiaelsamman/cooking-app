@@ -10,7 +10,7 @@ struct StarRatingView: View {
     var onSet: ((Int?) -> Void)? = nil
 
     var body: some View {
-        HStack(spacing: interactive ? 6 : 2) {
+        HStack(spacing: interactive ? 0 : 2) {
             ForEach(1...5, id: \.self) { value in
                 let filled = (rating ?? 0) >= value
                 if interactive {
@@ -18,6 +18,8 @@ struct StarRatingView: View {
                         onSet?(rating == value ? nil : value)
                     } label: {
                         Image(systemName: filled ? "star.fill" : "star")
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     // Otherwise every one of the 5 buttons reads as an indistinguishable
@@ -29,7 +31,8 @@ struct StarRatingView: View {
             }
         }
         .font(interactive ? .title2 : .caption2)
-        .foregroundStyle(.yellow)
+        // Orange rather than yellow: yellow stars on a light background are hard to see.
+        .foregroundStyle(.orange)
         .modifier(NonInteractiveSummary(isApplied: !interactive, summary: ratingSummary))
         .modifier(InteractiveAdjustable(isApplied: interactive, rating: rating, onSet: onSet))
     }

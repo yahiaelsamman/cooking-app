@@ -4,28 +4,59 @@ import CookingAppCore
 import MultipeerConnectivity
 
 struct PeerConnectionView: View {
-    @State private var viewModel: PeerConnectionViewModel
+    // Created once on first appearance. Building it in `init` re-created a PeerSyncService
+    // (MCPeerID + MCSession) every time the parent re-evaluated the destination closure.
+    @State private var model: PeerConnectionViewModel?
+    private let recipe: Recipe
+    @State private var searchTimedOut = false
+    @Environment(\.openURL) private var openURL
     @Binding var path: [Route]
     @Environment(ActiveSessionStore.self) private var sessionStore
 
     /// Only meaningful if the user proceeds to host — the joiner is assigned whatever the host
     /// didn't pick, so there's nothing for the joiner to choose here.
     @State private var chosenRole: StepAssignee = .personA
+    /// Set once the person has seen the pre-permission explanation; the system Local Network
+    /// prompt appears the first time hosting/browsing starts, so that must come after this.
+    @AppStorage("hasSeenLocalNetworkExplainer") private var hasSeenExplainer = false
+    @State private var pendingStart: (() -> Void)?
+    @State private var showExplainer = false
+    private let servingsScaleFactor: Double
 
     // `@MainActor`: `PeerConnectionViewModel`/`PeerSyncService` are both `@MainActor` now (see
     // their doc comments in CookingAppCore) — a plain View `init` isn't implicitly MainActor
     // just because `body` is, so constructing them here needs this annotation explicitly.
     @MainActor
-    init(recipe: Recipe, path: Binding<[Route]>) {
-        let cookName = UserDefaults.standard.string(forKey: "cookName")
-        _viewModel = State(initialValue: PeerConnectionViewModel(
-            recipe: recipe,
-            peerSync: PeerSyncService(displayName: (cookName?.isEmpty ?? true) ? "Cook" : cookName!)
-        ))
+    init(recipe: Recipe, servingsScaleFactor: Double = 1, path: Binding<[Route]>) {
+        self.servingsScaleFactor = servingsScaleFactor
+        self.recipe = recipe
         _path = path
     }
 
+    /// Only read from the `model != nil` branch of `body` (and callbacks it installs).
+    private var viewModel: PeerConnectionViewModel { model! }
+
+    private static var cookDisplayName: String {
+        let cookName = UserDefaults.standard.string(forKey: "cookName")
+        return (cookName?.isEmpty ?? true) ? "Cook" : cookName!
+    }
+
     var body: some View {
+        Group {
+            if model != nil {
+                connectBody
+            } else {
+                Color.clear
+            }
+        }
+        .onAppear {
+            if model == nil {
+                model = PeerConnectionViewModel(recipe: recipe, peerSync: PeerSyncService(displayName: Self.cookDisplayName))
+            }
+        }
+    }
+
+    private var connectBody: some View {
         VStack(spacing: 24) {
             Text(viewModel.recipe.title)
                 .font(.title2.bold())
@@ -38,6 +69,21 @@ struct PeerConnectionView: View {
         .padding()
         .navigationTitle("Connect")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showExplainer) {
+            LocalNetworkExplainerView(
+                onContinue: {
+                    hasSeenExplainer = true
+                    showExplainer = false
+                    let start = pendingStart
+                    pendingStart = nil
+                    start?()
+                },
+                onCancel: {
+                    pendingStart = nil
+                    showExplainer = false
+                }
+            )
+        }
         .onChange(of: viewModel.connectionState) { _, newState in
             // The host has no recipeSync message to wait on — it sends that message, it
             // doesn't receive one — so its own connection reaching .connected is the signal.
@@ -52,6 +98,14 @@ struct PeerConnectionView: View {
             default: break
             }
         }
+        .task(id: viewModel.connectionState) {
+            // After ~10s of looking with nobody found, offer the Local Network hint.
+            searchTimedOut = false
+            let state = viewModel.connectionState
+            guard state == .advertising || state == .browsing else { return }
+            try? await Task.sleep(for: .seconds(10))
+            if !Task.isCancelled { searchTimedOut = true }
+        }
         .onChange(of: viewModel.recipeMismatch) { _, mismatch in
             if mismatch {
                 AccessibilityNotification.Announcement("You and your partner picked different recipes.").post()
@@ -64,6 +118,7 @@ struct PeerConnectionView: View {
                 role: stepAssignee,
                 peerSync: viewModel.peerSync
             )
+            session.servingsScaleFactor = servingsScaleFactor
             sessionStore.setActive(session)
             // Replace this connect screen in the stack rather than pushing on top of it, so
             // stepping back from the step screen later lands on the recipe overview, not here.
@@ -82,6 +137,11 @@ struct PeerConnectionView: View {
         switch viewModel.connectionState {
         case .idle:
             VStack(spacing: 20) {
+                // A start failure drops the service back to idle; keep the explanation visible
+                // above the Host/Join picker so the user knows why they're back here.
+                if let failure = viewModel.peerSync.startFailure {
+                    localNetworkProblem(failure)
+                }
                 VStack(alignment: .leading, spacing: 6) {
                     Text("If you host, you'll be:")
                         .font(.subheadline)
@@ -99,25 +159,39 @@ struct PeerConnectionView: View {
                     }
                 }
 
-                Button("Host a two-person session") { viewModel.host(as: chosenRole) }
+                Button("Host a two-person session") { startAfterExplainer { viewModel.host(as: chosenRole) } }
                     .buttonStyle(.borderedProminent)
-                Button("Join a nearby session") { viewModel.join() }
+                    .accessibilityIdentifier("hostSessionButton")
+                Button("Join a nearby session") { startAfterExplainer { viewModel.join() } }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("joinSessionButton")
             }
 
         case .advertising:
             VStack(spacing: 12) {
-                ProgressView()
-                Text("Waiting for your partner to join…")
-                    .foregroundStyle(.secondary)
+                if let failure = viewModel.peerSync.startFailure {
+                    localNetworkProblem(failure)
+                } else {
+                    ProgressView()
+                    Text("Waiting for your partner to join…")
+                        .foregroundStyle(.secondary)
+                    if searchTimedOut { localNetworkHint }
+                }
+                cancelButton
             }
 
         case .browsing:
             if viewModel.discoveredPeers.isEmpty {
                 VStack(spacing: 12) {
-                    ProgressView()
-                    Text("Looking for a nearby session…")
-                        .foregroundStyle(.secondary)
+                    if let failure = viewModel.peerSync.startFailure {
+                        localNetworkProblem(failure)
+                    } else {
+                        ProgressView()
+                        Text("Looking for a nearby session…")
+                            .foregroundStyle(.secondary)
+                        if searchTimedOut { localNetworkHint }
+                    }
+                    cancelButton
                 }
             } else {
                 VStack(alignment: .leading, spacing: 8) {
@@ -130,6 +204,7 @@ struct PeerConnectionView: View {
                         }
                         .buttonStyle(.bordered)
                     }
+                    cancelButton
                 }
             }
 
@@ -149,6 +224,7 @@ struct PeerConnectionView: View {
                     ProgressView()
                     Text("Connecting…")
                         .foregroundStyle(.secondary)
+                    cancelButton
                 }
             }
 
@@ -160,6 +236,53 @@ struct PeerConnectionView: View {
                     .buttonStyle(.borderedProminent)
             }
         }
+    }
+
+    /// Runs `start` immediately once the explainer has been acknowledged; the first time, shows it
+    /// first and runs `start` only when the person taps Continue.
+    private func startAfterExplainer(_ start: @escaping () -> Void) {
+        if hasSeenExplainer {
+            start()
+        } else {
+            pendingStart = start
+            showExplainer = true
+        }
+    }
+
+    private var cancelButton: some View {
+        Button("Cancel") { viewModel.cancel() }
+            .buttonStyle(.bordered)
+    }
+
+    private var localNetworkHint: some View {
+        VStack(spacing: 8) {
+            Text("Nobody found yet. Local Network access needed: Settings > Privacy > Local Network.")
+                .font(.footnote)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+            openSettingsButton
+        }
+    }
+
+    private func localNetworkProblem(_ detail: String) -> some View {
+        VStack(spacing: 8) {
+            Text("Local Network access needed")
+                .font(.headline)
+            Text("Settings > Privacy > Local Network")
+                .font(.subheadline)
+            Text(detail)
+                .font(.footnote)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+            openSettingsButton
+        }
+    }
+
+    private var openSettingsButton: some View {
+        Button("Open Settings") {
+            if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+        }
+        .buttonStyle(.borderedProminent)
     }
 
     /// A one-line, side-by-side preview of what each role actually does for *this* recipe —

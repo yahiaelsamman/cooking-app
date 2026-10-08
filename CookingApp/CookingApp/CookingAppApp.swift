@@ -10,24 +10,50 @@ struct CookingAppApp: App {
     // Held strongly for the app's lifetime — UNUserNotificationCenter.delegate is `weak`.
     private let notificationDelegate = NotificationDelegate()
     private let modelContainer: ModelContainer
+    @State private var storeFallbackNotice: Bool
 
     init() {
         UNUserNotificationCenter.current().delegate = notificationDelegate
 
+        // UI tests start from a clean persisted session (no stale "Resume Cooking") unless a
+        // test passes -UITestKeepSession (e.g. to verify resume after a relaunch).
+        if LaunchFlags.uiTesting && !LaunchFlags.keepSession {
+            SessionPersistence.clear()
+        }
+
+        // The Local Network explainer is shown once per install; UI tests see it every run unless
+        // a test passes -UITestSkipExplainer.
+        if LaunchFlags.uiTesting && !LaunchFlags.skipExplainer {
+            UserDefaults.standard.removeObject(forKey: "hasSeenLocalNetworkExplainer")
+        }
+
+        let container: ModelContainer
+        var usedFallback = false
         do {
-            if ProcessInfo.processInfo.arguments.contains("-UITesting") {
+            if LaunchFlags.uiTesting {
                 // XCUITest launches with this flag — an in-memory store means every test run
                 // starts from exactly the 20 bundled recipes and nothing else (no leftover
                 // custom recipes/favorites/ratings/shopping-list items from a previous run), and
                 // never touches the real on-device store a person actually cooks from.
                 let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-                modelContainer = try ModelContainer(for: Recipe.self, ShoppingListItem.self, configurations: configuration)
+                container = try ModelContainer(for: Recipe.self, ShoppingListItem.self, configurations: configuration)
             } else {
-                modelContainer = try ModelContainer(for: Recipe.self, ShoppingListItem.self)
+                container = try ModelContainer(for: Recipe.self, ShoppingListItem.self)
             }
         } catch {
-            fatalError("Could not create the recipe store: \(error)")
+            // Don't crash-loop on launch: fall back to a temporary in-memory store (bundled
+            // recipes still seed; changes made this session won't persist).
+            NSLog("Could not open the recipe store, using in-memory fallback: \(error)")
+            usedFallback = true
+            let fallback = ModelConfiguration(isStoredInMemoryOnly: true)
+            do {
+                container = try ModelContainer(for: Recipe.self, ShoppingListItem.self, configurations: fallback)
+            } catch {
+                fatalError("Could not create even an in-memory recipe store: \(error)")
+            }
         }
+        modelContainer = container
+        _storeFallbackNotice = State(initialValue: usedFallback)
         RecipeSeeder.seedIfNeeded(context: modelContainer.mainContext)
         // Restore into a local store and hand *that exact instance* to `@State`. Reading a
         // `@State` property from `init` (before the app is installed) doesn't reliably give back
@@ -42,6 +68,11 @@ struct CookingAppApp: App {
             RecipeListView()
                 .environment(sessionStore)
                 .environment(\.notificationPresentationState, notificationDelegate.presentationState)
+                .alert("Saved recipes couldn't be opened", isPresented: $storeFallbackNotice) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text("Your custom recipes, favorites and ratings couldn't be loaded. Anything you change in this session won't be saved. Restarting the app may help.")
+                }
         }
         .modelContainer(modelContainer)
         .onChange(of: scenePhase) { _, phase in

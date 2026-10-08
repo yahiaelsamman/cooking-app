@@ -23,10 +23,11 @@ struct RecipeListView: View {
     @State private var showWelcomeName = false
     @AppStorage("hasSeenRecipeListTour") private var hasSeenRecipeListTour = false
     @State private var tour = AppTour()
-    @State private var sortMode: RecipeSortMode = .alphabetical
+    @AppStorage("recipeSortMode") private var sortMode: RecipeSortMode = .alphabetical
     @State private var showFavoritesOnly = false
     @State private var showAddRecipe = false
     @State private var showShoppingList = false
+    @State private var showAbout = false
     @State private var searchText = ""
     @State private var selectedDietaryTags: Set<DietaryTag> = []
 
@@ -60,7 +61,7 @@ struct RecipeListView: View {
             TourStep(
                 target: "favoritesFilterButton",
                 title: "Favorites",
-                message: "Use the Show favorites only button to see just the recipes you've favorited."
+                message: "The Show favorites only button narrows the list to recipes you've favorited. Tap it to continue."
             ),
             TourStep(
                 target: "shoppingListButton",
@@ -172,8 +173,13 @@ struct RecipeListView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        showFavoritesOnly.toggle()
-                        tour.notify("favoritesFilterButton")
+                        // During the walkthrough this tap only advances it: a new user has no
+                        // favorites yet, so filtering would empty the list under the rest of the tour.
+                        if tour.currentStep?.targetID == "favoritesFilterButton" {
+                            tour.notify("favoritesFilterButton")
+                        } else {
+                            showFavoritesOnly.toggle()
+                        }
                     } label: {
                         Image(systemName: showFavoritesOnly ? "heart.fill" : "heart")
                             .foregroundStyle(.pink)
@@ -203,6 +209,15 @@ struct RecipeListView: View {
                     .accessibilityLabel("Your Profile")
                     .accessibilityIdentifier("cookingProfileButton")
                     .tourAnchor("cookingProfileButton")
+                }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showAbout = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .accessibilityLabel("About")
+                    .accessibilityIdentifier("aboutButton")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Picker("Sort", selection: $sortMode) {
@@ -243,8 +258,8 @@ struct RecipeListView: View {
                 switch route {
                 case .detail(let recipe):
                     RecipeDetailView(recipe: recipe, path: $path)
-                case .peerConnection(let recipe):
-                    PeerConnectionView(recipe: recipe, path: $path)
+                case .peerConnection(let recipe, let servingsScaleFactor):
+                    PeerConnectionView(recipe: recipe, servingsScaleFactor: servingsScaleFactor, path: $path)
                 case .steps(let session):
                     StepView(session: session, path: $path)
                 }
@@ -268,6 +283,9 @@ struct RecipeListView: View {
             .sheet(isPresented: $showShoppingList) {
                 ShoppingListView()
             }
+            .sheet(isPresented: $showAbout) {
+                AboutView()
+            }
         }
     }
 
@@ -277,7 +295,10 @@ struct RecipeListView: View {
     private var dietaryFilterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(DietaryTag.allCases, id: \.self) { tag in
+                // Only tags some recipe actually has (plus any already selected, so a chip never
+                // vanishes out from under the user) — a chip that can only ever match nothing
+                // reads as broken.
+                ForEach(DietaryTag.allCases.filter { tag in selectedDietaryTags.contains(tag) || recipes.contains { $0.dietaryTags.contains(tag) } }, id: \.self) { tag in
                     let isSelected = selectedDietaryTags.contains(tag)
                     Button {
                         if isSelected {
@@ -291,7 +312,7 @@ struct RecipeListView: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(isSelected ? Color.green : Color.green.opacity(0.12), in: Capsule())
-                            .foregroundStyle(isSelected ? .white : .green)
+                            .foregroundStyle(isSelected ? Color.white : Color.dietaryGreenText)
                             .frame(minHeight: 44)
                             .contentShape(Rectangle())
                     }
@@ -385,6 +406,7 @@ private struct ResumeSessionButton: View {
 /// justice to real recipe photos/illustrations, and this app is squarely about the images now.
 private struct RecipeRow: View {
     let recipe: Recipe
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -425,7 +447,8 @@ private struct RecipeRow: View {
                     .padding(.top, 1)
                 }
 
-                HStack(spacing: 10) {
+                let metaLayout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6)) : AnyLayout(HStackLayout(spacing: 10))
+                metaLayout {
                     DifficultyStarsView(difficulty: recipe.difficulty)
                     if recipe.spiceLevel > 0 {
                         SpiceLevelView(spiceLevel: recipe.spiceLevel)
@@ -443,11 +466,12 @@ private struct RecipeRow: View {
                 .padding(.top, 2)
 
                 if !recipe.dietaryTags.isEmpty {
-                    HStack(spacing: 6) {
+                    let tagLayout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(spacing: 6))
+                    tagLayout {
                         ForEach(recipe.dietaryTags, id: \.self) { tag in
                             Label(tag.label, systemImage: tag.systemImage)
                                 .font(.caption2.weight(.medium))
-                                .foregroundStyle(.green)
+                                .foregroundStyle(Color.dietaryGreenText)
                         }
                     }
                     .padding(.top, 2)

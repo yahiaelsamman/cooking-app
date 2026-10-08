@@ -63,6 +63,7 @@ struct PartnerStatusView: View {
         .padding(10)
         .background(cardBackground)
         .contentShape(Rectangle())
+        .accessibilityAddTraits(.isButton)
         .onTapGesture {
             showStatusExplanation = true
         }

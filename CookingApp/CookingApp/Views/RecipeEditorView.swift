@@ -37,6 +37,10 @@ struct RecipeEditorView: View {
     @State private var ingredients: [Ingredient]
     @State private var steps: [RecipeStep]
     @State private var showDeleteConfirm = false
+    @State private var showDiscardConfirm = false
+    @State private var saveError: String?
+    /// Snapshot of the form taken when it first appears; differs from `fingerprint` once edited.
+    @State private var baseline: String?
 
     init(existingRecipe: Recipe? = nil, onDelete: (() -> Void)? = nil) {
         self.existingRecipe = existingRecipe
@@ -72,11 +76,31 @@ struct RecipeEditorView: View {
             && (servingsText.isEmpty || (Int(servingsText) ?? 0) > 0)
     }
 
+    private var fingerprint: String {
+        [
+            title, summary, servingsText, String(difficulty), String(spiceLevel), soloCookTimeText,
+            dietaryTags.map(\.label).sorted().joined(separator: ","),
+            ingredients.map { "\($0.name)|\($0.amount)" }.joined(separator: ";"),
+            steps.map(\.instruction).joined(separator: ";")
+        ].joined(separator: "\u{1}")
+    }
+    private var isDirty: Bool { baseline != nil && baseline != fingerprint }
+
+    private var missingRequirements: [String] {
+        var missing: [String] = []
+        if trimmedTitle.isEmpty { missing.append("a title") }
+        if (soloCookTimeMinutes ?? 0) <= 0 { missing.append("cook time in minutes") }
+        if nonEmptyIngredients.isEmpty { missing.append("at least one ingredient") }
+        if nonEmptySteps.isEmpty { missing.append("at least one step") }
+        if !(servingsText.isEmpty || (Int(servingsText) ?? 0) > 0) { missing.append("servings as a number above 0") }
+        return missing
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section("Basics") {
-                    TextField("Title", text: $title)
+                    TextField("Title (required)", text: $title)
                         .accessibilityIdentifier("editorTitleField")
                     TextField("Summary", text: $summary, axis: .vertical)
                         .accessibilityIdentifier("editorSummaryField")
@@ -87,7 +111,7 @@ struct RecipeEditorView: View {
                 Section("Details") {
                     Stepper("Difficulty: \(difficulty)", value: $difficulty, in: 1...3)
                     Stepper("Spice level: \(spiceLevel)", value: $spiceLevel, in: 0...3)
-                    TextField("Cook time (minutes)", text: $soloCookTimeText)
+                    TextField("Cook time in minutes (required)", text: $soloCookTimeText)
                         .keyboardType(.numberPad)
                         .accessibilityIdentifier("editorCookTimeField")
                 }
@@ -103,7 +127,7 @@ struct RecipeEditorView: View {
                     }
                 }
 
-                Section("Ingredients") {
+                Section("Ingredients (at least one)") {
                     ForEach($ingredients) { $ingredient in
                         HStack {
                             TextField("Name", text: $ingredient.name)
@@ -123,7 +147,7 @@ struct RecipeEditorView: View {
                     .accessibilityIdentifier("addIngredientButton")
                 }
 
-                Section("Steps") {
+                Section("Steps (at least one)") {
                     ForEach($steps) { $step in
                         TextField("Instruction", text: $step.instruction, axis: .vertical)
                             .accessibilityIdentifier("stepInstructionField")
@@ -144,6 +168,14 @@ struct RecipeEditorView: View {
                     .accessibilityIdentifier("addStepButton")
                 }
 
+                if !isValid {
+                    Section {
+                        Text("To save, add \(missingRequirements.formatted(.list(type: .and))).")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 if existingRecipe?.isUserCreated == true {
                     Section {
                         Button("Delete Recipe", role: .destructive) {
@@ -156,7 +188,9 @@ struct RecipeEditorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        if isDirty { showDiscardConfirm = true } else { dismiss() }
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
@@ -169,6 +203,17 @@ struct RecipeEditorView: View {
                     // controls on and off.
                     EditButton()
                 }
+            }
+            .onAppear { if baseline == nil { baseline = fingerprint } }
+            .interactiveDismissDisabled(isDirty)
+            .confirmationDialog("Discard your changes?", isPresented: $showDiscardConfirm, titleVisibility: .visible) {
+                Button("Discard Changes", role: .destructive) { dismiss() }
+                Button("Keep Editing", role: .cancel) {}
+            }
+            .alert("Couldn't save recipe", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(saveError ?? "")
             }
             .confirmationDialog(
                 "Delete this recipe?",
@@ -247,7 +292,16 @@ struct RecipeEditorView: View {
             )
             modelContext.insert(recipe)
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            // Undo the half-applied save: drops a newly inserted recipe (so Retry can't create a
+            // duplicate) and reverts edits to an existing one (so Discard really discards).
+            // The editor's own @State fields still hold what the user typed.
+            modelContext.rollback()
+            saveError = error.localizedDescription
+            return
+        }
         dismiss()
     }
 }

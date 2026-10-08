@@ -41,7 +41,7 @@ struct ShoppingListItemTests {
     }
 
     @Test func dedupeIsCaseInsensitiveOnIngredientName() {
-        let existing = [ShoppingListItem(name: "eggs", amount: "2")]
+        let existing = [ShoppingListItem(name: "eggs", amount: "2", sourceRecipeTitle: "Test Recipe")]
         let recipe = makeRecipe(ingredients: [Ingredient(name: "EGGS", amount: "2")])
 
         let items = ShoppingListItem.itemsToAdd(for: recipe, scaleFactor: 1, existingItems: existing)
@@ -78,24 +78,24 @@ struct ShoppingListItemTests {
         #expect(fromB.count == 1, "different amounts shouldn't be silently merged or dropped")
     }
 
-    @Test func identicalIngredientsFromDifferentRecipesAreDeduped() {
-        let recipeA = makeRecipe(title: "Recipe A", ingredients: [Ingredient(name: "Salt", amount: "1 tsp")])
-        let recipeB = makeRecipe(title: "Recipe B", ingredients: [Ingredient(name: "Salt", amount: "1 tsp")])
+    @Test func identicalIngredientsFromDifferentRecipesAreBothKept() {
+        let recipeA = makeRecipe(title: "Recipe A", ingredients: [Ingredient(name: "Garlic cloves", amount: "2")])
+        let recipeB = makeRecipe(title: "Recipe B", ingredients: [Ingredient(name: "Garlic cloves", amount: "2")])
 
         let fromA = ShoppingListItem.itemsToAdd(for: recipeA, scaleFactor: 1, existingItems: [])
         let fromB = ShoppingListItem.itemsToAdd(for: recipeB, scaleFactor: 1, existingItems: fromA)
 
-        #expect(fromB.isEmpty, "the same name+amount already on the list shouldn't be duplicated just because it came from a different recipe")
+        #expect(fromB.count == 1, "two recipes that each need 2 cloves need 4 — dropping the second line undercounts")
+        #expect(fromB.first?.sourceRecipeTitle == "Recipe B")
     }
 
     @Test func dedupeIgnoresSurroundingWhitespaceInNames() {
-        let recipeA = makeRecipe(title: "Recipe A", ingredients: [Ingredient(name: "Salt ", amount: "1 tsp")])
-        let recipeB = makeRecipe(title: "Recipe B", ingredients: [Ingredient(name: " salt", amount: "1 tsp")])
+        let existing = [ShoppingListItem(name: "Salt ", amount: "1 tsp", sourceRecipeTitle: "Test Recipe")]
+        let recipe = makeRecipe(ingredients: [Ingredient(name: " salt", amount: "1 tsp")])
 
-        let fromA = ShoppingListItem.itemsToAdd(for: recipeA, scaleFactor: 1, existingItems: [])
-        let fromB = ShoppingListItem.itemsToAdd(for: recipeB, scaleFactor: 1, existingItems: fromA)
+        let items = ShoppingListItem.itemsToAdd(for: recipe, scaleFactor: 1, existingItems: existing)
 
-        #expect(fromB.isEmpty)
+        #expect(items.isEmpty)
     }
 
     private func makeRecipe(title: String = "Test Recipe", ingredients: [Ingredient]) -> Recipe {

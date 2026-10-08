@@ -36,9 +36,10 @@ struct HoldToFinishButton: View {
                 Text("Hold to\nFinish")
                     .font(.caption.weight(.semibold))
                     .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.5)
             }
         }
-        .frame(width: diameter, height: diameter)
+        .frame(width: min(diameter, 200), height: min(diameter, 200)) // capped so it can't swallow the step text at AX sizes
         .contentShape(Circle())
         .onLongPressGesture(minimumDuration: holdDuration, maximumDistance: 50) {
             finish()

@@ -13,6 +13,22 @@ public enum SyncMessageType: String, Codable, Sendable {
     /// real drop, which `ConnectionState`/`ConnectionState.disconnected` already covers.
     case presenceUpdate
     case leaveSession
+    /// The sender's complete set of running timers (possibly empty). The receiver REPLACES its
+    /// mirror with this, so a cancel/finish missed while disconnected can't leave a stale timer.
+    case timerSnapshot
+}
+
+/// One running timer in a `.timerSnapshot`: index in the sender's own track, plus total and remaining seconds.
+public struct TimerSnapshotEntry: Codable, Equatable, Sendable {
+    public let stepIndex: Int
+    public let totalSeconds: Int
+    public let remainingSeconds: Int
+
+    public init(stepIndex: Int, totalSeconds: Int, remainingSeconds: Int) {
+        self.stepIndex = stepIndex
+        self.totalSeconds = totalSeconds
+        self.remainingSeconds = remainingSeconds
+    }
 }
 
 /// Wire protocol sent between peers over MultipeerConnectivity.
@@ -32,6 +48,8 @@ public struct SyncMessage: Codable, Equatable, Sendable {
     public let senderName: String?
     /// `.presenceUpdate` only.
     public let isAway: Bool?
+    /// `.timerSnapshot` only.
+    public let timers: [TimerSnapshotEntry]?
 
     public init(
         type: SyncMessageType,
@@ -40,7 +58,8 @@ public struct SyncMessage: Codable, Equatable, Sendable {
         timerDurationSeconds: Int? = nil,
         hostRole: StepAssignee? = nil,
         senderName: String? = nil,
-        isAway: Bool? = nil
+        isAway: Bool? = nil,
+        timers: [TimerSnapshotEntry]? = nil
     ) {
         self.type = type
         self.recipeID = recipeID
@@ -49,6 +68,7 @@ public struct SyncMessage: Codable, Equatable, Sendable {
         self.hostRole = hostRole
         self.senderName = senderName
         self.isAway = isAway
+        self.timers = timers
     }
 
     public static func recipeSync(recipeID: UUID, hostRole: StepAssignee, senderName: String) -> SyncMessage {
@@ -79,5 +99,9 @@ public struct SyncMessage: Codable, Equatable, Sendable {
 
     public static func leaveSession() -> SyncMessage {
         SyncMessage(type: .leaveSession)
+    }
+
+    public static func timerSnapshot(_ timers: [TimerSnapshotEntry]) -> SyncMessage {
+        SyncMessage(type: .timerSnapshot, timers: timers)
     }
 }

@@ -113,8 +113,60 @@ public struct Ingredient: Identifiable, Codable, Hashable, Sendable {
 
     static func scale(_ amount: String, by factor: Double) -> String {
         guard factor.isFinite, factor > 0 else { return amount }
-        return scaleNormalized(normalizeVulgarFractions(amount), by: factor)
+        // "1,000 g": drop thousands separators before parsing, put one back if the input had one.
+        let (stripped, hadSeparator) = stripThousandsSeparators(amount)
+        let scaled = scaleNormalized(normalizeVulgarFractions(stripped), by: factor)
+        return hadSeparator ? groupThousands(scaled) : scaled
     }
+
+    private static func stripThousandsSeparators(_ amount: String) -> (String, Bool) {
+        var result = ""
+        var found = false
+        let chars = Array(amount)
+        var i = 0
+        while i < chars.count {
+            let c = chars[i]
+            if c == ",", i > 0, chars[i - 1].isASCII, chars[i - 1].isNumber,
+               i + 3 < chars.count, chars[(i + 1)...(i + 3)].allSatisfy({ $0.isASCII && $0.isNumber }) {
+                found = true
+            } else {
+                result.append(c)
+            }
+            i += 1
+        }
+        return (result, found)
+    }
+
+    /// Inserts commas into each run of 4+ digits ("1500 g" -> "1,500 g").
+    private static func groupThousands(_ text: String) -> String {
+        var out = ""
+        var digits = ""
+        func flush() {
+            if digits.count > 3 {
+                var grouped = ""
+                for (offset, d) in digits.reversed().enumerated() {
+                    if offset > 0, offset % 3 == 0 { grouped.append(",") }
+                    grouped.append(d)
+                }
+                out += String(grouped.reversed())
+            } else {
+                out += digits
+            }
+            digits = ""
+        }
+        for c in text {
+            if c.isASCII, c.isNumber { digits.append(c) } else { flush(); out.append(c) }
+        }
+        flush()
+        return out
+    }
+
+    /// Units allowed before a range dash ("1 cup - 2 cups", "200g-300g"). Other words must not
+    /// match, or "1 can - 400g" would be misread as a range and its 400g scaled.
+    private static let knownRangeUnits: Set<String> = [
+        "g", "kg", "mg", "ml", "l", "cl", "dl", "oz", "lb", "lbs", "cup", "cups",
+        "tsp", "tbsp", "tbs", "pt", "qt", "gal", "cm", "mm", "inch",
+    ]
 
     private static func scaleNormalized(_ amount: String, by factor: Double) -> String {
         guard let quantity = parseLeadingQuantity(amount) else { return amount }
@@ -135,13 +187,30 @@ public struct Ingredient: Identifiable, Codable, Hashable, Sendable {
         // Range like "2-3 cloves": the remainder starts with a dash then another quantity.
         var rangeSeparator = Substring(remainder)
         var separator = ""
+        // A short unit before the dash: "200g-300g", "1 cup - 2 cups".
+        var unitPrefix = ""
+        do {
+            var probe = rangeSeparator
+            var unit = ""
+            while let c = probe.first, c == " " { unit.append(c); probe.removeFirst() }
+            var letters = 0
+            while let c = probe.first, c.isLetter, letters < 8 { unit.append(c); probe.removeFirst(); letters += 1 }
+            if letters > 0, knownRangeUnits.contains(String(unit.drop(while: { $0 == " " })).lowercased()) {
+                var after = probe
+                while let c = after.first, c == " " { after.removeFirst() }
+                if let d = after.first, d == "-" || d == "\u{2013}" {
+                    unitPrefix = unit
+                    rangeSeparator = probe
+                }
+            }
+        }
         while let c = rangeSeparator.first, c == " " { separator.append(c); rangeSeparator.removeFirst() }
         if let dash = rangeSeparator.first, dash == "-" || dash == "\u{2013}" {
             separator.append(dash)
             rangeSeparator.removeFirst()
             while let c = rangeSeparator.first, c == " " { separator.append(c); rangeSeparator.removeFirst() }
             if let upper = rangeSeparator.first, upper.isASCII, upper.isNumber {
-                remainder = separator + scaleNormalized(String(rangeSeparator), by: factor)
+                remainder = unitPrefix + separator + scaleNormalized(String(rangeSeparator), by: factor)
             }
         }
         return formatQuantity(quantity.value * factor) + remainder
@@ -231,8 +300,18 @@ public struct Ingredient: Identifiable, Codable, Hashable, Sendable {
     private static func formatQuantity(_ value: Double) -> String {
         guard value.isFinite, value > 0 else { return "0" }
 
+        // Large amounts: fractional grams/ml are noise.
+        if value >= 100 { return formatWhole(value) }
+
         let whole = value.rounded(.down)
         let fractional = value - whole
+
+        // Tiny amounts ("0.06 cup"): show 1/16 only when the value really is about 1/16; anything
+        // smaller stays a decimal (never inflated), floored at 0.01 so it doesn't read "0".
+        if whole == 0, value < 0.1 {
+            if abs(value - 0.0625) < 0.02 { return "1/16" }
+            return trimmedDecimal(max(value, 0.01))
+        }
 
         if fractional < 0.02 { return formatWhole(whole) }
         if fractional > 0.98 { return formatWhole(whole + 1) }

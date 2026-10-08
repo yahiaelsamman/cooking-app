@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # Needs Swift 6.2 (`isolated deinit`), the iOS 26 SDK, and full Xcode for
+      # SwiftData's macros.
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Core unit tests
+        working-directory: CookingAppCore
+        run: swift test
+
+      # UI tests are left out on purpose: they take ~5 minutes and need a booted Simulator
+      # (see instructions.md for how to run them locally).
+      - name: Build the app for the Simulator (unsigned)
+        run: |
+          xcodebuild build \
+            -project CookingApp/CookingApp.xcodeproj \
+            -scheme CookingApp \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO

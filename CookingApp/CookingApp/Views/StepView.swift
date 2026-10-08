@@ -396,10 +396,10 @@ struct StepView: View {
             Spacer()
 
             if let step = session.currentStep {
-                // At the largest accessibility text sizes a long step plus its illustration can be
-                // taller than the screen and push Back / Finish off it, so only there the step
-                // becomes scrollable. At every other size the layout is exactly as before.
-                if dynamicTypeSize.isAccessibilitySize {
+                // At the largest accessibility text sizes, or for a long user-written step, the
+                // step plus its illustration can be taller than the screen and push Back / Finish
+                // off it, so only then the step becomes scrollable. Otherwise the layout is fixed.
+                if dynamicTypeSize.isAccessibilitySize || step.instruction.count > 200 {
                     ScrollView { stepContent(step) }
                 } else {
                     stepContent(step)
@@ -596,6 +596,7 @@ struct StepView: View {
                     .accessibilityHidden(true)
                 Text("Recipe Complete")
                     .font(.title.bold())
+                    .multilineTextAlignment(.center)
                     .accessibilityAddTraits(.isHeader)
 
                 VStack(spacing: 12) {
@@ -604,6 +605,8 @@ struct StepView: View {
                         path = []
                     }
                     .buttonStyle(.borderedProminent)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
 
                     // In case the last tap/hold past the final step was an accident and you're
                     // not actually done cooking yet.
@@ -611,7 +614,10 @@ struct StepView: View {
                         session.goBack()
                     }
                     .buttonStyle(.bordered)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
+                .padding(.horizontal, 24)
             }
         }
         // The enclosing ZStack aligns to .top, so without this the card hugs the top of the

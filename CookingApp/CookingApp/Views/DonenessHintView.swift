@@ -19,6 +19,8 @@ struct DonenessHintView: View {
                 } label: {
                     Label("How do I check?", systemImage: isExpanded ? "chevron.up.circle.fill" : "questionmark.circle.fill")
                         .font(.subheadline.weight(.semibold))
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)

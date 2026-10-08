@@ -116,8 +116,12 @@ public final class CookingSessionViewModel {
         peerSync?.onPartnerTimerCancelled = { [weak self] stepIndex in
             self?.handlePartnerTimerCancelled(stepIndex: stepIndex)
         }
+        peerSync?.onPartnerTimerSnapshot = { [weak self] entries in
+            self?.handlePartnerTimerSnapshot(entries)
+        }
         peerSync?.onPartnerLeft = { [weak self] in
             self?.partnerDidLeave = true
+            self?.clearPartnerTimers()
         }
         peerSync?.onConnected = { [weak self] in
             self?.announceProgressAndTimers()
@@ -249,6 +253,7 @@ public final class CookingSessionViewModel {
     /// recipe on your own.
     public func endSharedSession() {
         peerSync?.leaveSession()
+        clearPartnerTimers()
     }
 
     /// Re-announces my current step and every timer I have running — called whenever the
@@ -258,12 +263,13 @@ public final class CookingSessionViewModel {
     /// frozen at whatever they were doing right before the drop.
     private func announceProgressAndTimers() {
         peerSync?.sendProgress(stepIndex: currentIndex)
-        for timer in activeTimers {
-            guard let index = track.firstIndex(where: { $0.id == timer.step.id }) else { continue }
-            // Resend the *remaining* time, not the total — the partner's mirrored countdown
-            // should reflect reality, not restart from the full duration.
-            peerSync?.sendTimerStarted(stepIndex: index, durationSeconds: timer.remainingSeconds)
+        // A full snapshot (total + remaining), sent even when empty: the partner replaces its
+        // mirror with it, so timers cancelled/finished while apart disappear too.
+        let entries: [TimerSnapshotEntry] = activeTimers.compactMap { timer in
+            guard let index = track.firstIndex(where: { $0.id == timer.step.id }) else { return nil }
+            return TimerSnapshotEntry(stepIndex: index, totalSeconds: timer.totalSeconds, remainingSeconds: timer.remainingSeconds)
         }
+        peerSync?.sendTimerSnapshot(entries)
     }
 
     // MARK: - Timers
@@ -313,6 +319,22 @@ public final class CookingSessionViewModel {
             partnerActiveTimers.append(ActiveTimer(step: step, totalSeconds: duration, remainingSeconds: duration, endDate: end))
         }
         ensureTicking()
+    }
+
+    func handlePartnerTimerSnapshot(_ entries: [TimerSnapshotEntry]) {
+        guard let partnerRole else { return }
+        let partnerTrack = recipe.track(for: partnerRole)
+        let now = nowProvider()
+        partnerActiveTimers = entries.compactMap { entry in
+            guard entry.stepIndex >= 0, entry.stepIndex < partnerTrack.count, entry.remainingSeconds > 0 else { return nil }
+            return ActiveTimer(step: partnerTrack[entry.stepIndex], totalSeconds: max(entry.totalSeconds, entry.remainingSeconds), remainingSeconds: entry.remainingSeconds, endDate: now.addingTimeInterval(TimeInterval(entry.remainingSeconds)))
+        }
+        if partnerActiveTimers.isEmpty { stopTickingIfIdle() } else { ensureTicking() }
+    }
+
+    private func clearPartnerTimers() {
+        partnerActiveTimers = []
+        stopTickingIfIdle()
     }
 
     private func handlePartnerTimerCancelled(stepIndex: Int) {

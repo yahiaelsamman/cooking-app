@@ -77,13 +77,19 @@ struct WelcomeNameView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
-
-            Button("Continue") { save() }
-                .buttonStyle(.borderedProminent)
-                .disabled(trimmedDraft.isEmpty)
         }
         .padding()
         .padding(.top, 40)
+        }
+        // Pinned above the keyboard so Continue is never hidden by it.
+        .safeAreaInset(edge: .bottom) {
+            Button("Continue") { save() }
+                .accessibilityIdentifier("welcomeContinueButton")
+                .buttonStyle(.borderedProminent)
+                .disabled(trimmedDraft.isEmpty)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(.bar)
         }
         .onAppear {
             draft = name

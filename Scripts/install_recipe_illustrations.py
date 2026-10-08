@@ -2,8 +2,7 @@
 
 Third script in this project's asset pipeline (see fetch_recipe_photos.py / install_recipe_photo.py
 for the original stock-photo pipeline this supersedes for hero images, and now covers steps too).
-Built for the illustrations/ pipeline — prompts live in illustrations/prompts/<slug>.md, built
-from illustrations/README.md's locked style guide.
+Built for the illustrations/ pipeline — prompts live in illustrations/prompts/<slug>.md, see illustrations/README.md.
 
 Human-in-the-loop workflow:
   1. Generate images in ChatGPT using illustrations/prompts/<slug>.md, IN ORDER: the hero shot
@@ -20,7 +19,7 @@ Human-in-the-loop workflow:
          points to — no Swift change needed for the hero)
        - the rest, in order  -> recipe-step-<slug>-0.imageset, recipe-step-<slug>-1.imageset, ...
          (new imagesets — after running this, set stepImageName: "recipe-step-<slug>-N" on the
-         matching RecipeStep in SampleRecipes.swift, or just ask Claude to)
+         matching RecipeStep in SampleRecipes.swift)
      Prints exactly what it's about to do before touching anything. Refuses to run if fewer than
      (step-count + 1) matching files exist, or if any are older than 24 hours (a safety net
      against sweeping up leftovers from a previous recipe's batch).
@@ -165,7 +164,7 @@ def main() -> None:
     print(f"\nWrote {needed} images and removed the originals from {DOWNLOADS}.")
     print(
         f"\nNext: add stepImageName: \"recipe-step-{slug}-N\" to each step in SampleRecipes.swift "
-        f"(N = 0..{step_count - 1}), or ask Claude to."
+        f"(N = 0..{step_count - 1})."
     )
 
 

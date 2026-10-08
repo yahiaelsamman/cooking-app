@@ -29,6 +29,8 @@ struct TimerStackView: View {
             Spacer(minLength: 8)
             Text(StepTimerControl.formatted(info.remainingSeconds))
                 .monospacedDigit()
+                .lineLimit(1)
+                .fixedSize() // never wrap or truncate the countdown; the task name gives way instead
         }
         .font(.subheadline.weight(.semibold))
         // Matches DualProgressSliderView's marker colors: mine = accentColor, partner = orange —
