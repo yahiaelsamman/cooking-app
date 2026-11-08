@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A stand-in for real step/recipe photography — a soft gradient "photo card" with the SF Symbol
 /// shown large and faint on top, so the sizing/corner-radius/shadow treatment of a real photo can
-/// be previewed before any actual images exist. Not a real asset pipeline (see instructions.md):
+/// be previewed before any actual images exist. Not a real asset pipeline (see ARCHITECTURE.md):
 /// swapping in real photos later just means replacing this view's contents for the ones you have.
 struct PlaceholderPhotoView: View {
     let systemImage: String

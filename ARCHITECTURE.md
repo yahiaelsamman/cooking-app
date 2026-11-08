@@ -1,15 +1,7 @@
-# Cooking App — Reference
+# Architecture
 
-A step-by-step recipe navigator for iOS (SwiftUI): a recipe is a sequence of full-screen steps,
-tap/swipe to advance — built for cooking with messy hands, not scanning a wall of text. Some
-recipes support **two-person mode**, splitting labor across two nearby iPhones synced live over
-`MultipeerConnectivity` (no internet, no accounts, no backend).
-
-Repo: https://github.com/yahiaelsamman/cooking-app
-
-**This file describes current behavior only.** For *why* something is shaped the way it is, or a
-history of what changed and when, read `git log` — every feature landed as its own commit with a
-detailed message explaining the reasoning.
+How the app is put together, file by file, plus the pitfalls I ran into. This describes the
+current state; the reasoning behind each change is in its commit message.
 
 ## Architecture
 
@@ -183,42 +175,27 @@ finish, so when scripting, run it in the background logging to a file, wait for 
 
 ---
 
-## Reading guide
+## Where to start reading
 
-If you're picking this up fresh, read in this order:
+1. **`CookingAppCore/Sources/CookingAppCore/Recipe.swift`**: the whole domain model in one file
+   (`Recipe`, `RecipeStep`, `Ingredient`, solo and two-person step lists). Everything else is UI or
+   plumbing around it.
+2. **`CookingAppCore/Tests/CookingAppCoreTests/RecipeModelTests.swift`**: the tests spell out the
+   contracts, e.g. "two-person cook time is always shorter than solo".
+3. **`CookingApp/CookingApp/Views/StepView.swift`**: the screen the app exists for.
+4. **`CookingAppCore/Sources/CookingAppCore/PeerSyncService.swift`** and `SyncMessage.swift`: two-person
+   mode. The MultipeerConnectivity delegate callbacks are thin and hand off to `internal` synchronous
+   handlers, so the networking logic can be tested without a real network.
 
-1. **`CookingAppCore/Sources/CookingAppCore/Recipe.swift`** — the entire domain model in one file.
-   Once you understand `Recipe`/`RecipeStep`/`Ingredient` and the solo-vs-two-person step lists,
-   everything else is UI or plumbing around this.
-2. **`CookingAppCore/Tests/CookingAppCoreTests/RecipeModelTests.swift`** — tests double as
-   executable documentation here; reading them tells you the *contracts* (e.g. "two-person cook
-   time is always shorter than solo") more precisely than prose would.
-3. **`CookingApp/CookingApp/Views/StepView.swift`** — the one screen this whole app exists to
-   serve. Everything else (list, detail, editor, shopping list) is secondary to "show me one step
-   at a time."
-4. **`CookingAppCore/Sources/CookingAppCore/PeerSyncService.swift`** + `SyncMessage.swift` — only
-   once you want to understand two-person mode. Notice the internal/external split (public
-   MultipeerConnectivity delegate callbacks vs. `internal` synchronous handlers) — that pattern is
-   what makes networking code testable without a real network, and is worth recognizing since
-   it recurs any time you'd otherwise need to mock a system framework.
+## Design decisions
 
-**Architectural decisions worth noticing, not just the code itself:**
-
-- **Package boundary as a testability boundary.** `CookingAppCore` has zero UIKit/SwiftUI imports.
-  This isn't just "clean architecture" for its own sake — it's the concrete reason the full test suite runs in
-  a few seconds with `swift test`, no simulator needed, while the app target's view code is
-  verified by compiling + eyeballing it. When you add a feature, ask "does this belong in Core?"
-  before reaching for a View — if the answer is logic/state/decisions, it almost always does.
-- **SwiftData `@Model` for one real store, not a mock/hardcoded-data split.** `SampleRecipes.swift`
-  are Swift value literals used only as seed data (`RecipeSeeder`) — the actual running app always
-  reads from one real on-device SwiftData store via `@Query`. There's no separate "test mode with
-  fake data" vs "prod mode with real data" branch to keep in sync.
-- **Additive-by-id seeding, not idempotent-overwrite seeding.** `RecipeSeeder` inserts whichever
-  bundled recipes the store doesn't already have; for existing bundled ones it re-syncs curated content only (user fields such as favorites, notes and ratings are preserved). This is the kind
-  of decision that looks like extra complexity until you trace through *why* — the naive version
-  (wipe and reseed) would destroy user data (favorites, notes, ratings) on every app update.
-- **Snapshot, not a live reference, for the shopping list.** `ShoppingListItem` copies ingredient
-  text rather than holding a relationship to its source `Recipe`. Look for this pattern —
-  "reference vs. snapshot" — anywhere a feature described as "add X to Y" shows up; it's usually a
-  deliberate choice, not an oversight, and the choice usually hinges on whether Y should track
-  future edits to X or not.
+- **The package boundary is the testability boundary.** `CookingAppCore` has no UIKit/SwiftUI
+  imports, which is why the whole test suite runs in a few seconds with `swift test` and no simulator.
+  Logic, state and decisions go in Core; views stay thin.
+- **One real SwiftData store.** `SampleRecipes.swift` is only seed data for `RecipeSeeder`; the app
+  always reads from the on-device store via `@Query`. There is no separate fake-data mode to keep in sync.
+- **Seeding is additive by id.** `RecipeSeeder` inserts bundled recipes the store doesn't have yet and
+  re-syncs curated content for existing ones, keeping favorites, notes and ratings. Wiping and
+  re-seeding would lose that user data on every update.
+- **The shopping list stores a snapshot.** `ShoppingListItem` copies the ingredient text instead of
+  referencing the `Recipe`, so later edits to a recipe don't change a list you already made.

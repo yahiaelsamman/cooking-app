@@ -60,7 +60,7 @@ tracks, like starting your onions now so they finish when your partner's sauce r
   seed data; the running app always reads from a single on-device store, with additive-by-id
   seeding so app updates never wipe a user's favorites, notes, or ratings.
 
-See [`instructions.md`](instructions.md) for the full architecture breakdown, file-by-file notes,
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full architecture breakdown, file-by-file notes,
 and known limitations — it's written to onboard a new contributor to the codebase, not just to
 describe features.
 
@@ -92,7 +92,7 @@ cd CookingAppCore && swift test
 ```
 
 `CookingAppCoreTests` is the real test suite, covering the Core package's logic. A
-separate `CookingAppUITests` target (XCUITest) exercises real touch-driven flows against the running app. It is not run in CI; run it from Xcode with Cmd+U or via `xcodebuild test` (see instructions.md for the exact command and the no-`timeout` note).
+separate `CookingAppUITests` target (XCUITest) exercises real touch-driven flows against the running app. It is not run in CI; run it from Xcode with Cmd+U or via `xcodebuild test` (see ARCHITECTURE.md for the exact command and the no-`timeout` note).
 
 ## Tech
 
@@ -103,7 +103,7 @@ Swift · SwiftUI · SwiftData · MultipeerConnectivity · UserNotifications · X
 Feature development is paused for now while I focus on a job search, but the app is fully
 functional end to end — solo and two-person cooking, the recipe editor, shopping list, and the
 onboarding tour all work. It isn't on the App Store; build it from source to try it.
-`instructions.md` lists the concrete next steps (a two-person split editor, illustrations for the
+`ARCHITECTURE.md` lists the concrete next steps (a two-person split editor, illustrations for the
 remaining recipes, CloudKit sync) if you're curious where it was headed.
 
 ## License

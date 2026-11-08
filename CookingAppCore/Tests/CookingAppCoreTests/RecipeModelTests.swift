@@ -275,7 +275,7 @@ struct RecipeModelTests {
     // (the main run loop) but a `swift test` process's threading model doesn't reliably
     // guarantee. So these test the public state transitions `startTimer`/`cancelTimer` make
     // synchronously, not the real 1-second-interval countdown firing to completion — that's
-    // covered by manual verification in the running app instead (see instructions.md).
+    // covered by manual verification in the running app instead (see ARCHITECTURE.md).
 
     @Test func startTimerSetsRunningStateForTimedStep() {
         let recipe = SampleRecipes.searedSteak
@@ -351,7 +351,7 @@ struct RecipeModelTests {
     // MARK: - Recipe metadata regression guards
 
     @Test func allSampleRecipeIDsAreUnique() {
-        // Fixed UUID literals, not random `UUID()` (see instructions.md's pitfalls) — a copy/paste
+        // Fixed UUID literals, not random `UUID()` (see ARCHITECTURE.md, Known pitfalls) — a copy/paste
         // duplicate here would silently break the host/joiner recipeID handshake for whichever
         // two recipes collided.
         let ids = SampleRecipes.all.map(\.id)
@@ -418,8 +418,8 @@ struct RecipeModelTests {
     }
 
     @Test func chickenDonenessStepsCiteTheSafeInternalTemperature() {
-        // Real food-safety content check (added after a web-research pass flagged it, see
-        // instructions.md pass 19): "cooked through"/"until done"/"until browned" is not a
+        // Real food-safety content check (see
+        // ARCHITECTURE.md): "cooked through"/"until done"/"until browned" is not a
         // reliable doneness signal for poultry the way it can be for other meats — chicken needs
         // to reach 165°F (USDA's safe minimum) regardless of color or texture. This guards the
         // convention every bundled chicken recipe's doneness step now follows, so a future recipe
@@ -440,7 +440,7 @@ struct RecipeModelTests {
     }
 
     @Test func groundBeefDonenessStepsCiteTheSafeInternalTemperature() {
-        // Same reasoning as the chicken guard above (pass 19): ground meat mixes any surface
+        // Same reasoning as the chicken guard above: ground meat mixes any surface
         // bacteria throughout, so color ("browned"/"no longer pink") is a weaker signal than for
         // a whole cut — USDA's guidance is 160°F for ground beef specifically.
         for recipe in SampleRecipes.all {

@@ -1,6 +1,6 @@
 """Fetches candidate hero photos for each sample recipe from Pexels' free stock-photo API.
 
-This is step one of a two-step, human-in-the-loop pipeline (see instructions.md): stock-photo
+This is step one of a two-step, human-in-the-loop pipeline (see ARCHITECTURE.md): stock-photo
 relevance needs a real look before it's locked in, so this script only narrows the field — it
 downloads a handful of candidates per recipe into a scratch review folder, it never picks one for
 you. Once you've picked a winner for a recipe, hand it to `install_recipe_photo.py` to actually

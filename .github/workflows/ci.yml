@@ -32,7 +32,7 @@ jobs:
         run: swift test
 
       # UI tests are left out on purpose: they take ~5 minutes and need a booted Simulator
-      # (see instructions.md for how to run them locally).
+      # (see ARCHITECTURE.md for how to run them locally).
       - name: Build the app for the Simulator (unsigned)
         run: |
           xcodebuild build \
